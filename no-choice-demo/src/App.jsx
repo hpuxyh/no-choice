@@ -40,6 +40,8 @@ import {
 } from "./geoPoi";
 
 const dragLimit = 96;
+const autoSlideDelay = 3200;
+const slideDuration = 320;
 const emptyGeoState = {
   status: "idle",
   coords: null,
@@ -104,6 +106,18 @@ export default function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "swipe" || !session || session.cards.length < 2 || fly || drag.active) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      drawNextCard("auto");
+    }, autoSlideDelay);
+
+    return () => window.clearTimeout(timer);
+  }, [drag.active, fly, phase, session?.cards.length, session?.index]);
 
   function applyPreset(preset) {
     setActiveModuleId(preset.id);
@@ -361,10 +375,10 @@ export default function App() {
     }
   }
 
-  function drawNextCard() {
+  function drawNextCard(source = "manual") {
     if (!session || fly) return;
 
-    setFly("left");
+    setFly(source === "auto" ? "auto-left" : "left");
     window.setTimeout(() => {
       setSession((current) =>
         current
@@ -375,7 +389,7 @@ export default function App() {
           : current,
       );
       setFly(null);
-    }, 260);
+    }, slideDuration);
   }
 
   function commitSwipe(direction) {
@@ -408,7 +422,7 @@ export default function App() {
       }
 
       setFly(null);
-    }, 260);
+    }, slideDuration);
   }
 
   async function shareResult() {
@@ -788,8 +802,8 @@ function DecisionCard({
   const flyTransform =
     fly === "right"
       ? "translate3d(135%, -8%, 0) rotate(18deg)"
-      : fly === "left"
-        ? "translate3d(-135%, -8%, 0) rotate(-18deg)"
+      : fly === "left" || fly === "auto-left"
+        ? `translate3d(${fly === "auto-left" ? "-112%" : "-135%"}, -6%, 0) rotate(${fly === "auto-left" ? "-12deg" : "-18deg"})`
         : "";
   const activeTransform = `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${rotation}deg)`;
   const stackTransform = `translateY(${stackIndex * 13}px) scale(${1 - stackIndex * 0.045})`;
