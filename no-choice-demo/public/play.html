@@ -54,13 +54,15 @@
       .setupCard { background: var(--card); border: 3px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow); padding: 12px; display: flex; flex-direction: column; gap: 9px; flex: none; }
       .avatarRow { display: flex; gap: 12px; align-items: center; }
       .avatarSlot { position: relative; flex: none; width: 74px; height: 74px; border: 3px solid var(--ink); border-radius: 14px; background: var(--paper); display: grid; place-items: center; cursor: pointer; overflow: hidden; box-shadow: var(--shadow-sm); }
-      .avatarSlot canvas { width: 100%; height: 100%; image-rendering: pixelated; display: none; }
+      .avatarSlot canvas, .avatarSlot .avatarPic { width: 100%; height: 100%; image-rendering: pixelated; display: none; object-fit: cover; }
       .avatarSlot.set canvas { display: block; }
-      .avatarSlot.set .avatarEmoji { display: none; }
+      .avatarSlot.pic .avatarPic { display: block; }
+      .avatarSlot.set .avatarEmoji, .avatarSlot.pic .avatarEmoji { display: none; }
       .avatarEmoji { font-size: 40px; line-height: 1; }
       .avatarGallery { display: flex; gap: 7px; overflow-x: auto; padding: 2px 0 4px; }
-      .gAv { flex: none; width: 46px; height: 46px; border: 2px solid var(--ink); border-radius: 10px; display: grid; place-items: center; font-size: 26px; background: var(--paper); cursor: pointer; box-shadow: var(--shadow-sm); }
-      .gAv.on { background: var(--yellow); }
+      .gAv { flex: none; width: 46px; height: 46px; border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; display: grid; place-items: center; font-size: 26px; background: var(--paper); cursor: pointer; box-shadow: var(--shadow-sm); padding: 0; }
+      .gAv img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
+      .gAv.on { background: var(--yellow); outline: 3px solid var(--yellow); outline-offset: -3px; }
       .infoCol { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
       .field { width: 100%; border: 2px solid var(--ink); border-radius: 10px; padding: 9px 11px; font-size: 14px; font-weight: 700; background: var(--paper); font-family: inherit; color: var(--ink); }
       .field::placeholder { color: #a59c86; font-weight: 600; }
@@ -245,7 +247,7 @@
           <div class="sub">欢迎来到没有选择困难的世界，请设置你的初始形象 👾</div>
           <div class="setupCard">
             <div class="avatarRow">
-              <button class="avatarSlot" id="avatarSlot" type="button" title="点头像上传自己的照片"><canvas id="avatarCanvas" width="64" height="64"></canvas><span class="avatarEmoji" id="avatarEmoji">🍄</span></button>
+              <button class="avatarSlot" id="avatarSlot" type="button" title="点头像上传自己的照片"><canvas id="avatarCanvas" width="64" height="64"></canvas><img class="avatarPic" id="avatarPic" alt="" /><span class="avatarEmoji" id="avatarEmoji">🍄</span></button>
               <div class="infoCol">
                 <div class="hintRow pixel">从下方图库挑一个，<br />或点头像上传照片生成像素头像</div>
                 <button class="locBtn" id="locBtn" onclick="grantLoc()">📍 授权定位 · 显示当前位置</button>
@@ -267,7 +269,7 @@
             </div>
           </div>
           <input type="file" id="photo" accept="image/*" hidden />
-          <button class="btn huge" onclick="finishConfig()">完成，进入游戏 →</button>
+          <button class="btn huge red" onclick="finishConfig()">完成，进入游戏 →</button>
         </section>
 
         <!-- 3) GAME -->
@@ -529,7 +531,8 @@
       const CUTE = ["🍄","👾","🐸","🦖","🐤","👻","🤖","🐱","🐙","⭐","🎈","🍙"];
       let playerEmoji = CUTE[Math.floor(Math.random() * CUTE.length)];
       let photoData = "";
-      const photo = $("#photo"), slot = $("#avatarSlot"), canv = $("#avatarCanvas");
+      let avatarSrc = "";   // 从图库选中的像素角色图
+      const photo = $("#photo"), slot = $("#avatarSlot"), canv = $("#avatarCanvas"), avatarPic = $("#avatarPic");
       slot.addEventListener("click", () => photo.click());
       photo.addEventListener("change", (e) => {
         const f = e.target.files && e.target.files[0];
@@ -550,7 +553,8 @@
           ctx.imageSmoothingEnabled = false;
           ctx.clearRect(0, 0, canv.width, canv.height);
           ctx.drawImage(tmp, 0, 0, px, px, 0, 0, canv.width, canv.height);
-          slot.classList.add("set");
+          avatarSrc = "";
+          slot.classList.remove("pic"); slot.classList.add("set");
           try { photoData = canv.toDataURL(); } catch (err) { photoData = ""; }
           document.querySelectorAll(".gAv").forEach((x) => x.classList.remove("on"));
           updatePill();
@@ -584,10 +588,11 @@
 
       function updatePill() {
         const p = $("#playerPill");
-        if (photoData) { p.textContent = ""; p.style.backgroundImage = `url(${photoData})`; p.classList.add("img"); }
+        const src = photoData || avatarSrc;
+        if (src) { p.textContent = ""; p.style.backgroundImage = `url("${src}")`; p.classList.add("img"); }
         else { p.style.backgroundImage = ""; p.classList.remove("img"); p.textContent = playerEmoji; }
       }
-      function skipConfig() { if (!photoData) playerEmoji = CUTE[Math.floor(Math.random() * CUTE.length)]; updatePill(); toast("已用随机像素形象 " + (photoData ? "" : playerEmoji)); go("game"); }
+      function skipConfig() { if (!photoData && !avatarSrc) playerEmoji = CUTE[Math.floor(Math.random() * CUTE.length)]; updatePill(); toast("已用随机像素形象"); go("game"); }
       function finishConfig() { updatePill(); go("game"); }
 
       // 语音输入（Web Speech API；不支持则提示打字）
@@ -605,19 +610,19 @@
         recog.start();
       }
 
-      // 头像图库（原型用通用像素风 emoji；可换成自有像素角色素材）
-      const GALLERY = ["🍄","👾","🐉","👻","🤖","🧙","🥷","🐸","🐱","🦖","⭐","🦊","🐙","👑","🐧","🐤"];
+      // 头像图库：像素角色图（切片自素材图，存放在 avatars/）
+      const GALLERY = Array.from({length:18},(_,i)=>`avatars/av${i+1}.png`);
       function buildGallery(){
         const g = $("#avatarGallery"); if(!g) return;
-        g.innerHTML = GALLERY.map(e=>`<button type="button" class="gAv" data-emoji="${e}">${e}</button>`).join("");
-        g.addEventListener("click",(e)=>{ const b=e.target.closest(".gAv"); if(b) selectAvatar(b.dataset.emoji, b); });
-        const ae=$("#avatarEmoji"); if(ae) ae.textContent = playerEmoji;
-        const match=[...g.children].find(c=>c.dataset.emoji===playerEmoji); if(match) match.classList.add("on");
+        g.innerHTML = GALLERY.map(src=>`<button type="button" class="gAv" data-src="${src}"><img src="${src}" alt="" /></button>`).join("");
+        g.addEventListener("click",(e)=>{ const b=e.target.closest(".gAv"); if(b) selectAvatar(b.dataset.src, b); });
+        // 默认选中第一个像素角色
+        selectAvatar(GALLERY[0], g.firstElementChild);
       }
-      function selectAvatar(emoji, btn){
-        playerEmoji = emoji; photoData = "";
-        slot.classList.remove("set");
-        const ae=$("#avatarEmoji"); if(ae) ae.textContent = emoji;
+      function selectAvatar(src, btn){
+        avatarSrc = src; photoData = "";
+        slot.classList.remove("set"); slot.classList.add("pic");
+        if(avatarPic) avatarPic.src = src;
         document.querySelectorAll(".gAv").forEach(x=>x.classList.remove("on"));
         if(btn) btn.classList.add("on");
         updatePill();
