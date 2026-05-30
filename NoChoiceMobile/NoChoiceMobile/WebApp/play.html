@@ -512,9 +512,10 @@
           "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=900&q=85"
         ] }
       ];
-      const CAN_USE_COMIC_IMAGES = location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".pages.dev");
-      const COMIC_IMAGE_ENDPOINT = location.protocol === "file:" ? "http://127.0.0.1:8788/api/comic-image" : "/api/comic-image";
-      const WORKER_API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8788" : (location.hostname.endsWith(".pages.dev") ? "" : "https://no-choice.pages.dev");
+      const IS_IOS_APP = Boolean(window.webkit?.messageHandlers?.noChoiceLocation);
+      const WORKER_API_BASE = IS_IOS_APP ? "https://no-choice.pages.dev" : (location.protocol === "file:" ? "http://127.0.0.1:8788" : (location.hostname.endsWith(".pages.dev") ? "" : "https://no-choice.pages.dev"));
+      const CAN_USE_COMIC_IMAGES = IS_IOS_APP || location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".pages.dev");
+      const COMIC_IMAGE_ENDPOINT = `${WORKER_API_BASE}/api/comic-image`;
       const RANK_RESTAURANTS_ENDPOINT = `${WORKER_API_BASE}/api/rank-restaurants`;
       // 上传照片后展示的预生成像素头像（demo：原图 → 像素图）
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";

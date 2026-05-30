@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>CHOICE OVER · 抽卡预览</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --paper: #f3ecdd; --ink: #1a1714; --red: #ff5a4d; --purple: #6c5ce7;
+        --yellow: #f6c518; --green: #28c76f; --blue: #3d6bff; --card: #fffdf6;
+        --pipe: #3bb24a; --pipe-d: #1f8a2e; --pipe-l: #7fe08a;
+        --shadow: 5px 5px 0 var(--ink); --shadow-sm: 3px 3px 0 var(--ink);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+      html, body { height: 100%; overflow: hidden; }
+      body {
+        background: #e7ddc8;
+        background-image: radial-gradient(circle at 1px 1px, rgba(26,23,20,.06) 1px, transparent 0);
+        background-size: 22px 22px;
+        font-family: "Noto Sans SC", system-ui, sans-serif; color: var(--ink);
+        display: grid; place-items: center;
+      }
+      .pixel { font-family: "Silkscreen", monospace; letter-spacing: .5px; }
+      .phone { position: relative; width: min(412px, 100vw); height: 100dvh; background: var(--paper); overflow: hidden; display: flex; flex-direction: column; }
+      @media (min-width: 460px) { .phone { width: 400px; height: min(840px, 100dvh - 16px); border-radius: 30px; box-shadow: 0 14px 0 rgba(26,23,20,.12), 0 24px 48px rgba(26,23,20,.14); } }
+
+      .screens { position: relative; flex: 1; min-height: 0; }
+      /* 每屏一屏装下：overflow hidden，用 flex 自适应 */
+      .screen { position: absolute; inset: 0; padding: 14px 16px; display: none; flex-direction: column; gap: 9px; overflow: hidden; }
+      .screen.active { display: flex; animation: pop .26s ease; }
+      @keyframes pop { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+
+      .topbar { display: flex; align-items: center; justify-content: space-between; flex: none; padding-right: 96px; min-height: 32px; }
+      .badge { font-size: 9px; padding: 5px 8px 4px; border: 2px solid var(--ink); border-radius: 7px; background: var(--card); box-shadow: var(--shadow-sm); }
+      .badge.red { background: var(--red); color: #fff; } .badge.purple { background: var(--purple); color: #fff; } .badge.yellow { background: var(--yellow); }
+      .dots { font-size: 9px; opacity: .6; }
+      .back { font-size: 12px; font-weight: 800; background: none; border: none; cursor: pointer; color: var(--ink); }
+      .lead { font-weight: 900; line-height: 1.08; }
+      .sub { font-size: 13px; font-weight: 700; color: #6b6253; line-height: 1.5; }
+      .spacer { flex: 1 1 auto; min-height: 0; }
+      .card { background: var(--card); border: 3px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow); padding: 14px; }
+      .card.flat { box-shadow: var(--shadow-sm); }
+      .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; padding: 7px 11px; border: 2px solid var(--ink); border-radius: 10px; background: var(--card); cursor: pointer; user-select: none; }
+      .chip.on { background: var(--ink); color: var(--paper); }
+      .chipwrap { display: flex; flex-wrap: wrap; gap: 7px; }
+      .btn { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 900; font-size: 15px; padding: 13px; width: 100%; border: 3px solid var(--ink); border-radius: 13px; background: var(--ink); color: var(--paper); box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .08s; flex: none; }
+      .btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+      .btn.alt { background: var(--yellow); color: var(--ink); } .btn.red { background: var(--red); color: #fff; } .btn.ghost { background: var(--card); color: var(--ink); }
+
+      /* WELCOME / SETUP */
+      .setupCard { background: var(--card); border: 3px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow); padding: 12px; display: flex; flex-direction: column; gap: 9px; flex: none; }
+      .avatarRow { display: flex; gap: 12px; align-items: center; }
+      .avatarSlot { position: relative; flex: none; width: 74px; height: 74px; border: 3px solid var(--ink); border-radius: 14px; background: var(--paper); display: grid; place-items: center; cursor: pointer; overflow: hidden; box-shadow: var(--shadow-sm); }
+      .avatarSlot canvas { width: 100%; height: 100%; image-rendering: pixelated; display: none; }
+      .avatarSlot.set canvas { display: block; }
+      .avatarSlot.set .avatarPlus { display: none; }
+      .avatarPlus { font-size: 30px; font-weight: 900; color: #b3a98f; }
+      .infoCol { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+      .field { width: 100%; border: 2px solid var(--ink); border-radius: 10px; padding: 9px 11px; font-size: 14px; font-weight: 700; background: var(--paper); font-family: inherit; color: var(--ink); }
+      .field::placeholder { color: #a59c86; font-weight: 600; }
+      .field:focus { outline: none; background: #fff; box-shadow: var(--shadow-sm); }
+      textarea.field { resize: none; height: 60px; line-height: 1.45; flex: none; }
+      .chipwrap.small .chip { font-size: 11.5px; padding: 5px 9px; }
+      .hintRow { font-size: 9.5px; color: #8a8170; }
+      /* HOME */
+      .titleMark { font-size: 20px; color: var(--red); }
+      .coin { position: relative; flex: 1 1 auto; min-height: 96px; border-radius: 14px; border: 3px solid var(--ink); background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 8px, transparent 8px 16px), var(--yellow); box-shadow: var(--shadow); display: grid; place-items: center; overflow: hidden; }
+      .coin .emoji { font-size: 56px; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.25)); animation: float 2.4s ease-in-out infinite; }
+      .coin { width: 100%; font: inherit; cursor: pointer; }
+      .coin:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
+      .coin canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; object-fit: cover; display: none; }
+      .coin.set canvas { display: block; }
+      .coin.set .coinPlus, .coin.set .coinHint { display: none; }
+      .coinPlus { font-size: 60px; line-height: 1; color: var(--ink); filter: drop-shadow(3px 3px 0 rgba(0,0,0,.18)); animation: float 2.4s ease-in-out infinite; }
+      .coinHint { position: absolute; bottom: 14px; font-size: 11px; color: #7a6a1e; }
+      @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+      .slogan { font-weight: 900; font-size: 14px; padding: 10px 12px; border-radius: 11px; border: 2px dashed var(--ink); background: rgba(255,255,255,.4); flex: none; }
+      .miniSwitch { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 2px solid var(--ink); border-radius: 11px; padding: 7px 9px; background: var(--card); box-shadow: var(--shadow-sm); flex: none; }
+      .miniSwitch .copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .miniSwitch strong { font-size: 12px; font-weight: 900; }
+      .miniSwitch span { font-size: 10px; font-weight: 750; color: #6b6253; }
+      .switchBtn { flex: none; min-width: 62px; border: 2px solid var(--ink); border-radius: 999px; padding: 3px; background: var(--ink); cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
+      .switchBtn .knob { display: block; width: 25px; height: 25px; border-radius: 50%; border: 2px solid var(--ink); background: var(--yellow); transform: translateX(27px); transition: transform .18s ease, background .18s ease; }
+      .switchBtn.off { background: rgba(26,23,20,.18); }
+      .switchBtn.off .knob { transform: translateX(0); background: var(--card); }
+      .styleModeDock { position: absolute; top: 14px; right: 14px; z-index: 45; display: flex; align-items: center; gap: 6px; padding: 5px 7px 5px 9px; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); box-shadow: var(--shadow-sm); }
+      .styleModeText { min-width: 24px; font-size: 11px; font-weight: 900; line-height: 1; }
+      .styleModeDock .switchBtn { min-width: 44px; padding: 2px; box-shadow: none; }
+      .styleModeDock .switchBtn .knob { width: 18px; height: 18px; transform: translateX(20px); }
+      .styleModeDock .switchBtn.off .knob { transform: translateX(0); }
+
+      /* MODE */
+      .mode { display: flex; gap: 11px; align-items: center; padding: 12px; border: 3px solid var(--ink); border-radius: 15px; box-shadow: var(--shadow); cursor: pointer; transition: transform .08s; flex: none; }
+      .mode:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
+      .mode .ic { flex: none; width: 50px; height: 50px; border-radius: 12px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 26px; background: var(--card); }
+      .mode.boss { background: var(--red); color: #fff; } .mode.ai { background: var(--purple); color: #fff; } .mode.myst { background: var(--card); }
+      .mode .nm { font-weight: 900; font-size: 17px; } .mode .ds { font-size: 11.5px; font-weight: 700; opacity: .92; line-height: 1.35; margin-top: 2px; } .mode .tagline { font-size: 9px; margin-top: 5px; opacity: .85; }
+
+      /* ============ DECK ============ */
+      .counter { display: flex; align-items: center; gap: 7px; font-weight: 900; font-size: 13px; flex: none; }
+      .pips { display: flex; gap: 4px; }
+      .pip { width: 11px; height: 15px; border: 2px solid var(--ink); border-radius: 3px; background: var(--card); }
+      .pip.spent { background: var(--ink); opacity: .25; }
+
+      .deckWrap { position: relative; flex: 1 1 auto; min-height: 0; }
+      .deck { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(290px, 76vw); height: calc(100% - 96px); }
+      .gcard { position: absolute; inset: 0; border: 0; border-radius: 18px; box-shadow: 4px 5px 0 rgba(26,23,20,.72), -1px 1px 0 rgba(26,23,20,.18), inset 0 0 0 2px rgba(26,23,20,.12), 0 14px 30px rgba(26,23,20,.16); overflow: hidden; background: var(--card); will-change: transform; display: flex; flex-direction: column; }
+      .gcard .art { height: 52%; display: grid; place-items: center; font-size: 64px; border-bottom: 0; transition: background .15s; }
+      .gcard .art.photo { background-size: cover; background-position: center; color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.45); }
+      .gcard .info { padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; background: var(--info-bg, var(--card)); color: var(--info-fg, var(--ink)); }
+      .gcard .cnum { font-size: 9px; color: var(--info-muted, #8a8170); }
+      .gcard h3 { font-size: 21px; font-weight: 900; line-height: 1.1; }
+      .gcard p { font-size: 12px; font-weight: 750; color: var(--info-muted, #5f574a); line-height: 1.45; overflow: hidden; }
+      .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
+      .mtag { font-size: 10px; font-weight: 900; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--tag-bg, rgba(255,252,244,.78)); color: var(--tag-fg, var(--ink)); }
+      .navMini { width: 100%; min-height: 38px; border: 3px solid var(--ink); border-radius: 999px; background: var(--nav-bg, var(--card)); color: var(--nav-fg, var(--ink)); box-shadow: var(--shadow-sm); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; }
+      .navMini:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+
+      .gcard.flyR { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(135%,-10%) rotate(20deg) !important; opacity: 0; }
+      .gcard.flyL { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(-135%,-10%) rotate(-20deg) !important; opacity: 0; }
+      .gcard.intoPipe { transition: transform .52s cubic-bezier(.5,0,.7,.6), opacity .52s ease-in; opacity: 0; }
+      .gcard.dealing { animation: deal .42s cubic-bezier(.2,.9,.3,1) backwards; }
+      @keyframes deal { from { transform: translateY(-50px) rotate(-16deg) scale(.78); opacity: 0; } }
+      .gcard.revealing { animation: wobble .9s ease-in-out; }
+      @keyframes wobble { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-2.5deg); } 75% { transform: rotate(2.5deg); } }
+
+      .stamp { position: absolute; top: 18px; padding: 6px 11px; border: 4px solid; border-radius: 9px; font-size: 19px; font-weight: 950; opacity: 0; z-index: 6; pointer-events: none; }
+      .stamp.s-r { right: 14px; color: var(--green); transform: rotate(12deg); }
+      .stamp.s-l { left: 14px; color: #c79100; transform: rotate(-12deg); }
+      .stamp.s-d { left: 50%; bottom: 16px; top: auto; transform: translateX(-50%); color: var(--red); }
+
+      /* Super-Mario warp pipe */
+      .pipe { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); width: 168px; z-index: 2; pointer-events: none; }
+      .pipe .rim { height: 30px; width: 168px; margin: 0 auto; border: 4px solid var(--ink); border-radius: 8px;
+        background: linear-gradient(90deg, var(--pipe-d) 0 12%, var(--pipe-l) 12% 26%, var(--pipe) 26% 100%); box-shadow: var(--shadow-sm); }
+      .pipe .body { height: 60px; width: 138px; margin: -4px auto 0; border: 4px solid var(--ink); border-top: none;
+        background: linear-gradient(90deg, var(--pipe-d) 0 14%, var(--pipe-l) 14% 30%, var(--pipe) 30% 100%); }
+      .pipe .mouth { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 138px; height: 14px; background: rgba(0,0,0,.55); border-radius: 50%; }
+
+      .gestureHint { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: none; }
+      .gestureAction { min-width: 0; min-height: 52px; border: 3px solid var(--ink); border-radius: 13px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm); font: inherit; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 7px; transition: transform .08s, box-shadow .08s, filter .12s; }
+      .gestureAction:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+      .gestureAction .arrow { flex: none; width: 24px; height: 24px; border: 2px solid var(--ink); border-radius: 8px; display: grid; place-items: center; background: rgba(255,255,255,.68); font-size: 15px; line-height: 1; }
+      .gestureAction .txt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.08; text-align: left; min-width: 0; }
+      .gestureAction .txt b { font-size: 13px; }
+      .gestureAction .txt span { font-size: 10px; opacity: .82; margin-top: 2px; white-space: nowrap; }
+      .gestureAction.l { background: #ffcf24; }
+      .gestureAction.d { background: #ff554f; color: #fffaf2; }
+      .gestureAction.r { background: #6d58e8; color: #fffaf2; }
+      .gestureAction.d .arrow { color: var(--red); }
+      .gestureAction[disabled] { opacity: .55; filter: grayscale(.2); cursor: default; }
+
+      /* WIN overlay */
+      .win { position: absolute; inset: 0; z-index: 40; display: none; place-items: center; padding: 18px; background: rgba(26,23,20,.55); backdrop-filter: blur(3px); }
+      .win.show { display: grid; }
+      .winCard { width: min(320px, 86vw); background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: var(--shadow); padding: 16px; text-align: center; animation: drop .6s cubic-bezier(.2,1.3,.4,1); }
+      @keyframes drop { 0% { transform: translateY(-120vh) rotate(-12deg); } 70% { transform: translateY(10px) rotate(3deg); } 100% { transform: none; } }
+      .winCard .tag { font-size: 12px; color: var(--red); }
+      .winCard .cg { font-weight: 900; font-size: 23px; margin: 2px 0 10px; }
+      .winCard .face { height: 122px; border-radius: 13px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 58px; margin-bottom: 10px; }
+      .winCard .face.photo { background-size: cover; background-position: center; font-size: 0; }
+      .winCard h2 { font-size: 22px; font-weight: 900; }
+      .winCard p { font-size: 12.5px; font-weight: 600; color: #5f574a; line-height: 1.5; margin: 7px 0 10px; }
+      .winCard .metaRow { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 12px; }
+      .links { display: flex; gap: 8px; margin-bottom: 8px; } .links .btn { font-size: 13px; padding: 11px; }
+
+      .confetti { position: absolute; inset: 0; z-index: 39; pointer-events: none; overflow: hidden; }
+      .conf { position: absolute; width: 9px; height: 14px; will-change: transform; }
+      @keyframes fall { to { transform: translateY(115vh) rotate(720deg); opacity: .9; } }
+      .toast { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 30; background: var(--ink); color: var(--paper); font-weight: 800; font-size: 12.5px; padding: 9px 15px; border-radius: 10px; opacity: 0; transition: opacity .25s; }
+      .toast.show { opacity: 1; }
+      .loadingCard { align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 18px; }
+      .loadingCard .spinner { width: 48px; height: 48px; border: 5px solid rgba(26,23,20,.16); border-top-color: var(--purple); border-radius: 50%; animation: spin .8s linear infinite; }
+      .loadingCard strong { font-size: 18px; font-weight: 900; }
+      .loadingCard p { max-width: 210px; color: #6b6253; font-size: 12.5px; font-weight: 700; line-height: 1.5; }
+      .loadingProgress { width: 210px; height: 14px; border: 3px solid var(--ink); border-radius: 999px; overflow: hidden; background: rgba(26,23,20,.12); box-shadow: var(--shadow-sm); }
+      .loadingProgress span { display: block; height: 100%; width: var(--progress, 0%); background: var(--yellow); transition: width .25s ease; }
+      .loadingCount { font-size: 10px; font-weight: 900; letter-spacing: 1px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      body.style-simple {
+        --paper: #f7f8fb; --ink: #151922; --card: #ffffff;
+        background: #eef1f6;
+        background-image: none;
+      }
+      body.style-simple .pixel { font-family: "Noto Sans SC", system-ui, sans-serif; letter-spacing: 0; }
+      body.style-simple .phone { background: var(--paper); }
+      @media (min-width: 460px) {
+        body.style-simple .phone { border: 1px solid rgba(21,25,34,.06); box-shadow: 0 18px 50px rgba(21,25,34,.13); }
+      }
+      body.style-simple .screen.active { animation: simpleFade .2s ease; }
+      @keyframes simpleFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+      body.style-simple .styleModeDock { border: 1px solid rgba(21,25,34,.1); background: rgba(255,255,255,.86); box-shadow: 0 10px 24px rgba(21,25,34,.08); backdrop-filter: blur(10px); }
+      body.style-simple .styleModeDock .switchBtn { border: 1px solid rgba(21,25,34,.18); background: #151922; }
+      body.style-simple .styleModeDock .switchBtn.off { background: #d8dde6; }
+      body.style-simple .styleModeDock .switchBtn .knob { border: 0; background: #fff; }
+      body.style-simple .badge { border: 1px solid #e3e7ee; border-radius: 999px; background: #fff; color: #667085; box-shadow: none; }
+      body.style-simple .badge.red,
+      body.style-simple .badge.purple,
+      body.style-simple .badge.yellow { background: #fff; color: #667085; }
+      body.style-simple .back { color: #344054; }
+      body.style-simple .titleMark { color: #667085; }
+      body.style-simple .lead { letter-spacing: 0; color: #101828; }
+      body.style-simple .sub,
+      body.style-simple .hintRow { color: #667085; }
+      body.style-simple .card,
+      body.style-simple .setupCard { border: 1px solid #e3e7ee; border-radius: 18px; box-shadow: 0 12px 30px rgba(21,25,34,.06); background: #fff; }
+      body.style-simple .chip { border: 1px solid #d9dee8; border-radius: 999px; background: #fff; color: #344054; font-weight: 800; }
+      body.style-simple .chip.on { border-color: #151922; background: #151922; color: #fff; }
+      body.style-simple .btn { border: 0; border-radius: 15px; background: #151922; color: #fff; box-shadow: 0 12px 26px rgba(21,25,34,.16); }
+      body.style-simple .btn:active { transform: translateY(1px); box-shadow: 0 7px 16px rgba(21,25,34,.14); }
+      body.style-simple .btn.ghost { border: 1px solid #e3e7ee; background: #fff; color: #344054; box-shadow: none; }
+      body.style-simple .btn.alt { background: #eef2ff; color: #3730a3; box-shadow: none; }
+      body.style-simple .btn.red { background: #fff1f0; color: #b42318; box-shadow: none; }
+      body.style-simple .coin { border: 1px solid #e3e7ee; border-radius: 22px; background: linear-gradient(135deg, #fff, #eef4ff); box-shadow: 0 14px 34px rgba(21,25,34,.08); }
+      body.style-simple .coin:active { transform: translateY(1px); box-shadow: 0 9px 24px rgba(21,25,34,.08); }
+      body.style-simple .coinPlus { color: #8a94a6; filter: none; }
+      body.style-simple .coinHint { color: #667085; }
+      body.style-simple .slogan { border: 1px solid #e3e7ee; border-radius: 14px; background: #fff; color: #344054; }
+      body.style-simple .avatarSlot,
+      body.style-simple .field { border: 1px solid #d9dee8; box-shadow: none; background: #fff; }
+      body.style-simple .mode { border: 1px solid #e3e7ee; border-radius: 18px; background: #fff; color: #101828; box-shadow: 0 10px 26px rgba(21,25,34,.07); }
+      body.style-simple .mode.boss,
+      body.style-simple .mode.ai,
+      body.style-simple .mode.myst { background: #fff; color: #101828; }
+      body.style-simple .mode:active { transform: translateY(1px); box-shadow: 0 7px 18px rgba(21,25,34,.08); }
+      body.style-simple .mode .ic { border: 0; background: #f2f4f7; box-shadow: none; }
+      body.style-simple .mode .ds,
+      body.style-simple .mode .tagline { color: #667085; opacity: 1; }
+      body.style-simple .counter { color: #344054; }
+      body.style-simple .pip { width: 8px; height: 8px; border: 0; border-radius: 999px; background: #d0d5dd; }
+      body.style-simple .pip.spent { background: #151922; opacity: 1; }
+      body.style-simple .gcard { border: 1px solid rgba(21,25,34,.08); border-radius: 22px; box-shadow: 0 20px 46px rgba(21,25,34,.16); }
+      body.style-simple .gcard .info { background: #fff !important; color: #101828 !important; padding: 15px 14px; }
+      body.style-simple .gcard .cnum { color: #98a2b3 !important; }
+      body.style-simple .gcard p { color: #475467 !important; font-weight: 750; }
+      body.style-simple .mtag { border: 0; border-radius: 999px; background: #f2f4f7 !important; color: #344054 !important; padding: 6px 9px; }
+      body.style-simple .navMini { border: 0; border-radius: 14px; background: #151922 !important; color: #fff !important; box-shadow: none; }
+      body.style-simple .navMini:active { transform: translateY(1px); box-shadow: none; }
+      body.style-simple .pipe { opacity: .08; filter: grayscale(1); }
+      body.style-simple .gestureAction { border: 0; border-radius: 16px; background: #fff; color: #344054; box-shadow: 0 8px 20px rgba(21,25,34,.08); }
+      body.style-simple .gestureAction.l,
+      body.style-simple .gestureAction.d,
+      body.style-simple .gestureAction.r { background: #fff; color: #344054; }
+      body.style-simple .gestureAction.r { background: #151922; color: #fff; }
+      body.style-simple .gestureAction .arrow { border: 0; background: #f2f4f7; }
+      body.style-simple .gestureAction.r .arrow { background: rgba(255,255,255,.16); }
+      body.style-simple .stamp { border-width: 2px; background: rgba(255,255,255,.9); }
+      body.style-simple .win { background: rgba(21,25,34,.24); backdrop-filter: blur(10px); }
+      body.style-simple .winCard { border: 1px solid #e3e7ee; border-radius: 24px; background: #fff; box-shadow: 0 24px 60px rgba(21,25,34,.2); }
+      body.style-simple .winCard .tag { color: #667085; }
+      body.style-simple .winCard .face { border: 0; background: #f2f4f7; }
+      body.style-simple .loadingCard .spinner { border-color: rgba(21,25,34,.12); border-top-color: #151922; }
+      body.style-simple .loadingProgress { border: 0; background: #e4e7ec; box-shadow: none; }
+      body.style-simple .loadingProgress span { background: #151922; }
+      body.style-simple .toast { border-radius: 999px; background: rgba(21,25,34,.92); }
+    </style>
+  </head>
+  <body class="style-simple">
+    <div class="phone">
+      <div class="styleModeDock">
+        <span class="styleModeText" id="styleModeLabel">简洁</span>
+        <button class="switchBtn off" id="comicToggle" type="button" aria-label="切换整体样式模式" aria-pressed="false" onclick="toggleComicMode()"><span class="knob"></span></button>
+      </div>
+      <div class="screens">
+        <!-- WELCOME（基于 home 视觉的玩家设定页）-->
+        <section class="screen active" data-screen="home">
+          <div class="topbar"><span class="badge red pixel">CHALLENGE ACTIVE</span><span class="dots pixel">PLAYLIST 01/08</span></div>
+          <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead" style="font-size:27px">选择困难症外挂</div></div>
+          <div class="sub" style="font-size:13.5px">欢迎来到没有选择困难的世界，<br />请设置你的初始形象 👾</div>
+          <button class="coin" id="avatarSlot" type="button" aria-label="上传头像生成像素形象">
+            <canvas id="avatarCanvas" width="320" height="320"></canvas>
+            <span class="coinPlus pixel">+</span>
+            <span class="coinHint pixel">UPLOAD · 上传头像</span>
+          </button>
+          <input type="file" id="photo" accept="image/*" hidden />
+          <div class="slogan">「犹豫会败北，但你可以赖我」</div>
+          <button class="btn" id="enterBtn" onclick="enter()">▶ 插入硬币，开始挑战</button>
+        </section>
+
+        <!-- EAT -->
+        <section class="screen" data-screen="eat">
+          <div class="topbar"><span class="badge purple pixel">EAT_WHAT.EXE</span><button class="back" onclick="go('home')">← 返回</button></div>
+          <div class="lead" style="font-size:25px">今晚吃什么？</div>
+          <div class="sub">一句话写清谁吃、在哪、想避开啥。</div>
+          <div class="card flat"><div style="font-weight:800;font-size:14px;line-height:1.5">两个人在东边，下班后想吃点轻松不排队的。</div></div>
+          <div class="pixel" style="font-size:11px;font-weight:800">SELECT BUFFS ▾</div>
+          <div class="chipwrap" id="buffs"><span class="chip on">找中间点</span><span class="chip on">不吃主食</span><span class="chip">适合聊天</span><span class="chip">少排队</span><span class="chip">清爽一点</span></div>
+          <button class="btn ghost" onclick="toast('选完模式后会自动请求定位')">📍 选模式后自动获取附近餐厅</button>
+          <div class="spacer"></div>
+          <button class="btn" onclick="go('mode')">选择降维模式 →</button>
+        </section>
+
+        <!-- MODE -->
+        <section class="screen" data-screen="mode">
+          <div class="topbar"><span class="badge yellow pixel">SELECT YOUR CHEAT</span><button class="back" onclick="go('eat')">← 返回</button></div>
+          <div class="lead" style="font-size:22px">三大降维抉择</div>
+          <div class="mode boss" onclick="startGame('霸总模式','BOSS MODE')"><div class="ic">🎲</div><div><div class="nm">霸总模式</div><div class="ds">不要你觉得，就要概率定。</div><div class="tagline pixel">[ BOSS MODE ] 纯随机 · 一秒通关</div></div></div>
+          <div class="mode ai" onclick="startGame('AI 模式','AI INTEL')"><div class="ic">🤖</div><div><div class="nm">AI 模式</div><div class="ds">大模型推荐，深度语义契合。</div><div class="tagline pixel">[ AI INTEL ] 大模型 · 极智解忧</div></div></div>
+          <div class="mode myst" onclick="startGame('玄学模式','MYSTIC')"><div class="ic">🔮</div><div><div class="nm">玄学模式</div><div class="ds">“来自今日星盘的天命抉择。”</div><div class="tagline pixel">[ 玄学 ] 运势流 · 命中注定</div></div></div>
+          <div class="spacer"></div>
+          <div class="sub" style="text-align:center;font-size:12px">点一个模式即可发牌 →</div>
+        </section>
+
+        <!-- DECK -->
+        <section class="screen" data-screen="deck">
+          <div class="topbar"><span class="badge purple pixel" id="deckLabel">AI INTEL</span><button class="back" onclick="go('mode')">← 返回</button></div>
+          <div class="counter"><span>这局只有</span><span class="pips" id="pips"></span><span id="leftN">5</span><span>张 · 看清楚再滑</span></div>
+          <div class="deckWrap">
+            <div class="deck" id="deck"></div>
+            <div class="pipe" id="pipe"><div class="rim"></div><div class="body"><div class="mouth"></div></div></div>
+          </div>
+          <div class="gestureHint">
+            <button class="gestureAction l" type="button" data-dir="left" onclick="tapDecision('left')"><span class="arrow">◀</span><span class="txt"><b>待定</b><span>左滑</span></span></button>
+            <button class="gestureAction d" type="button" data-dir="down" onclick="tapDecision('down')"><span class="arrow">▼</span><span class="txt"><b>丢掉</b><span>下滑</span></span></button>
+            <button class="gestureAction r" type="button" data-dir="right" onclick="tapDecision('right')"><span class="txt"><b>就它</b><span>右滑</span></span><span class="arrow">▶</span></button>
+          </div>
+          <div class="toast" id="toast"></div>
+        </section>
+      </div>
+
+      <div class="confetti" id="confetti"></div>
+      <div class="win" id="win">
+        <div class="winCard">
+          <div class="tag pixel">CHOICE OVER</div>
+          <div class="cg pixel">Congratulations!</div>
+          <div class="face" id="wFace">🍲</div>
+          <h2 id="wName">自选麻辣烫</h2>
+          <p id="wReason"></p>
+          <div class="metaRow" id="wMeta"></div>
+          <div class="links"><button class="btn alt" id="wNav">🗺️ 导航</button></div>
+          <button class="btn" onclick="resetAll()">🔁 再来一局</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const AMAP_WEB_SERVICE_KEY = "7f40078338209e23255e8f8e0ca8cc37";
+      const DEFAULT_AMAP_CENTER = { lat: 31.230416, lng: 121.473701, amap: true, label: "上海人民广场" };
+      const MIN_RESTAURANT_COST = 150;
+      const INFO_THEMES = [
+        { bg: "#ff554f", fg: "#fffaf2", muted: "#fff1e9", tagBg: "#fffaf2", tagFg: "#1a1714" },
+        { bg: "#6d58e8", fg: "#fffaf2", muted: "#ede8ff", tagBg: "#fffaf2", tagFg: "#1a1714" },
+        { bg: "#ffcf24", fg: "#1a1714", muted: "#3e382f", tagBg: "#1a1714", tagFg: "#fffaf2" },
+        { bg: "#22c96b", fg: "#102116", muted: "#12311d", tagBg: "#fffaf2", tagFg: "#1a1714" },
+        { bg: "#ff7ab8", fg: "#1a1714", muted: "#3a2431", tagBg: "#1a1714", tagFg: "#fffaf2" },
+        { bg: "#2f7cff", fg: "#fffaf2", muted: "#e7f0ff", tagBg: "#fffaf2", tagFg: "#1a1714" }
+      ];
+      const CAN_USE_COMIC_IMAGES = location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".pages.dev");
+      const COMIC_IMAGE_ENDPOINT = location.protocol === "file:" ? "http://127.0.0.1:8788/api/comic-image" : "/api/comic-image";
+      const POOL = [
+        { emoji: "🍲", name: "自选麻辣烫", art: "var(--red)", reason: "各种菜随便选，避开主食零负担，东边折中、出餐快不排队。", meta: ["位置折中","低负担","不排队"] },
+        { emoji: "🍜", name: "越南粉轻食", art: "var(--green)", reason: "出餐快、清爽不油腻，工作日晚上收尾刚好。", meta: ["出餐快","清爽","低压力"] },
+        { emoji: "🍢", name: "小份烧鸟", art: "var(--yellow)", reason: "小份点单试错成本低，边吃边聊还能续摊。", meta: ["小份多样","可续摊","轻松"] },
+        { emoji: "🥗", name: "自选沙拉", art: "var(--purple)", reason: "清淡健康、分量自控，不吃主食也没负担。", meta: ["清淡","自由配","无负担"] },
+        { emoji: "🍶", name: "安静居酒屋", art: "var(--blue)", reason: "重点是聊天，座位灯光比菜更重要，变成小聚。", meta: ["聊天优先","氛围好","建议预约"] },
+      ];
+      const ACCENTS = ["var(--red)", "var(--green)", "var(--yellow)", "var(--purple)", "var(--blue)"];
+      const $ = (s) => document.querySelector(s);
+      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, totalCards = POOL.length, lastCoords = null, comicStyleMode = safeStorageGet("choice-over-style") === "comic", useComicImages = false;
+
+      function go(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
+      $("#buffs").addEventListener("click",(e)=>{ if(e.target.classList.contains("chip")) e.target.classList.toggle("on"); });
+      document.addEventListener("pointerdown", stopNavMiniEvent, true);
+      document.addEventListener("click", handleCardNavClick, true);
+      syncComicToggle();
+
+      function toggleComicMode(){
+        comicStyleMode = !comicStyleMode;
+        safeStorageSet("choice-over-style", comicStyleMode ? "comic" : "simple");
+        syncComicToggle();
+        if(comicStyleMode && !CAN_USE_COMIC_IMAGES) toast("已切到漫画样式，当前网址仍用真实照片");
+        else toast(comicStyleMode ? "已切到漫画风模式" : "已切回简洁模式");
+      }
+
+      function syncComicToggle(){
+        const btn = $("#comicToggle");
+        const label = $("#styleModeLabel");
+        if(!btn || !label) return;
+        useComicImages = comicStyleMode && CAN_USE_COMIC_IMAGES;
+        document.body.classList.toggle("style-comic", comicStyleMode);
+        document.body.classList.toggle("style-simple", !comicStyleMode);
+        btn.classList.toggle("off", !comicStyleMode);
+        btn.setAttribute("aria-pressed", comicStyleMode ? "true" : "false");
+        btn.setAttribute("title", comicStyleMode && !CAN_USE_COMIC_IMAGES ? "漫画样式已开启，当前网址使用真实照片" : "切换整体样式模式");
+        label.textContent = comicStyleMode ? "漫画" : "简洁";
+      }
+
+      async function startGame(name,label){
+        mode=name; $("#deckLabel").textContent=label+" · DECK"; go("deck");
+        await prepareLocationDeck();
+      }
+
+      async function prepareLocationDeck(){
+        ready=false; clearInterval(revT); pending=[];
+        renderLoadingDeck("正在定位附近餐厅", "会优先读取你的位置，再从高德拿真实餐厅和图片。");
+        try {
+          toast("正在请求定位权限…");
+          lastCoords = await getCurrentPosition();
+          toast("定位成功，正在查附近餐厅…");
+          const cards = await loadRestaurantCards(lastCoords);
+          if(cards.length === 5){
+            toast(`已找到 ${cards.length} 家附近餐厅`);
+            const prepared = await prepareVisualCards(cards);
+            if(prepared) resetDeck(prepared);
+            return;
+          }
+          toast("附近餐厅图片不足，改用城市定位");
+        } catch (err) {
+          toast(err.message || "定位失败，改用城市定位");
+        }
+        try {
+          lastCoords = await getApproxPosition();
+          toast(`使用${lastCoords.label || "城市"}附近餐厅…`);
+          const cards = await loadRestaurantCards(lastCoords);
+          if(cards.length === 5){
+            const prepared = await prepareVisualCards(cards);
+            if(prepared) resetDeck(prepared);
+            return;
+          }
+        } catch (err) {
+          toast(err.message || "城市餐厅查询失败");
+        }
+        renderLoadingDeck("图片素材不足", "没有拿到 5 张可用餐厅图片，先不出结果。请稍后刷新再试。", { done: 0, total: 5 });
+      }
+
+      function resetDeck(cards = activePool){
+        activePool = (cards && cards.length ? cards : POOL).map((c,i)=>({
+          ...c,
+          no: c.no || i + 1,
+          theme: c.theme || INFO_THEMES[i % INFO_THEMES.length]
+        }));
+        totalCards = activePool.length;
+        deck = activePool.map(c=>({...c}));
+        for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
+        pending = [];
+        renderDeck(); dealRound();
+      }
+
+      function renderLoadingDeck(title, text, progress){
+        const el=$("#deck");
+        const progressHTML = progress ? loadingProgressHTML(progress) : "";
+        el.innerHTML=`<div class="gcard loadingCard" style="z-index:10"><div class="spinner"></div><strong>${escapeHTML(title)}</strong><p>${escapeHTML(text)}</p>${progressHTML}</div>`;
+        $("#leftN").textContent="...";
+        $("#pips").innerHTML="";
+      }
+
+      function loadingProgressHTML({ done = 0, total = 5 } = {}){
+        const safeTotal = Math.max(1, Number(total) || 5);
+        const safeDone = Math.max(0, Math.min(safeTotal, Number(done) || 0));
+        const percent = Math.round((safeDone / safeTotal) * 100);
+        return `<div class="loadingProgress" style="--progress:${percent}%"><span></span></div><div class="loadingCount pixel">${safeDone}/${safeTotal} READY</div>`;
+      }
+
+      function faceHTML(c, withStamps){
+        const art = c.image
+          ? `<div class="art photo" style="background-image:linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.22)), url('${cssUrl(c.image)}')"></div>`
+          : `<div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${escapeHTML(c.emoji || "🍽️")}</div>`;
+        const nav = c.navUrl ? `<button class="navMini" type="button" data-nav="${escapeAttr(c.navUrl)}">📍 去导航</button>` : "";
+        return `
+          ${art}
+          <div class="info" style="${cardThemeStyle(c)}">
+            <div class="cnum pixel">NO.${c.no} / ${totalCards}</div>
+            <h3>${escapeHTML(c.name)}</h3>
+            <p>${escapeHTML(c.reason)}</p>
+            <div class="metaRow">${(c.meta || []).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("")}</div>
+            ${nav}
+          </div>` + (withStamps ? `
+          <div class="stamp s-r pixel">就它了</div>
+          <div class="stamp s-l pixel">待定</div>
+          <div class="stamp s-d pixel">丢掉</div>` : "");
+      }
+
+      function renderDeck(){
+        const el = $("#deck"); el.innerHTML="";
+        const n = Math.min(3, deck.length);
+        // behind cards (depth, 显示牌堆有限)
+        for(let i=n-1;i>=1;i--){
+          const back=document.createElement("div"); back.className="gcard";
+          back.style.transform=`translateY(${i*9}px) scale(${1-i*0.04}) rotate(${i%2?2.5:-2.5}deg)`;
+          back.style.zIndex=5-i; back.style.background="var(--card)";
+          el.appendChild(back);
+        }
+        // top card (face up)
+        topEl=document.createElement("div"); topEl.className="gcard dealing"; topEl.style.zIndex=10;
+        topEl.innerHTML=faceHTML(deck[0], true);
+        el.appendChild(topEl);
+        updateCounter();
+      }
+
+      function setTopFace(c){ if(topEl) topEl.innerHTML=faceHTML(c, true); }
+
+      // 先轮转抽出顶端卡牌，settle 后才允许滑动
+      function dealRound(){
+        ready=false; clearInterval(revT);
+        updateGestureButtons();
+        let k=0; const total=9+Math.floor(Math.random()*5);
+        topEl.classList.add("revealing");
+        revT=setInterval(()=>{
+          setTopFace(activePool[k%activePool.length]); k++;
+          if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); updateGestureButtons(); toast("看清楚了 · 左滑待定 / 右滑就它 / 下滑钻管"); }
+        }, 65);
+      }
+
+      function updateCounter(){
+        $("#leftN").textContent = deck.length;
+        const pips = $("#pips"); pips.innerHTML="";
+        for(let i=0;i<totalCards;i++){ const p=document.createElement("span"); p.className="pip"+(i>=deck.length?" spent":""); pips.appendChild(p); }
+      }
+
+      function attachDrag(card){
+        const sr=card.querySelector(".s-r"), sl=card.querySelector(".s-l"), sd=card.querySelector(".s-d");
+        const onDown=(e)=>{ if(!ready) return; card.setPointerCapture(e.pointerId); drag={sx:e.clientX,sy:e.clientY,x:0,y:0}; card.style.transition="none"; };
+        const onMove=(e)=>{ if(!drag) return; drag.x=e.clientX-drag.sx; drag.y=e.clientY-drag.sy;
+          const down = drag.y>0 && drag.y>Math.abs(drag.x);
+          // 下滑更顺：纵向为主时只走 Y，并轻微缩小，像被水管吸入
+          if(down){ const s=Math.max(.82,1-drag.y/900); card.style.transform=`translate(${drag.x*0.3}px,${drag.y}px) scale(${s})`; }
+          else { card.style.transform=`translate(${drag.x}px,${drag.y}px) rotate(${drag.x/16}deg)`; }
+          sr.style.opacity = down?0:Math.max(0,Math.min(1,drag.x/85));
+          sl.style.opacity = down?0:Math.max(0,Math.min(1,-drag.x/85));
+          sd.style.opacity = Math.max(0,Math.min(1,(drag.y-15)/85)) * (down?1:0);
+        };
+        const onUp=()=>{ if(!drag) return; const {x,y}=drag; drag=null; card.style.transition="";
+          const TH=82;
+          if(y>TH && y>Math.abs(x)) decide(card,"down");
+          else if(x>TH) decide(card,"right");
+          else if(x<-TH) decide(card,"left");
+          else { card.style.transform=""; [sr,sl,sd].forEach(s=>s.style.opacity=0); }
+        };
+        card.addEventListener("pointerdown",onDown); card.addEventListener("pointermove",onMove);
+        card.addEventListener("pointerup",onUp); card.addEventListener("pointercancel",onUp);
+      }
+
+      function tapDecision(dir){
+        if(!ready || !topEl){
+          toast("等卡牌亮完再选");
+          return;
+        }
+        decide(topEl, dir);
+      }
+
+      function updateGestureButtons(){
+        document.querySelectorAll(".gestureAction").forEach(btn=>{ btn.disabled = !ready; });
+      }
+
+      function stopNavMiniEvent(event){
+        if(event.target.closest(".navMini")) event.stopPropagation();
+      }
+
+      function handleCardNavClick(event){
+        const btn = event.target.closest(".navMini");
+        if(!btn) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const url = btn.dataset.nav;
+        if(url) window.open(url, "_blank");
+      }
+
+      function decide(card,dir){
+        ready=false; updateGestureButtons(); const top=deck[0];
+        if(dir==="right"){ card.classList.add("flyR"); setTimeout(()=>win(top),250); return; }
+        if(dir==="left"){ card.classList.add("flyL"); setTimeout(()=>{ pending.push(deck.shift()); afterRemove("待定 +1"); },280); return; }
+        if(dir==="down"){
+          // 钻进水管：先把卡平移到水管口正上方，再缩小吸入
+          const pipeRect=$("#pipe").getBoundingClientRect(), cardRect=card.getBoundingClientRect();
+          const dx=(pipeRect.left+pipeRect.width/2)-(cardRect.left+cardRect.width/2);
+          const dy=(pipeRect.top+6)-(cardRect.top+cardRect.height/2);
+          card.classList.add("intoPipe");
+          requestAnimationFrame(()=>{ card.style.transform=`translate(${dx}px,${dy}px) scale(.18)`; });
+          gulp();
+          setTimeout(()=>{ deck.shift(); afterRemove("钻进水管，再也不见"); },520);
+        }
+      }
+
+      function gulp(){ const p=$("#pipe"); p.style.transition="transform .14s"; p.style.transform="translateX(-50%) translateY(6px)"; setTimeout(()=>{ p.style.transform="translateX(-50%)"; },160); }
+
+      function afterRemove(msg){
+        toast(msg);
+        if(deck.length===0){
+          if(pending.length){ deck=pending; pending=[]; renderDeck(); dealRound(); toast("待定的卡又转回来了"); }
+          else { renderDeck(); toast("卡都被你丢光了，重开一局"); setTimeout(resetDeck,800); }
+        } else { renderDeck(); dealRound(); }
+      }
+
+      function getCurrentPosition(){
+        if(!("geolocation" in navigator)){
+          return Promise.reject(new Error("当前浏览器不支持定位"));
+        }
+        return new Promise((resolve,reject)=>{
+          navigator.geolocation.getCurrentPosition(
+            (pos)=>resolve({
+              lat:Number(pos.coords.latitude.toFixed(6)),
+              lng:Number(pos.coords.longitude.toFixed(6)),
+              accuracy:Math.round(pos.coords.accuracy || 0)
+            }),
+            (err)=>reject(new Error(locationErrorText(err))),
+            { enableHighAccuracy:true, maximumAge:1000*60*3, timeout:12000 }
+          );
+        });
+      }
+
+      function locationErrorText(err){
+        if(err && err.code===1) return "你拒绝了定位，改用城市定位";
+        if(err && err.code===2) return "暂时拿不到当前位置，改用城市定位";
+        if(err && err.code===3) return "定位超时，改用城市定位";
+        return "定位失败，改用城市定位";
+      }
+
+      async function loadRestaurantCards(coords){
+        let pois = await searchNearbyRestaurants(coords, 3500);
+        let cards = poisToCards(pois);
+        if(cards.filter(c=>c.image).length < 5){
+          pois = await searchNearbyRestaurants(coords, 8000);
+          cards = poisToCards(pois);
+        }
+        return cards.filter(c=>c.image).slice(0,5);
+      }
+
+      async function prepareVisualCards(cards){
+        if(!useComicImages){
+          renderLoadingDeck("正在加载真实照片", "漫画风已关闭，确认 5 张真实餐厅图可展示后直接发牌。", { done: 0, total: 5 });
+          let done = 0;
+          const results = await Promise.all(cards.map(card=>
+            preloadImage(card.image)
+              .then(()=>{ done += 1; renderLoadingDeck("正在加载真实照片", `第 ${done} 张已加载。`, { done, total: 5 }); return card; })
+              .catch((error)=>({ error }))
+          ));
+          if(results.some(item=>item.error)){
+            renderLoadingDeck("真实照片加载失败", "有图片没有加载成功，先不出结果。请稍后刷新再试。", { done: results.filter(item=>!item.error).length, total: 5 });
+            return null;
+          }
+          toast("5 张真实照片已加载");
+          return results;
+        }
+        return comicStyleCards(cards);
+      }
+
+      async function comicStyleCards(cards){
+        const targets = cards.filter(card=>card.image).slice(0,5);
+        if(targets.length < 5){
+          renderLoadingDeck("图片素材不足", `只拿到 ${targets.length}/5 张可用图片，先不出结果。`, { done: targets.length, total: 5 });
+          return null;
+        }
+
+        let done = 0;
+        renderLoadingDeck("正在生成漫画卡面", "已提交 5 张真实餐厅图，全部生成并加载完成后才发牌。", { done, total: 5 });
+        const jobs = targets.map((card,index)=>
+          comicStyleCardWithRetry(card)
+            .then(async (styledCard)=>{
+              await preloadImage(styledCard.image);
+              done += 1;
+              renderLoadingDeck("正在生成漫画卡面", `第 ${done} 张已完成。还差 ${5 - done} 张，别急着开奖。`, { done, total: 5 });
+              return { index, card: styledCard };
+            })
+            .catch((error)=>({ index, error }))
+        );
+        const results = await Promise.all(jobs);
+        const failures = results.filter(item=>item.error);
+        if(failures.length){
+          renderLoadingDeck("漫画生成暂时失败", `有 ${failures.length} 张图片没有生成成功，先不出结果。请稍后刷新再试。`, { done: 5 - failures.length, total: 5 });
+          toast("漫画图未满 5 张，已暂停发牌");
+          return null;
+        }
+        toast("5 张漫画卡面已生成");
+        return results.sort((a,b)=>a.index-b.index).map(item=>item.card);
+      }
+
+      async function comicStyleCardWithRetry(card, retries = 2){
+        let lastError = null;
+        for(let attempt=0; attempt<=retries; attempt++){
+          try{
+            return await comicStyleCard(card);
+          }catch(err){
+            lastError = err;
+            if(attempt < retries) await sleep(700 * (attempt + 1));
+          }
+        }
+        throw lastError || new Error("漫画生成失败");
+      }
+
+      async function comicStyleCard(card){
+        if(!card.image) throw new Error("缺少原始图片");
+        const cacheKey = `choice-over-comic:${card.name}:${card.image}`;
+        const cached = safeSessionGet(cacheKey);
+        if(cached) return { ...card, originalImage: card.originalImage || card.image, image: cached, comicImage: cached };
+        const response = await fetch(COMIC_IMAGE_ENDPOINT, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            title: card.name,
+            image: card.image,
+            prompt: comicPrompt(card)
+          })
+        });
+        const data = await response.json().catch(()=>null);
+        if(!response.ok || !data?.ok || !data.url){
+          throw new Error(data?.message || "漫画生成失败");
+        }
+        safeSessionSet(cacheKey, data.url);
+        return { ...card, originalImage: card.originalImage || card.image, image: data.url, comicImage: data.url };
+      }
+
+      function comicPrompt(card){
+        return [
+          "把输入照片改造成高质量漫画风餐厅卡面插画。",
+          "保留原图主体、空间结构、透视和餐厅/食物特征，不要改成无关场景。",
+          "日系生活方式漫画，干净线稿，柔和高饱和色，明亮温暖，细节丰富，适合手机抽卡卡片上半区。",
+          "不要添加任何文字、logo、水印、菜单字样或价格牌。",
+          `参考对象：${card.name}。`
+        ].join(" ");
+      }
+
+      function preloadImage(url){
+        return new Promise((resolve,reject)=>{
+          const img = new Image();
+          const timer = setTimeout(()=>reject(new Error("漫画图片加载超时")), 25000);
+          img.onload = ()=>{ clearTimeout(timer); resolve(); };
+          img.onerror = ()=>{ clearTimeout(timer); reject(new Error("漫画图片加载失败")); };
+          img.src = url;
+        });
+      }
+
+      function sleep(ms){
+        return new Promise(resolve=>setTimeout(resolve, ms));
+      }
+
+      function safeSessionGet(key){
+        return safeStorageGet(key);
+      }
+
+      function safeSessionSet(key, value){
+        safeStorageSet(key, value);
+      }
+
+      function safeStorageGet(key){
+        try { return sessionStorage.getItem(key); } catch { return ""; }
+      }
+
+      function safeStorageSet(key, value){
+        try { sessionStorage.setItem(key, value); } catch {}
+      }
+
+      async function searchNearbyRestaurants(coords, radius = 3500){
+        const center = coords.amap ? coords : await convertToAmap(coords);
+        const data = await amapJsonp("https://restapi.amap.com/v5/place/around", {
+          key: AMAP_WEB_SERVICE_KEY,
+          location: `${center.lng.toFixed(6)},${center.lat.toFixed(6)}`,
+          radius: String(radius),
+          types: "050000",
+          keywords: "餐厅",
+          sortrule: "distance",
+          page_size: "20",
+          show_fields: "business,photos",
+          output: "json",
+        });
+        if(data.status !== "1"){
+          throw new Error(data.info || "高德附近餐厅查询失败");
+        }
+        return (data.pois || []).map(normalizeAmapPoi).filter(isTargetCostPoi).slice(0,20);
+      }
+
+      async function getApproxPosition(){
+        try{
+          const data = await amapJsonp("https://restapi.amap.com/v3/ip", {
+            key: AMAP_WEB_SERVICE_KEY,
+            output: "json",
+          });
+          if(data.status === "1"){
+            const center = centerFromRectangle(data.rectangle);
+            if(center){
+              const city = Array.isArray(data.city) ? data.city[0] : data.city;
+              const province = Array.isArray(data.province) ? data.province[0] : data.province;
+              return { ...center, amap: true, label: city || province || "当前城市" };
+            }
+          }
+        }catch{}
+        return { ...DEFAULT_AMAP_CENTER };
+      }
+
+      function centerFromRectangle(rectangle){
+        const points = String(rectangle || "").split(";");
+        if(points.length < 2) return null;
+        const [lng1,lat1] = points[0].split(",").map(Number);
+        const [lng2,lat2] = points[1].split(",").map(Number);
+        if([lng1,lat1,lng2,lat2].some(v=>!Number.isFinite(v))) return null;
+        return { lng:(lng1+lng2)/2, lat:(lat1+lat2)/2 };
+      }
+
+      async function convertToAmap(coords){
+        try{
+          const data = await amapJsonp("https://restapi.amap.com/v3/assistant/coordinate/convert", {
+            key: AMAP_WEB_SERVICE_KEY,
+            locations: `${coords.lng.toFixed(6)},${coords.lat.toFixed(6)}`,
+            coordsys: "gps",
+            output: "json",
+          });
+          if(data.status === "1" && data.locations){
+            const [lng,lat] = data.locations.split(";")[0].split(",").map(Number);
+            if(Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+          }
+        }catch{}
+        return coords;
+      }
+
+      function amapJsonp(endpoint, params){
+        return new Promise((resolve,reject)=>{
+          const cb = `__amap_cb_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+          const url = new URL(endpoint);
+          Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
+          url.searchParams.set("callback", cb);
+          const script = document.createElement("script");
+          let timer = null;
+          const cleanup = (done)=>{
+            clearTimeout(timer);
+            delete window[cb];
+            script.remove();
+            done && done();
+          };
+          timer = setTimeout(()=>cleanup(()=>reject(new Error("高德接口超时"))),10000);
+          window[cb] = (data)=>cleanup(()=>resolve(data));
+          script.onerror = ()=>cleanup(()=>reject(new Error("高德接口加载失败")));
+          script.src = url.toString();
+          document.head.appendChild(script);
+        });
+      }
+
+      function normalizeAmapPoi(poi){
+        if(!poi || !poi.name) return null;
+        const photos = Array.isArray(poi.photos) ? poi.photos : [];
+        const image = String(photos.find(p=>p && p.url)?.url || "").replace(/^http:\/\//i, "https://");
+        const business = poi.business || {};
+        const [lng,lat] = String(poi.location || "").split(",").map(Number);
+        const typeParts = String(poi.type || "").split(";");
+        return {
+          id: poi.id || poi.name,
+          name: poi.name,
+          address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""),
+          type: typeParts[typeParts.length-1] || typeParts[0] || "餐厅",
+          distance: Number(poi.distance) || 0,
+          rating: business.rating || "",
+          cost: business.cost || "",
+          image,
+          location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
+        };
+      }
+
+      function isTargetCostPoi(poi){
+        const cost = readCostValue(poi?.cost);
+        return Number.isFinite(cost) && cost >= MIN_RESTAURANT_COST;
+      }
+
+      function readCostValue(value){
+        const direct = Number(value);
+        if(Number.isFinite(direct)) return direct;
+        const match = String(value || "").match(/\d+(?:\.\d+)?/);
+        return match ? Number(match[0]) : Number.NaN;
+      }
+
+      function poisToCards(pois){
+        const named = pois.filter(p=>p.name && isTargetCostPoi(p));
+        const photoPois = named.filter(p=>p.image);
+        const source = [...photoPois, ...named.filter(p=>!p.image)];
+        return source
+          .map((p,i)=>({
+            emoji: "🍽️",
+            name: p.name,
+            art: ACCENTS[i % ACCENTS.length],
+            image: p.image,
+            reason: poiReason(p),
+            meta: [formatDistance(p.distance), p.rating ? `${p.rating}分` : "", p.cost ? `人均${formatCost(p.cost)}` : p.type].filter(Boolean).slice(0,3),
+            theme: INFO_THEMES[i % INFO_THEMES.length],
+            navUrl: p.location ? `https://uri.amap.com/marker?position=${p.location.lng},${p.location.lat}&name=${encodeURIComponent(p.name)}` : "",
+            orderUrl: `https://www.amap.com/search?query=${encodeURIComponent(p.name)}`
+          }))
+          .slice(0,5);
+      }
+
+      function poiReason(p){
+        const distance = formatDistance(p.distance);
+        const rating = p.rating ? `评分 ${p.rating}` : "";
+        const cost = p.cost ? `人均 ${formatCost(p.cost)}` : "";
+        return [`离你${distance || "不远"}`, rating, cost].filter(Boolean).join("，") + "。先按真实附近餐厅推进，少一点纠结。";
+      }
+
+      function formatDistance(value){
+        const d = Number(value);
+        if(!Number.isFinite(d) || d <= 0) return "";
+        return d >= 1000 ? `${(d/1000).toFixed(d >= 3000 ? 0 : 1)}km` : `${Math.round(d)}m`;
+      }
+
+      function formatCost(value){
+        const cost = readCostValue(value);
+        if(Number.isFinite(cost) && cost > 0) return String(Math.round(cost));
+        return String(value || "").replace(/\.00$/, "");
+      }
+
+      function win(c){
+        const face=$("#wFace");
+        face.classList.toggle("photo", Boolean(c.image));
+        if(c.image){
+          face.textContent="";
+          face.style.background="";
+          face.style.backgroundImage=`linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.3)), url('${cssUrl(c.image)}')`;
+        }else{
+          face.textContent=c.emoji;
+          face.style.backgroundImage="";
+          face.style.background=`repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}`;
+        }
+        $("#wName").textContent="就吃它 — "+c.name;
+        $("#wReason").textContent=(mode==="霸总模式"?"概率已经替你拍板。":mode==="玄学模式"?"今日星盘站它，命中注定。":"")+c.reason;
+        $("#wMeta").innerHTML=(c.meta || []).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("");
+        $("#wNav").onclick=()=> c.navUrl ? window.open(c.navUrl,"_blank") : alert("没有拿到导航地址");
+        $("#win").classList.add("show"); confetti();
+      }
+
+      function confetti(){
+        const layer=$("#confetti"); const colors=["#ff5a4d","#6c5ce7","#f6c518","#28c76f","#3d6bff","#1a1714"];
+        for(let i=0;i<90;i++){ const d=document.createElement("div"); d.className="conf";
+          d.style.background=colors[i%colors.length]; d.style.left=Math.random()*100+"%"; d.style.top="-20px";
+          d.style.borderRadius=Math.random()>.5?"2px":"50%";
+          const dur=1.6+Math.random()*1.6, delay=Math.random()*.5;
+          d.style.animation=`fall ${dur}s ${delay}s cubic-bezier(.3,.6,.5,1) forwards`;
+          d.style.transform=`rotate(${Math.random()*360}deg)`;
+          layer.appendChild(d); setTimeout(()=>d.remove(),(dur+delay)*1000+200);
+        }
+      }
+
+      let toastT=null;
+      function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1200); }
+      function resetAll(){ $("#win").classList.remove("show"); $("#confetti").innerHTML=""; go("home"); }
+      function escapeHTML(value){
+        return String(value ?? "").replace(/[&<>"']/g, (ch)=>({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+      }
+      function escapeAttr(value){
+        return escapeHTML(value);
+      }
+      function cssUrl(value){
+        return String(value || "").replace(/['"\\\n\r]/g, (ch)=>encodeURIComponent(ch));
+      }
+      function cardThemeStyle(card){
+        const theme = INFO_THEMES.includes(card.theme) ? card.theme : INFO_THEMES[0];
+        return [
+          `--info-bg:${theme.bg}`,
+          `--info-fg:${theme.fg}`,
+          `--info-muted:${theme.muted}`,
+          `--tag-bg:${theme.tagBg}`,
+          `--tag-fg:${theme.tagFg}`,
+          `--nav-bg:${theme.tagBg}`,
+          `--nav-fg:${theme.tagFg}`
+        ].join(";");
+      }
+
+      // ---- 欢迎页：照片 → 马里奥 8-bit 像素形象、进入 ----
+      const photo = $("#photo"), slot = $("#avatarSlot"), canv = $("#avatarCanvas");
+      slot.addEventListener("click", () => photo.click());
+      photo.addEventListener("change", (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const img = new Image();
+        img.onload = () => {
+          const px = 18; // 大色块 → 8-bit 马里奥风
+          const tmp = document.createElement("canvas"); tmp.width = px; tmp.height = px;
+          const tctx = tmp.getContext("2d");
+          const side = Math.min(img.width, img.height);
+          tctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, px, px);
+          // 量化到复古调色板（每通道 4 阶），更像红白机小图案
+          try {
+            const id = tctx.getImageData(0, 0, px, px), d = id.data;
+            for (let i = 0; i < d.length; i += 4) { d[i] = Math.round(d[i] / 85) * 85; d[i + 1] = Math.round(d[i + 1] / 85) * 85; d[i + 2] = Math.round(d[i + 2] / 85) * 85; }
+            tctx.putImageData(id, 0, 0);
+          } catch (err) { /* 极少数情况下取像素失败，退回普通像素化 */ }
+          const ctx = canv.getContext("2d");
+          ctx.imageSmoothingEnabled = false;
+          ctx.clearRect(0, 0, canv.width, canv.height);
+          ctx.drawImage(tmp, 0, 0, px, px, 0, 0, canv.width, canv.height);
+          slot.classList.add("set");
+          toast("像素形象已生成（8-bit 风）");
+          URL.revokeObjectURL(img.src);
+        };
+        img.src = URL.createObjectURL(f);
+      });
+
+      function enter() { go("eat"); }
+
+      if (location.hash === "#deck") startGame("AI 模式", "AI INTEL");
+    </script>
+  </body>
+</html>

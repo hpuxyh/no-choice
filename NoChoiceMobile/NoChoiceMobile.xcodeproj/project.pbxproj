@@ -9,12 +9,14 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* NoChoiceMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* NoChoiceMobileApp.swift */; };
 		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* ContentView.swift */; };
+		A10000000000000000000003 /* WebApp in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* WebApp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A10000000000000000000010 /* NoChoiceMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NoChoiceMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000011 /* NoChoiceMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoChoiceMobileApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A10000000000000000000013 /* WebApp */ = {isa = PBXFileReference; lastKnownFileType = folder; path = WebApp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -41,6 +43,7 @@
 			children = (
 				A10000000000000000000011 /* NoChoiceMobileApp.swift */,
 				A10000000000000000000012 /* ContentView.swift */,
+				A10000000000000000000013 /* WebApp */,
 			);
 			path = NoChoiceMobile;
 			sourceTree = "<group>";
@@ -112,6 +115,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000003 /* WebApp in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -201,10 +205,14 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5KJ8Q43U77;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "不做选择";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于拍摄并上传图片，辅助生成选择卡片。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于获取当前位置，推荐附近可直接导航的餐厅。";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "用于语音输入你的选择纠结。";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于选择图片，辅助生成选择卡片。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -229,10 +237,14 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5KJ8Q43U77;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "不做选择";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于拍摄并上传图片，辅助生成选择卡片。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于获取当前位置，推荐附近可直接导航的餐厅。";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "用于语音输入你的选择纠结。";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于选择图片，辅助生成选择卡片。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
