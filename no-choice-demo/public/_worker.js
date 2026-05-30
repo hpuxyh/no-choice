@@ -35,6 +35,10 @@ export default {
       return handleDecideRequest(request, env);
     }
 
+    if (url.pathname === "/api/comic-image") {
+      return handleComicImageRequest(request, env);
+    }
+
     return env.ASSETS.fetch(request);
   },
 };
@@ -127,6 +131,110 @@ async function handleDecideRequest(request, env) {
   } catch (error) {
     return json({ ok: false, message: error.message || "AI 推荐暂时不可用" }, 502);
   }
+}
+
+async function handleComicImageRequest(request, env) {
+  if (request.method !== "POST") {
+    return json({ ok: false, message: "只支持 POST" }, 405);
+  }
+
+  const key = env.DOUBAO_SEEDREAM_API_KEY || env.ARK_API_KEY || env.DOUBAO_API_KEY || "";
+  if (!key) {
+    return json(
+      {
+        ok: false,
+        needsKey: true,
+        message: "Cloudflare 还没有配置 DOUBAO_SEEDREAM_API_KEY",
+      },
+      501,
+    );
+  }
+
+  let input;
+  try {
+    input = await request.json();
+  } catch {
+    return json({ ok: false, message: "请求内容不是有效 JSON" }, 400);
+  }
+
+  const image = cleanUrl(input?.image);
+  if (!image) {
+    return json({ ok: false, message: "缺少有效图片 URL" }, 400);
+  }
+
+  const title = cleanText(input?.title, 80);
+  const prompt =
+    cleanText(input?.prompt, 500) ||
+    [
+      "把输入照片改造成高质量漫画风餐厅卡面插画。",
+      "保留原图的主体、空间结构、透视和餐厅/食物特征，不要改变成无关场景。",
+      "风格：日系生活方式漫画，干净线稿，柔和高饱和色，明亮温暖，细节丰富，适合手机抽卡卡片上半区。",
+      "不要添加任何文字、logo、水印、菜单字样或价格牌。",
+      title ? `参考对象：${title}。` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+  try {
+    const model = env.DOUBAO_IMAGE_MODEL || env.DOUBAO_SEEDREAM_MODEL || "doubao-seedream-5-0-260128";
+    const size = env.DOUBAO_IMAGE_SIZE || "2K";
+    const output = await generateComicImage({ key, model, image, prompt, size });
+    return json({
+      ok: true,
+      provider: "doubao-seedream",
+      model,
+      url: output.url,
+      size: output.size || "",
+      revisedPrompt: output.revisedPrompt || "",
+    });
+  } catch (error) {
+    return json({ ok: false, message: error.message || "漫画图片生成失败" }, 502);
+  }
+}
+
+async function generateComicImage({ key, model, image, prompt, size }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90000);
+  let response;
+  try {
+    response = await fetch("https://ark.cn-beijing.volces.com/api/v3/images/generations", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${key}`,
+        "content-type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        prompt,
+        image,
+        size,
+        output_format: "png",
+        response_format: "url",
+        watermark: false,
+        sequential_image_generation: "disabled",
+      }),
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.error?.message || data?.message || "Seedream 请求失败");
+  }
+
+  const first = data?.data?.[0];
+  const url = cleanUrl(first?.url);
+  if (!url) {
+    throw new Error("Seedream 没有返回图片 URL");
+  }
+
+  return {
+    url,
+    size: cleanText(first?.size, 24),
+    revisedPrompt: cleanText(first?.revised_prompt || first?.revisedPrompt, 300),
+  };
 }
 
 async function askDeepSeek({ key, model, input }) {

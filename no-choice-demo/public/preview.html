@@ -83,6 +83,14 @@
       .coinHint { position: absolute; bottom: 14px; font-size: 11px; color: #7a6a1e; }
       @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
       .slogan { font-weight: 900; font-size: 14px; padding: 10px 12px; border-radius: 11px; border: 2px dashed var(--ink); background: rgba(255,255,255,.4); flex: none; }
+      .miniSwitch { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 2px solid var(--ink); border-radius: 11px; padding: 7px 9px; background: var(--card); box-shadow: var(--shadow-sm); flex: none; }
+      .miniSwitch .copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .miniSwitch strong { font-size: 12px; font-weight: 900; }
+      .miniSwitch span { font-size: 10px; font-weight: 750; color: #6b6253; }
+      .switchBtn { flex: none; min-width: 62px; border: 2px solid var(--ink); border-radius: 999px; padding: 3px; background: var(--ink); cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
+      .switchBtn .knob { display: block; width: 25px; height: 25px; border-radius: 50%; border: 2px solid var(--ink); background: var(--yellow); transform: translateX(27px); transition: transform .18s ease, background .18s ease; }
+      .switchBtn.off { background: rgba(26,23,20,.18); }
+      .switchBtn.off .knob { transform: translateX(0); background: var(--card); }
 
       /* MODE */
       .mode { display: flex; gap: 11px; align-items: center; padding: 12px; border: 3px solid var(--ink); border-radius: 15px; box-shadow: var(--shadow); cursor: pointer; transition: transform .08s; flex: none; }
@@ -101,12 +109,13 @@
       .deck { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(290px, 76vw); height: calc(100% - 96px); }
       .gcard { position: absolute; inset: 0; border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; background: var(--card); will-change: transform; display: flex; flex-direction: column; }
       .gcard .art { height: 52%; display: grid; place-items: center; font-size: 64px; border-bottom: 3px solid var(--ink); transition: background .15s; }
-      .gcard .info { padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
-      .gcard .cnum { font-size: 9px; color: #8a8170; }
+      .gcard .art.photo { background-size: cover; background-position: center; color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.45); }
+      .gcard .info { padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; background: var(--info-bg, var(--card)); color: var(--info-fg, var(--ink)); }
+      .gcard .cnum { font-size: 9px; color: var(--info-muted, #8a8170); }
       .gcard h3 { font-size: 21px; font-weight: 900; line-height: 1.1; }
-      .gcard p { font-size: 12px; font-weight: 600; color: #5f574a; line-height: 1.45; overflow: hidden; }
+      .gcard p { font-size: 12px; font-weight: 750; color: var(--info-muted, #5f574a); line-height: 1.45; overflow: hidden; }
       .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
-      .mtag { font-size: 10px; font-weight: 800; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--paper); }
+      .mtag { font-size: 10px; font-weight: 900; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--tag-bg, rgba(255,252,244,.78)); color: var(--tag-fg, var(--ink)); }
 
       .gcard.flyR { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(135%,-10%) rotate(20deg) !important; opacity: 0; }
       .gcard.flyL { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(-135%,-10%) rotate(-20deg) !important; opacity: 0; }
@@ -140,6 +149,7 @@
       .winCard .tag { font-size: 12px; color: var(--red); }
       .winCard .cg { font-weight: 900; font-size: 23px; margin: 2px 0 10px; }
       .winCard .face { height: 122px; border-radius: 13px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 58px; margin-bottom: 10px; }
+      .winCard .face.photo { background-size: cover; background-position: center; font-size: 0; }
       .winCard h2 { font-size: 22px; font-weight: 900; }
       .winCard p { font-size: 12.5px; font-weight: 600; color: #5f574a; line-height: 1.5; margin: 7px 0 10px; }
       .winCard .metaRow { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 12px; }
@@ -150,6 +160,14 @@
       @keyframes fall { to { transform: translateY(115vh) rotate(720deg); opacity: .9; } }
       .toast { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 30; background: var(--ink); color: var(--paper); font-weight: 800; font-size: 12.5px; padding: 9px 15px; border-radius: 10px; opacity: 0; transition: opacity .25s; }
       .toast.show { opacity: 1; }
+      .loadingCard { align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 18px; }
+      .loadingCard .spinner { width: 48px; height: 48px; border: 5px solid rgba(26,23,20,.16); border-top-color: var(--purple); border-radius: 50%; animation: spin .8s linear infinite; }
+      .loadingCard strong { font-size: 18px; font-weight: 900; }
+      .loadingCard p { max-width: 210px; color: #6b6253; font-size: 12.5px; font-weight: 700; line-height: 1.5; }
+      .loadingProgress { width: 210px; height: 14px; border: 3px solid var(--ink); border-radius: 999px; overflow: hidden; background: rgba(26,23,20,.12); box-shadow: var(--shadow-sm); }
+      .loadingProgress span { display: block; height: 100%; width: var(--progress, 0%); background: var(--yellow); transition: width .25s ease; }
+      .loadingCount { font-size: 10px; font-weight: 900; letter-spacing: 1px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
     </style>
   </head>
   <body>
@@ -167,6 +185,10 @@
           </button>
           <input type="file" id="photo" accept="image/*" hidden />
           <div class="slogan">「犹豫会败北，但你可以赖我」</div>
+          <div class="miniSwitch">
+            <div class="copy"><strong>漫画风图片</strong><span id="comicHint">开启后会多等一会儿</span></div>
+            <button class="switchBtn" id="comicToggle" type="button" aria-pressed="true" onclick="toggleComicMode()"><span class="knob"></span></button>
+          </div>
           <button class="locBtn" id="locBtn" onclick="grantLoc()">📍 授权定位</button>
           <button class="btn" id="enterBtn" onclick="enter()" data-locked="1">▶ 插入硬币，开始挑战</button>
         </section>
@@ -179,7 +201,7 @@
           <div class="card flat"><div style="font-weight:800;font-size:14px;line-height:1.5">两个人在东边，下班后想吃点轻松不排队的。</div></div>
           <div class="pixel" style="font-size:11px;font-weight:800">SELECT BUFFS ▾</div>
           <div class="chipwrap" id="buffs"><span class="chip on">找中间点</span><span class="chip on">不吃主食</span><span class="chip">适合聊天</span><span class="chip">少排队</span><span class="chip">清爽一点</span></div>
-          <button class="btn ghost" onclick="this.textContent='📍 已定位：朝阳·东三环'">📍 用手机定位（可选）</button>
+          <button class="btn ghost" onclick="toast('选完模式后会自动请求定位')">📍 选模式后自动获取附近餐厅</button>
           <div class="spacer"></div>
           <button class="btn" onclick="go('mode')">选择降维模式 →</button>
         </section>
@@ -217,13 +239,25 @@
           <h2 id="wName">自选麻辣烫</h2>
           <p id="wReason"></p>
           <div class="metaRow" id="wMeta"></div>
-          <div class="links"><button class="btn alt" onclick="alert('打开高德导航（示例）')">🗺️ 导航</button><button class="btn red" onclick="alert('跳转美团下单（示例）')">🛵 下单</button></div>
+          <div class="links"><button class="btn alt" id="wNav">🗺️ 导航</button><button class="btn red" id="wOrder">🛵 下单</button></div>
           <button class="btn" onclick="resetAll()">🔁 再来一局</button>
         </div>
       </div>
     </div>
 
     <script>
+      const AMAP_WEB_SERVICE_KEY = "7f40078338209e23255e8f8e0ca8cc37";
+      const DEFAULT_AMAP_CENTER = { lat: 31.230416, lng: 121.473701, amap: true, label: "上海人民广场" };
+      const INFO_THEMES = [
+        { bg: "#ff554f", fg: "#fffaf2", muted: "#fff1e9", tagBg: "#fffaf2", tagFg: "#1a1714" },
+        { bg: "#6d58e8", fg: "#fffaf2", muted: "#ede8ff", tagBg: "#fffaf2", tagFg: "#1a1714" },
+        { bg: "#ffcf24", fg: "#1a1714", muted: "#3e382f", tagBg: "#1a1714", tagFg: "#fffaf2" },
+        { bg: "#22c96b", fg: "#102116", muted: "#12311d", tagBg: "#fffaf2", tagFg: "#1a1714" },
+        { bg: "#ff7ab8", fg: "#1a1714", muted: "#3a2431", tagBg: "#1a1714", tagFg: "#fffaf2" },
+        { bg: "#2f7cff", fg: "#fffaf2", muted: "#e7f0ff", tagBg: "#fffaf2", tagFg: "#1a1714" }
+      ];
+      const CAN_USE_COMIC_IMAGES = location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".pages.dev");
+      const COMIC_IMAGE_ENDPOINT = location.protocol === "file:" ? "http://127.0.0.1:8788/api/comic-image" : "/api/comic-image";
       const POOL = [
         { emoji: "🍲", name: "自选麻辣烫", art: "var(--red)", reason: "各种菜随便选，避开主食零负担，东边折中、出餐快不排队。", meta: ["位置折中","低负担","不排队"] },
         { emoji: "🍜", name: "越南粉轻食", art: "var(--green)", reason: "出餐快、清爽不油腻，工作日晚上收尾刚好。", meta: ["出餐快","清爽","低压力"] },
@@ -231,30 +265,117 @@
         { emoji: "🥗", name: "自选沙拉", art: "var(--purple)", reason: "清淡健康、分量自控，不吃主食也没负担。", meta: ["清淡","自由配","无负担"] },
         { emoji: "🍶", name: "安静居酒屋", art: "var(--blue)", reason: "重点是聊天，座位灯光比菜更重要，变成小聚。", meta: ["聊天优先","氛围好","建议预约"] },
       ];
-      const TOTAL = POOL.length;
+      const ACCENTS = ["var(--red)", "var(--green)", "var(--yellow)", "var(--purple)", "var(--blue)"];
       const $ = (s) => document.querySelector(s);
-      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null;
+      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, totalCards = POOL.length, lastCoords = null, useComicImages = CAN_USE_COMIC_IMAGES && safeStorageGet("choice-over-use-comic") !== "0";
 
       function go(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
       $("#buffs").addEventListener("click",(e)=>{ if(e.target.classList.contains("chip")) e.target.classList.toggle("on"); });
+      syncComicToggle();
 
-      function startGame(name,label){ mode=name; $("#deckLabel").textContent=label+" · DECK"; resetDeck(); go("deck"); }
+      function toggleComicMode(){
+        if(!CAN_USE_COMIC_IMAGES){
+          toast("这个静态网址先用真实照片");
+          return;
+        }
+        useComicImages = !useComicImages;
+        safeStorageSet("choice-over-use-comic", useComicImages ? "1" : "0");
+        syncComicToggle();
+        toast(useComicImages ? "已开启漫画风图片" : "已关闭漫画风，直接用真实照片");
+      }
 
-      function resetDeck(){
-        deck = POOL.map((c,i)=>({...c, no:i+1}));
+      function syncComicToggle(){
+        const btn = $("#comicToggle");
+        const hint = $("#comicHint");
+        if(!btn || !hint) return;
+        if(!CAN_USE_COMIC_IMAGES){
+          btn.classList.add("off");
+          btn.setAttribute("aria-pressed", "false");
+          btn.setAttribute("aria-disabled", "true");
+          hint.textContent = "当前网址先用真实照片";
+          return;
+        }
+        btn.classList.toggle("off", !useComicImages);
+        btn.setAttribute("aria-pressed", useComicImages ? "true" : "false");
+        hint.textContent = useComicImages ? "开启后会多等一会儿" : "关闭后直接用真实照片";
+      }
+
+      async function startGame(name,label){
+        mode=name; $("#deckLabel").textContent=label+" · DECK"; go("deck");
+        await prepareLocationDeck();
+      }
+
+      async function prepareLocationDeck(){
+        ready=false; clearInterval(revT); pending=[];
+        renderLoadingDeck("正在定位附近餐厅", "会优先读取你的位置，再从高德拿真实餐厅和图片。");
+        try {
+          toast("正在请求定位权限…");
+          lastCoords = await getCurrentPosition();
+          toast("定位成功，正在查附近餐厅…");
+          const cards = await loadRestaurantCards(lastCoords);
+          if(cards.length === 5){
+            toast(`已找到 ${cards.length} 家附近餐厅`);
+            const prepared = await prepareVisualCards(cards);
+            if(prepared) resetDeck(prepared);
+            return;
+          }
+          toast("附近餐厅图片不足，改用城市定位");
+        } catch (err) {
+          toast(err.message || "定位失败，改用城市定位");
+        }
+        try {
+          lastCoords = await getApproxPosition();
+          toast(`使用${lastCoords.label || "城市"}附近餐厅…`);
+          const cards = await loadRestaurantCards(lastCoords);
+          if(cards.length === 5){
+            const prepared = await prepareVisualCards(cards);
+            if(prepared) resetDeck(prepared);
+            return;
+          }
+        } catch (err) {
+          toast(err.message || "城市餐厅查询失败");
+        }
+        renderLoadingDeck("图片素材不足", "没有拿到 5 张可用餐厅图片，先不出结果。请稍后刷新再试。", { done: 0, total: 5 });
+      }
+
+      function resetDeck(cards = activePool){
+        activePool = (cards && cards.length ? cards : POOL).map((c,i)=>({
+          ...c,
+          theme: c.theme || INFO_THEMES[i % INFO_THEMES.length]
+        }));
+        totalCards = activePool.length;
+        deck = activePool.map((c,i)=>({...c, no:i+1}));
         for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
         pending = [];
         renderDeck(); dealRound();
       }
 
+      function renderLoadingDeck(title, text, progress){
+        const el=$("#deck");
+        const progressHTML = progress ? loadingProgressHTML(progress) : "";
+        el.innerHTML=`<div class="gcard loadingCard" style="z-index:10"><div class="spinner"></div><strong>${escapeHTML(title)}</strong><p>${escapeHTML(text)}</p>${progressHTML}</div>`;
+        $("#leftN").textContent="...";
+        $("#pips").innerHTML="";
+      }
+
+      function loadingProgressHTML({ done = 0, total = 5 } = {}){
+        const safeTotal = Math.max(1, Number(total) || 5);
+        const safeDone = Math.max(0, Math.min(safeTotal, Number(done) || 0));
+        const percent = Math.round((safeDone / safeTotal) * 100);
+        return `<div class="loadingProgress" style="--progress:${percent}%"><span></span></div><div class="loadingCount pixel">${safeDone}/${safeTotal} READY</div>`;
+      }
+
       function faceHTML(c, withStamps){
+        const art = c.image
+          ? `<div class="art photo" style="background-image:linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.36)), url('${cssUrl(c.image)}')">${escapeHTML(c.emoji || "🍽️")}</div>`
+          : `<div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${escapeHTML(c.emoji || "🍽️")}</div>`;
         return `
-          <div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${c.emoji}</div>
-          <div class="info">
-            <div class="cnum pixel">NO.${c.no} / ${TOTAL}</div>
-            <h3>${c.name}</h3>
-            <p>${c.reason}</p>
-            <div class="metaRow">${c.meta.map(m=>`<span class="mtag">${m}</span>`).join("")}</div>
+          ${art}
+          <div class="info" style="${cardThemeStyle(c)}">
+            <div class="cnum pixel">NO.${c.no} / ${totalCards}</div>
+            <h3>${escapeHTML(c.name)}</h3>
+            <p>${escapeHTML(c.reason)}</p>
+            <div class="metaRow">${(c.meta || []).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("")}</div>
           </div>` + (withStamps ? `
           <div class="stamp s-r pixel">就它了</div>
           <div class="stamp s-l pixel">待定</div>
@@ -286,7 +407,7 @@
         let k=0; const total=9+Math.floor(Math.random()*5);
         topEl.classList.add("revealing");
         revT=setInterval(()=>{
-          setTopFace(POOL[k%POOL.length]); k++;
+          setTopFace(activePool[k%activePool.length]); k++;
           if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); toast("看清楚了 · 左滑待定 / 右滑就它 / 下滑钻管"); }
         }, 65);
       }
@@ -294,7 +415,7 @@
       function updateCounter(){
         $("#leftN").textContent = deck.length;
         const pips = $("#pips"); pips.innerHTML="";
-        for(let i=0;i<TOTAL;i++){ const p=document.createElement("span"); p.className="pip"+(i>=deck.length?" spent":""); pips.appendChild(p); }
+        for(let i=0;i<totalCards;i++){ const p=document.createElement("span"); p.className="pip"+(i>=deck.length?" spent":""); pips.appendChild(p); }
       }
 
       function attachDrag(card){
@@ -346,11 +467,323 @@
         } else { renderDeck(); dealRound(); }
       }
 
+      function getCurrentPosition(){
+        if(!("geolocation" in navigator)){
+          return Promise.reject(new Error("当前浏览器不支持定位"));
+        }
+        return new Promise((resolve,reject)=>{
+          navigator.geolocation.getCurrentPosition(
+            (pos)=>resolve({
+              lat:Number(pos.coords.latitude.toFixed(6)),
+              lng:Number(pos.coords.longitude.toFixed(6)),
+              accuracy:Math.round(pos.coords.accuracy || 0)
+            }),
+            (err)=>reject(new Error(locationErrorText(err))),
+            { enableHighAccuracy:true, maximumAge:1000*60*3, timeout:12000 }
+          );
+        });
+      }
+
+      function locationErrorText(err){
+        if(err && err.code===1) return "你拒绝了定位，改用城市定位";
+        if(err && err.code===2) return "暂时拿不到当前位置，改用城市定位";
+        if(err && err.code===3) return "定位超时，改用城市定位";
+        return "定位失败，改用城市定位";
+      }
+
+      async function loadRestaurantCards(coords){
+        let pois = await searchNearbyRestaurants(coords, 3500);
+        let cards = poisToCards(pois);
+        if(cards.filter(c=>c.image).length < 5){
+          pois = await searchNearbyRestaurants(coords, 8000);
+          cards = poisToCards(pois);
+        }
+        return cards.filter(c=>c.image).slice(0,5);
+      }
+
+      async function prepareVisualCards(cards){
+        if(!useComicImages){
+          renderLoadingDeck("正在加载真实照片", "漫画风已关闭，确认 5 张真实餐厅图可展示后直接发牌。", { done: 0, total: 5 });
+          let done = 0;
+          const results = await Promise.all(cards.map(card=>
+            preloadImage(card.image)
+              .then(()=>{ done += 1; renderLoadingDeck("正在加载真实照片", `第 ${done} 张已加载。`, { done, total: 5 }); return card; })
+              .catch((error)=>({ error }))
+          ));
+          if(results.some(item=>item.error)){
+            renderLoadingDeck("真实照片加载失败", "有图片没有加载成功，先不出结果。请稍后刷新再试。", { done: results.filter(item=>!item.error).length, total: 5 });
+            return null;
+          }
+          toast("5 张真实照片已加载");
+          return results;
+        }
+        return comicStyleCards(cards);
+      }
+
+      async function comicStyleCards(cards){
+        const targets = cards.filter(card=>card.image).slice(0,5);
+        if(targets.length < 5){
+          renderLoadingDeck("图片素材不足", `只拿到 ${targets.length}/5 张可用图片，先不出结果。`, { done: targets.length, total: 5 });
+          return null;
+        }
+
+        let done = 0;
+        renderLoadingDeck("正在生成漫画卡面", "已提交 5 张真实餐厅图，全部生成并加载完成后才发牌。", { done, total: 5 });
+        const jobs = targets.map((card,index)=>
+          comicStyleCardWithRetry(card)
+            .then(async (styledCard)=>{
+              await preloadImage(styledCard.image);
+              done += 1;
+              renderLoadingDeck("正在生成漫画卡面", `第 ${done} 张已完成。还差 ${5 - done} 张，别急着开奖。`, { done, total: 5 });
+              return { index, card: styledCard };
+            })
+            .catch((error)=>({ index, error }))
+        );
+        const results = await Promise.all(jobs);
+        const failures = results.filter(item=>item.error);
+        if(failures.length){
+          renderLoadingDeck("漫画生成暂时失败", `有 ${failures.length} 张图片没有生成成功，先不出结果。请稍后刷新再试。`, { done: 5 - failures.length, total: 5 });
+          toast("漫画图未满 5 张，已暂停发牌");
+          return null;
+        }
+        toast("5 张漫画卡面已生成");
+        return results.sort((a,b)=>a.index-b.index).map(item=>item.card);
+      }
+
+      async function comicStyleCardWithRetry(card, retries = 2){
+        let lastError = null;
+        for(let attempt=0; attempt<=retries; attempt++){
+          try{
+            return await comicStyleCard(card);
+          }catch(err){
+            lastError = err;
+            if(attempt < retries) await sleep(700 * (attempt + 1));
+          }
+        }
+        throw lastError || new Error("漫画生成失败");
+      }
+
+      async function comicStyleCard(card){
+        if(!card.image) throw new Error("缺少原始图片");
+        const cacheKey = `choice-over-comic:${card.name}:${card.image}`;
+        const cached = safeSessionGet(cacheKey);
+        if(cached) return { ...card, originalImage: card.originalImage || card.image, image: cached, comicImage: cached };
+        const response = await fetch(COMIC_IMAGE_ENDPOINT, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            title: card.name,
+            image: card.image,
+            prompt: comicPrompt(card)
+          })
+        });
+        const data = await response.json().catch(()=>null);
+        if(!response.ok || !data?.ok || !data.url){
+          throw new Error(data?.message || "漫画生成失败");
+        }
+        safeSessionSet(cacheKey, data.url);
+        return { ...card, originalImage: card.originalImage || card.image, image: data.url, comicImage: data.url };
+      }
+
+      function comicPrompt(card){
+        return [
+          "把输入照片改造成高质量漫画风餐厅卡面插画。",
+          "保留原图主体、空间结构、透视和餐厅/食物特征，不要改成无关场景。",
+          "日系生活方式漫画，干净线稿，柔和高饱和色，明亮温暖，细节丰富，适合手机抽卡卡片上半区。",
+          "不要添加任何文字、logo、水印、菜单字样或价格牌。",
+          `参考对象：${card.name}。`
+        ].join(" ");
+      }
+
+      function preloadImage(url){
+        return new Promise((resolve,reject)=>{
+          const img = new Image();
+          const timer = setTimeout(()=>reject(new Error("漫画图片加载超时")), 25000);
+          img.onload = ()=>{ clearTimeout(timer); resolve(); };
+          img.onerror = ()=>{ clearTimeout(timer); reject(new Error("漫画图片加载失败")); };
+          img.src = url;
+        });
+      }
+
+      function sleep(ms){
+        return new Promise(resolve=>setTimeout(resolve, ms));
+      }
+
+      function safeSessionGet(key){
+        return safeStorageGet(key);
+      }
+
+      function safeSessionSet(key, value){
+        safeStorageSet(key, value);
+      }
+
+      function safeStorageGet(key){
+        try { return sessionStorage.getItem(key); } catch { return ""; }
+      }
+
+      function safeStorageSet(key, value){
+        try { sessionStorage.setItem(key, value); } catch {}
+      }
+
+      async function searchNearbyRestaurants(coords, radius = 3500){
+        const center = coords.amap ? coords : await convertToAmap(coords);
+        const data = await amapJsonp("https://restapi.amap.com/v5/place/around", {
+          key: AMAP_WEB_SERVICE_KEY,
+          location: `${center.lng.toFixed(6)},${center.lat.toFixed(6)}`,
+          radius: String(radius),
+          types: "050000",
+          keywords: "餐厅",
+          sortrule: "distance",
+          page_size: "20",
+          show_fields: "business,photos",
+          output: "json",
+        });
+        if(data.status !== "1"){
+          throw new Error(data.info || "高德附近餐厅查询失败");
+        }
+        return (data.pois || []).map(normalizeAmapPoi).filter(Boolean).slice(0,20);
+      }
+
+      async function getApproxPosition(){
+        try{
+          const data = await amapJsonp("https://restapi.amap.com/v3/ip", {
+            key: AMAP_WEB_SERVICE_KEY,
+            output: "json",
+          });
+          if(data.status === "1"){
+            const center = centerFromRectangle(data.rectangle);
+            if(center){
+              const city = Array.isArray(data.city) ? data.city[0] : data.city;
+              const province = Array.isArray(data.province) ? data.province[0] : data.province;
+              return { ...center, amap: true, label: city || province || "当前城市" };
+            }
+          }
+        }catch{}
+        return { ...DEFAULT_AMAP_CENTER };
+      }
+
+      function centerFromRectangle(rectangle){
+        const points = String(rectangle || "").split(";");
+        if(points.length < 2) return null;
+        const [lng1,lat1] = points[0].split(",").map(Number);
+        const [lng2,lat2] = points[1].split(",").map(Number);
+        if([lng1,lat1,lng2,lat2].some(v=>!Number.isFinite(v))) return null;
+        return { lng:(lng1+lng2)/2, lat:(lat1+lat2)/2 };
+      }
+
+      async function convertToAmap(coords){
+        try{
+          const data = await amapJsonp("https://restapi.amap.com/v3/assistant/coordinate/convert", {
+            key: AMAP_WEB_SERVICE_KEY,
+            locations: `${coords.lng.toFixed(6)},${coords.lat.toFixed(6)}`,
+            coordsys: "gps",
+            output: "json",
+          });
+          if(data.status === "1" && data.locations){
+            const [lng,lat] = data.locations.split(";")[0].split(",").map(Number);
+            if(Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+          }
+        }catch{}
+        return coords;
+      }
+
+      function amapJsonp(endpoint, params){
+        return new Promise((resolve,reject)=>{
+          const cb = `__amap_cb_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+          const url = new URL(endpoint);
+          Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
+          url.searchParams.set("callback", cb);
+          const script = document.createElement("script");
+          let timer = null;
+          const cleanup = (done)=>{
+            clearTimeout(timer);
+            delete window[cb];
+            script.remove();
+            done && done();
+          };
+          timer = setTimeout(()=>cleanup(()=>reject(new Error("高德接口超时"))),10000);
+          window[cb] = (data)=>cleanup(()=>resolve(data));
+          script.onerror = ()=>cleanup(()=>reject(new Error("高德接口加载失败")));
+          script.src = url.toString();
+          document.head.appendChild(script);
+        });
+      }
+
+      function normalizeAmapPoi(poi){
+        if(!poi || !poi.name) return null;
+        const photos = Array.isArray(poi.photos) ? poi.photos : [];
+        const image = String(photos.find(p=>p && p.url)?.url || "").replace(/^http:\/\//i, "https://");
+        const business = poi.business || {};
+        const [lng,lat] = String(poi.location || "").split(",").map(Number);
+        const typeParts = String(poi.type || "").split(";");
+        return {
+          id: poi.id || poi.name,
+          name: poi.name,
+          address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""),
+          type: typeParts[typeParts.length-1] || typeParts[0] || "餐厅",
+          distance: Number(poi.distance) || 0,
+          rating: business.rating || "",
+          cost: business.cost || "",
+          image,
+          location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
+        };
+      }
+
+      function poisToCards(pois){
+        const named = pois.filter(p=>p.name);
+        const photoPois = named.filter(p=>p.image);
+        const source = [...photoPois, ...named.filter(p=>!p.image)];
+        return source
+          .map((p,i)=>({
+            emoji: "🍽️",
+            name: p.name,
+            art: ACCENTS[i % ACCENTS.length],
+            image: p.image,
+            reason: poiReason(p),
+            meta: [formatDistance(p.distance), p.rating ? `${p.rating}分` : "", p.cost ? `人均${formatCost(p.cost)}` : p.type].filter(Boolean).slice(0,3),
+            theme: INFO_THEMES[i % INFO_THEMES.length],
+            navUrl: p.location ? `https://uri.amap.com/marker?position=${p.location.lng},${p.location.lat}&name=${encodeURIComponent(p.name)}` : "",
+            orderUrl: `https://www.amap.com/search?query=${encodeURIComponent(p.name)}`
+          }))
+          .slice(0,5);
+      }
+
+      function poiReason(p){
+        const distance = formatDistance(p.distance);
+        const rating = p.rating ? `评分 ${p.rating}` : "";
+        const cost = p.cost ? `人均 ${formatCost(p.cost)}` : "";
+        return [`离你${distance || "不远"}`, rating, cost].filter(Boolean).join("，") + "。先按真实附近餐厅推进，少一点纠结。";
+      }
+
+      function formatDistance(value){
+        const d = Number(value);
+        if(!Number.isFinite(d) || d <= 0) return "";
+        return d >= 1000 ? `${(d/1000).toFixed(d >= 3000 ? 0 : 1)}km` : `${Math.round(d)}m`;
+      }
+
+      function formatCost(value){
+        const cost = Number(value);
+        if(Number.isFinite(cost) && cost > 0) return String(Math.round(cost));
+        return String(value || "").replace(/\.00$/, "");
+      }
+
       function win(c){
-        $("#wFace").textContent=c.emoji; $("#wFace").style.background=`repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}`;
+        const face=$("#wFace");
+        face.classList.toggle("photo", Boolean(c.image));
+        if(c.image){
+          face.textContent="";
+          face.style.background="";
+          face.style.backgroundImage=`linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.3)), url('${cssUrl(c.image)}')`;
+        }else{
+          face.textContent=c.emoji;
+          face.style.backgroundImage="";
+          face.style.background=`repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}`;
+        }
         $("#wName").textContent="就吃它 — "+c.name;
         $("#wReason").textContent=(mode==="霸总模式"?"概率已经替你拍板。":mode==="玄学模式"?"今日星盘站它，命中注定。":"")+c.reason;
-        $("#wMeta").innerHTML=c.meta.map(m=>`<span class="mtag">${m}</span>`).join("");
+        $("#wMeta").innerHTML=(c.meta || []).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("");
+        $("#wNav").onclick=()=> c.navUrl ? window.open(c.navUrl,"_blank") : alert("没有拿到导航地址");
+        $("#wOrder").onclick=()=> c.orderUrl ? window.open(c.orderUrl,"_blank") : alert("暂时没有下单链接");
         $("#win").classList.add("show"); confetti();
       }
 
@@ -369,6 +802,22 @@
       let toastT=null;
       function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1200); }
       function resetAll(){ $("#win").classList.remove("show"); $("#confetti").innerHTML=""; go("home"); }
+      function escapeHTML(value){
+        return String(value ?? "").replace(/[&<>"']/g, (ch)=>({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+      }
+      function cssUrl(value){
+        return String(value || "").replace(/['"\\\n\r]/g, (ch)=>encodeURIComponent(ch));
+      }
+      function cardThemeStyle(card){
+        const theme = INFO_THEMES.includes(card.theme) ? card.theme : INFO_THEMES[0];
+        return [
+          `--info-bg:${theme.bg}`,
+          `--info-fg:${theme.fg}`,
+          `--info-muted:${theme.muted}`,
+          `--tag-bg:${theme.tagBg}`,
+          `--tag-fg:${theme.tagFg}`
+        ].join(";");
+      }
 
       // ---- 欢迎页：照片 → 马里奥 8-bit 像素形象、定位、进入 ----
       let locOK = false;
