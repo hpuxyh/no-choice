@@ -255,7 +255,7 @@ export default function App() {
           <span className="brandMark">不</span>
           <span>
             <strong>不做选择</strong>
-            <small>PRD v1 Demo</small>
+            <small>决策原型</small>
           </span>
         </button>
         <div className="topActions">
