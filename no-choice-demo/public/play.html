@@ -292,14 +292,15 @@
       @keyframes fall { to { transform: translateY(115vh) rotate(720deg); opacity: .9; } }
       .toast { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 30; background: var(--ink); color: var(--paper); font-weight: 800; font-size: 12.5px; padding: 9px 15px; border-radius: 10px; opacity: 0; transition: opacity .25s; }
       .toast.show { opacity: 1; }
-      .soundGate { position: absolute; right: 14px; top: 54px; z-index: 45; border: 3px solid var(--ink); border-radius: 999px; background: var(--yellow); color: var(--ink); box-shadow: var(--shadow-sm); padding: 8px 12px; font: inherit; font-size: 12px; font-weight: 950; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity .18s ease, transform .18s ease; }
-      .soundGate.ready { opacity: 0; pointer-events: none; transform: translateY(-8px); }
+      .soundGate { position: fixed; left: 50%; top: max(10px, env(safe-area-inset-top)); transform: translateX(-50%); z-index: 9999; border: 3px solid var(--ink); border-radius: 999px; background: var(--yellow); color: var(--ink); box-shadow: var(--shadow-sm); padding: 9px 14px; font: inherit; font-size: 12px; font-weight: 950; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity .18s ease, transform .18s ease, background .18s ease; }
+      .soundGate.loading { background: var(--card); }
+      .soundGate.ready { opacity: 0; pointer-events: none; transform: translate(-50%, -8px); }
     </style>
   </head>
   <body>
-    <audio id="bgm" src="audio/choice-loop.mp3" preload="auto" loop playsinline></audio>
+    <button class="soundGate pixel" id="soundGate" type="button" ontouchstart="startBgmFromButton(event)" onpointerdown="startBgmFromButton(event)" onmousedown="startBgmFromButton(event)" onclick="startBgmFromButton(event)">🔊 开启音乐</button>
+    <audio id="bgm" src="audio/choice-loop.mp3?v=20260531-2" preload="auto" loop playsinline webkit-playsinline></audio>
     <div class="phone">
-      <button class="soundGate pixel" id="soundGate" type="button" onpointerdown="startBgmFromButton(event)" onclick="startBgmFromButton(event)">🔊 开启音乐</button>
       <div class="screens">
         <!-- 1) WELCOME -->
         <section class="screen active homeScreen" data-screen="welcome">
@@ -528,21 +529,32 @@
       let bgmUnlockInstalled = false;
 
       function go(name){ startBgm(); document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
-      function setSoundGate(playing){
+      function setSoundGate(state, label){
         const gate = $("#soundGate");
-        if(gate) gate.classList.toggle("ready", Boolean(playing));
+        if(!gate) return;
+        gate.classList.toggle("ready", state === "playing");
+        gate.classList.toggle("loading", state === "loading");
+        if(label) gate.textContent = label;
       }
-      function playBgm(){
+      function playBgm({ forceLoad = false } = {}){
         const audio = $("#bgm");
         if(!audio) return Promise.resolve(false);
         audio.loop = true;
         audio.muted = false;
+        audio.preload = "auto";
+        audio.setAttribute("playsinline", "");
+        audio.setAttribute("webkit-playsinline", "");
         audio.volume = BGM_VOLUME;
+        if(forceLoad || audio.readyState === 0) audio.load();
         const playPromise = audio.play();
         if(playPromise && typeof playPromise.then === "function"){
-          return playPromise.then(()=>{ setSoundGate(true); return true; }).catch(()=>{ setSoundGate(false); return false; });
+          return playPromise.then(()=>{ setSoundGate("playing", "🔊 播放中"); return true; }).catch((err)=>{
+            setSoundGate("blocked", "🔊 开启音乐");
+            console.warn("BGM play blocked", err);
+            return false;
+          });
         }
-        setSoundGate(true);
+        setSoundGate("playing", "🔊 播放中");
         return Promise.resolve(true);
       }
       function startBgm(){
@@ -550,11 +562,11 @@
       }
       window.startBgmFromButton = function(event){
         if(event){
-          event.preventDefault();
           event.stopPropagation();
         }
-        playBgm().then((ok)=>{
-          if(!ok) toast("再点一下开启音乐");
+        setSoundGate("loading", "🔊 音乐启动中");
+        playBgm({ forceLoad: true }).then((ok)=>{
+          if(!ok) toast("浏览器拦截了声音，请再点顶部音乐按钮");
         });
       };
       function installBgmUnlock(){
