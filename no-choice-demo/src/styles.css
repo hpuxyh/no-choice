@@ -541,6 +541,98 @@ input:focus-visible {
   gap: 8px;
 }
 
+.setupFlow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.setupFlow span {
+  min-width: 0;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0 8px;
+  color: #435066;
+  background: #f6f8fb;
+  border: 1px solid #e1e7f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 820;
+  text-align: center;
+}
+
+.setupFlow span:first-child {
+  color: #ffffff;
+  background: var(--module-accent);
+  border-color: var(--module-accent);
+}
+
+.questionBlock {
+  padding: 13px;
+  background:
+    linear-gradient(135deg, var(--module-soft), rgba(255, 255, 255, 0.84) 68%),
+    #ffffff;
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+}
+
+.questionLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.questionLabelRow em {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  color: var(--module-accent);
+  background: #ffffff;
+  border: 1px solid #d9e2ee;
+  border-radius: 7px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.fieldHint,
+.panelHint {
+  margin: 0;
+  color: #667085;
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.5;
+}
+
+.exampleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exampleRow button {
+  flex: 1 1 140px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  overflow: hidden;
+  color: #303849;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid #d9e2ee;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.exampleRow button:hover {
+  border-color: var(--module-accent);
+}
+
 .fieldGroup span,
 .sliderBox label,
 .sectionLabel span {
@@ -2055,6 +2147,32 @@ output {
   .controlPanel {
     gap: 12px;
     padding: 12px;
+  }
+
+  .setupFlow {
+    gap: 6px;
+  }
+
+  .setupFlow span {
+    min-height: 32px;
+    padding: 0 6px;
+    font-size: 12px;
+  }
+
+  .questionBlock {
+    padding: 11px;
+  }
+
+  .questionLabelRow {
+    align-items: flex-start;
+  }
+
+  .questionLabelRow em {
+    font-size: 11px;
+  }
+
+  .exampleRow button {
+    flex-basis: 128px;
   }
 
   .conditionPanel {

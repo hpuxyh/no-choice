@@ -112,6 +112,8 @@ export default function App() {
   const nextCard = session && session.cards.length > 1 ? session.cards[(session.index + 1) % session.cards.length] : null;
   const progress = session ? `${session.index + 1} / ${session.cards.length}` : "0 / 0";
   const resultModule = result ? getModuleProfile(result.moduleId) : activeModule;
+  const activeConditionCount = selectedConditions.length + customConditions.length;
+  const questionExamples = activeModule.questionExamples ?? [];
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -262,6 +264,11 @@ export default function App() {
 
   function removeCustomCondition(value) {
     setCustomConditions((current) => current.filter((item) => item !== value));
+  }
+
+  function chooseQuestionExample(example) {
+    setQuestion(example);
+    setError("");
   }
 
   async function useCurrentLocation() {
@@ -709,22 +716,43 @@ export default function App() {
               <p>{activeModule.description}</p>
             </div>
 
-            <label className="fieldGroup">
-              <span>{activeModule.questionLabel}</span>
+            <div className="setupFlow" aria-label="填写流程">
+              <span>写一句问题</span>
+              <span>选关键条件</span>
+              <span>抽 3 张卡</span>
+            </div>
+
+            <div className="fieldGroup questionBlock">
+              <div className="questionLabelRow">
+                <span>{activeModule.questionLabel}</span>
+                <em>一句话就够</em>
+              </div>
               <textarea
                 className="questionInput"
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
                 rows={2}
                 placeholder={activeModule.questionPlaceholder}
+                aria-label={activeModule.questionLabel}
               />
-            </label>
+              <p className="fieldHint">{activeModule.questionHelp}</p>
+              {questionExamples.length > 0 && (
+                <div className="exampleRow" aria-label="问题示例">
+                  {questionExamples.map((example) => (
+                    <button key={example} type="button" onClick={() => chooseQuestionExample(example)}>
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="conditionPanel">
               <div className="sectionLabel">
                 <span>{activeModule.conditionLabel}</span>
-                <em>{selectedConditions.length + customConditions.length || "可不填"}</em>
+                <em>{activeConditionCount ? `${activeConditionCount} 条` : "可跳过"}</em>
               </div>
+              <p className="panelHint">{activeModule.conditionHelp}</p>
               <div className="conditionGrid" aria-label="条件选择">
                 {conditionOptions.map((option) => (
                   <button
@@ -815,6 +843,7 @@ export default function App() {
             {mode === "manual" ? (
               <label className="fieldGroup candidateEditor">
                 <span>{activeModule.candidateLabel}</span>
+                <small className="fieldHint">至少写 3 个，每行一个；系统只负责从里面取舍。</small>
                 <textarea
                   value={manualOptions}
                   onChange={(event) => setManualOptions(event.target.value)}
@@ -833,8 +862,8 @@ export default function App() {
               <div className="drawCountBox">
                 <Sparkles size={18} />
                 <div>
-                  <strong>先抽 3 张答案卡</strong>
-                  <span>{activeModule.countLabel}会收口成最容易行动的 3 个选项。</span>
+                  <strong>{activeModule.drawSummaryTitle}</strong>
+                  <span>{activeModule.drawSummary}</span>
                 </div>
                 <output>{Math.min(cardCount, 3)}</output>
               </div>
