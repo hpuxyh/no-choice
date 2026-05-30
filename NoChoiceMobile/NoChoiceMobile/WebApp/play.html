@@ -295,6 +295,7 @@
     </style>
   </head>
   <body>
+    <audio id="bgm" src="audio/choice-loop.mp3" preload="auto" loop playsinline></audio>
     <div class="phone">
       <div class="screens">
         <!-- 1) WELCOME -->
@@ -520,9 +521,36 @@
       // 上传照片后展示的预生成像素头像（demo：原图 → 像素图）
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";
       const $ = (s) => document.querySelector(s);
+      const BGM_VOLUME = 0.5;
       let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, lastCoords = null, restaurantContext = null, restaurantContextPromise = null, rankedRestaurantPois = null, restaurantRankingSignature = "", restaurantRankingPromise = null, restaurantRankingTimer = null, useComicImages = CAN_USE_COMIC_IMAGES && safeStorageGet("choice-over-use-comic") === "1";
+      let bgmUnlockInstalled = false;
 
-      function go(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
+      function go(name){ startBgm(); document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
+      function playBgm(){
+        const audio = $("#bgm");
+        if(!audio) return Promise.resolve(false);
+        audio.loop = true;
+        audio.volume = BGM_VOLUME;
+        const playPromise = audio.play();
+        if(playPromise && typeof playPromise.then === "function"){
+          return playPromise.then(()=>true).catch(()=>false);
+        }
+        return Promise.resolve(true);
+      }
+      function startBgm(){
+        playBgm().then((ok)=>{ if(!ok) installBgmUnlock(); });
+      }
+      function installBgmUnlock(){
+        if(bgmUnlockInstalled) return;
+        bgmUnlockInstalled = true;
+        const unlock = ()=>{
+          playBgm().then((ok)=>{
+            if(!ok) return;
+            ["pointerdown","touchstart","click","keydown"].forEach(type=>document.removeEventListener(type, unlock, true));
+          });
+        };
+        ["pointerdown","touchstart","click","keydown"].forEach(type=>document.addEventListener(type, unlock, true));
+      }
       syncComicImageToggle();
 
       function toggleComicImages(){
@@ -1265,6 +1293,7 @@
       // 卡面“去导航”按钮：事件委托，避免与滑动冲突
       $("#deck").addEventListener("pointerdown",(e)=>{ if(e.target.closest(".navMini")) e.stopPropagation(); });
 
+      startBgm();
       primeRestaurantRecommendation();
 
       function primeRestaurantRecommendation(){

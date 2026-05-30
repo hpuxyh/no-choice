@@ -19,6 +19,7 @@ private struct NoChoiceWebView: UIViewRepresentable {
         let configuration = WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.websiteDataStore = .default()
         configuration.userContentController.addUserScript(Self.nativeLocationScript)
         configuration.userContentController.add(context.coordinator, name: "noChoiceLocation")
