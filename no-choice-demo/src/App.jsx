@@ -5,7 +5,6 @@ import {
   Copy,
   Dices,
   Flame,
-  Heart,
   LocateFixed,
   MapPin,
   Plus,
@@ -100,6 +99,9 @@ export default function App() {
   }, [activeModuleId, cardCount, context, geoState.pois, locationEnabled, manualOptions, mode, question]);
   const typeInfo = getTypeMeta(inferredType, activeModuleId);
   const activeCard = session?.cards[session.index] ?? null;
+  const previousCard =
+    session && session.cards.length > 1 ? session.cards[(session.index - 1 + session.cards.length) % session.cards.length] : null;
+  const nextCard = session && session.cards.length > 1 ? session.cards[(session.index + 1) % session.cards.length] : null;
   const progress = session ? `${session.index + 1} / ${session.cards.length}` : "0 / 0";
   const resultModule = result ? getModuleProfile(result.moduleId) : activeModule;
 
@@ -288,8 +290,25 @@ export default function App() {
     }
 
     if (x < -dragLimit) {
-      commitSwipe("left");
+      drawNextCard();
     }
+  }
+
+  function drawNextCard() {
+    if (!session || fly) return;
+
+    setFly("left");
+    window.setTimeout(() => {
+      setSession((current) =>
+        current
+          ? {
+              ...current,
+              index: (current.index + 1) % current.cards.length,
+            }
+          : current,
+      );
+      setFly(null);
+    }, 260);
   }
 
   function commitSwipe(direction) {
@@ -543,17 +562,13 @@ export default function App() {
                 )}
               </label>
             ) : (
-              <div className="sliderBox">
-                <label htmlFor="cardCount">{activeModule.countLabel}</label>
-                <input
-                  id="cardCount"
-                  type="range"
-                  min="3"
-                  max="8"
-                  value={cardCount}
-                  onChange={(event) => setCardCount(Number(event.target.value))}
-                />
-                <output>{cardCount}</output>
+              <div className="drawCountBox">
+                <Sparkles size={18} />
+                <div>
+                  <strong>先抽 3 张答案卡</strong>
+                  <span>{activeModule.countLabel}会收口成最容易行动的 3 个选项。</span>
+                </div>
+                <output>{Math.min(cardCount, 3)}</output>
               </div>
             )}
 
@@ -589,28 +604,29 @@ export default function App() {
       )}
 
       {phase === "swipe" && session && activeCard && (
-        <section className="swipeScreen" aria-label="滑卡">
-          <div className="swipeHeader">
-            <div>
-              <span>{getTypeMeta(session.type, session.moduleId).label}</span>
-              <strong>{progress}</strong>
+        <section className="drawScreen" aria-label="抽卡">
+          <div className="drawHeader">
+            <div className="miniDeck" aria-hidden="true">
+              {session.cards.slice(0, 3).map((card, index) => (
+                <span
+                  key={card.id}
+                  style={{
+                    "--tilt": `${(index - 1) * 8}deg`,
+                    "--lift": `${Math.abs(index - 1) * 8}px`,
+                    backgroundImage: `linear-gradient(150deg, rgba(255,255,255,.12), rgba(0,0,0,.12)), url(${card.image})`,
+                  }}
+                />
+              ))}
             </div>
-            <div className="personaPill">
-              <Sparkles size={16} />
-              {personaMeta[session.persona].name}
-            </div>
-            <div className="progressTrack" aria-hidden="true">
-              <span style={{ width: `${((session.index + 1) / session.cards.length) * 100}%` }} />
-            </div>
+            <h1>
+              抽取今日选择卡，
+              <span>{getModuleProfile(session.moduleId).label}</span>
+            </h1>
+            <p>{session.question}</p>
           </div>
 
-          <div className="deck" aria-live="polite">
-            {session.cards
-              .slice(session.index + 1, session.index + 3)
-              .reverse()
-              .map((card, stackIndex) => (
-                <DecisionCard key={card.id} card={card} stackIndex={stackIndex + 1} />
-              ))}
+          <div className="drawCarousel" aria-live="polite">
+            {previousCard && <DecisionCard card={previousCard} side="left" onPointerDown={drawNextCard} />}
 
             <DecisionCard
               card={activeCard}
@@ -622,15 +638,25 @@ export default function App() {
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
             />
+
+            {nextCard && <DecisionCard card={nextCard} side="right" onPointerDown={drawNextCard} />}
           </div>
 
-          <div className="swipeActions" aria-label="滑卡操作">
-            <button className="roundAction reject" type="button" onClick={() => commitSwipe("left")} aria-label="划走">
-              <X size={30} />
+          <div className="drawPointer" aria-hidden="true" />
+
+          <div className="goCloud">
+            <button className="goButton" type="button" onClick={() => commitSwipe("right")} aria-label="抽取当前答案卡">
+              <span>GO</span>
             </button>
-            <button className="roundAction accept" type="button" onClick={() => commitSwipe("right")} aria-label="就它了">
-              <Heart size={30} />
+          </div>
+
+          <div className="drawFooter">
+            <button className="drawNextButton" type="button" onClick={drawNextCard}>
+              <RefreshCcw size={16} />
+              换一张
             </button>
+            <span>{progress}</span>
+            <em>{getTypeMeta(session.type, session.moduleId).tone}</em>
           </div>
 
           {notice && <div className="toast">{notice}</div>}
@@ -682,6 +708,7 @@ export default function App() {
 function DecisionCard({
   card,
   active = false,
+  side,
   drag = { x: 0, y: 0 },
   fly,
   stackIndex = 0,
@@ -699,15 +726,21 @@ function DecisionCard({
         : "";
   const activeTransform = `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${rotation}deg)`;
   const stackTransform = `translateY(${stackIndex * 13}px) scale(${1 - stackIndex * 0.045})`;
+  const sideTransform =
+    side === "left"
+      ? "translate3d(-72%, 18px, 0) rotate(-8deg) scale(.9)"
+      : side === "right"
+        ? "translate3d(72%, 18px, 0) rotate(8deg) scale(.9)"
+        : stackTransform;
   const chooseOpacity = Math.min(1, Math.max(0, drag.x / dragLimit));
   const rejectOpacity = Math.min(1, Math.max(0, -drag.x / dragLimit));
 
   return (
     <article
-      className={`decisionCard ${active ? "active" : "stacked"}`}
+      className={`decisionCard ${active ? "active" : side ? `side ${side}` : "stacked"}`}
       style={{
         "--accent": card.accent,
-        transform: active ? flyTransform || activeTransform : stackTransform,
+        transform: active ? flyTransform || activeTransform : sideTransform,
         transition: active && drag.active && !fly ? "none" : undefined,
       }}
       onPointerDown={onPointerDown}

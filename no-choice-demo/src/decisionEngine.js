@@ -45,7 +45,7 @@ export const moduleProfiles = {
     autoLabel: "按条件推荐",
     manualLabel: "我有备选",
     countLabel: "推荐几种吃法",
-    startLabel: "定今晚这顿",
+    startLabel: "抽今晚 3 张",
     previewBadge: "吃喝决策",
     previewDescription: "优先考虑位置、预算、排队和聊天氛围。接入 POI 后会变成真实店铺推荐。",
     resultPrefix: "今晚就吃",
@@ -92,7 +92,7 @@ export const moduleProfiles = {
     autoLabel: "生成行程",
     manualLabel: "我有想法",
     countLabel: "生成几段安排",
-    startLabel: "定周末安排",
+    startLabel: "抽周末 3 张",
     previewBadge: "周末安排",
     previewDescription: "按时长、天气、精力和同行关系收口。接入天气和活动票务后会更准。",
     resultPrefix: "周末就去",
@@ -139,7 +139,7 @@ export const moduleProfiles = {
     autoLabel: "生成礼物",
     manualLabel: "我有备选",
     countLabel: "生成几份礼物",
-    startLabel: "定这份礼物",
+    startLabel: "抽礼物 3 张",
     previewBadge: "礼物决策",
     previewDescription: "按关系、预算、使用频率和踩雷风险推荐。接入电商后可直接跳转购买。",
     resultPrefix: "礼物就选",
@@ -180,7 +180,7 @@ export const moduleProfiles = {
     autoLabel: "帮我拆选项",
     manualLabel: "我有候选",
     countLabel: "生成几种方向",
-    startLabel: "帮我拍板",
+    startLabel: "抽答案卡",
     previewBadge: "通用选择",
     previewDescription: "适合低风险、可回退的问题。重大决定会优先建议补信息或小步验证。",
     resultPrefix: "这次就选",
@@ -215,7 +215,7 @@ export const presets = [
     customConditions: ["我在国贸，对方在常营"],
     mode: "auto",
     options: "",
-    count: 4,
+    count: 3,
   },
   {
     id: "weekend",
@@ -226,7 +226,7 @@ export const presets = [
     customConditions: ["只有半天", "不想太累"],
     mode: "auto",
     options: "",
-    count: 4,
+    count: 3,
   },
   {
     id: "gift",
@@ -237,7 +237,7 @@ export const presets = [
     customConditions: ["预算 300 元以内", "对方刚入职"],
     mode: "auto",
     options: "",
-    count: 5,
+    count: 3,
   },
   {
     id: "general",
@@ -287,6 +287,7 @@ const fallbackLines = [
   "再想十分钟也差不多，先收口。",
 ];
 
+const decisionCardLimit = 3;
 const lightSignals = ["一杯冰美式", "左手边第二盏灯", "今天的云", "路口第一个绿灯", "手机电量末位数"];
 const quickRules = ["先选能执行的", "先避开不可逆", "先控制成本", "先让下一步变清楚"];
 
@@ -366,7 +367,7 @@ export function buildDecision({
     return { ok: false, error: "手动候选至少需要 3 个，才有比较和取舍的空间。" };
   }
 
-  const count = mode === "manual" ? Math.min(options.length, 8) : clamp(Number(cardCount) || 3, 3, 8);
+  const count = mode === "manual" ? Math.min(options.length, decisionCardLimit) : decisionCardLimit;
   const cards =
     mode === "manual"
       ? makeManualCards(options, cleanQuestion, count, moduleId)
@@ -776,10 +777,6 @@ function stableNumber(value, modulo) {
     hash = (hash * 31 + value.charCodeAt(index)) % 2147483647;
   }
   return Math.abs(hash) % modulo;
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
 }
 
 function formatDistance(value) {

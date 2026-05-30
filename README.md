@@ -15,7 +15,7 @@
 - 快速建局：预设常见选择困难场景，也支持自己输入问题。
 - 条件收集：用标签和补充输入记录偏好、约束和临时想法。
 - 自动推荐：根据问题类型和条件生成候选卡片。
-- 滑卡拍板：用户可以滑动比较，但滑到底会兜底给出最终选择。
+- 抽卡拍板：每次先收口成 3 张答案卡，用户可以换一张，也可以点 GO 直接定当前卡。
 - 直接结论：是否题会直接给出“做/不做”判断和理由。
 - 解释口吻：支持不同风格的推荐理由，降低“被算法命令”的生硬感。
 - 手机定位：吃饭和周末模块支持点击获取当前位置；吃饭模块在 Cloudflare 版通过 `/api/poi` 拉取附近真实餐厅、距离、评分、地址和店铺图。
@@ -41,6 +41,7 @@
   <img src="screenshots/no-choice-modules-mobile.png" width="260" alt="不做选择四模块移动端" />
   <img src="screenshots/no-choice-location-mobile.png" width="260" alt="不做选择手机定位" />
   <img src="screenshots/no-choice-amap-poi-mobile.png" width="260" alt="不做选择高德 POI Web 移动端" />
+  <img src="screenshots/no-choice-draw-mobile.png" width="260" alt="不做选择抽卡移动端" />
   <img src="screenshots/no-choice-ios-amap-poi-scrolled.png" width="260" alt="不做选择高德 POI iOS 结果卡" />
 </p>
 

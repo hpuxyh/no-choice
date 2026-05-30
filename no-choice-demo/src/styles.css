@@ -693,6 +693,42 @@ textarea::placeholder {
   box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
 }
 
+.drawCountBox {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 42px;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  color: #253044;
+  background:
+    linear-gradient(135deg, var(--module-soft), rgba(255, 255, 255, 0.86) 58%),
+    #ffffff;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+}
+
+.drawCountBox svg {
+  color: var(--module-accent);
+}
+
+.drawCountBox strong,
+.drawCountBox span {
+  display: block;
+  min-width: 0;
+}
+
+.drawCountBox strong {
+  font-weight: 880;
+}
+
+.drawCountBox span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 input[type="range"] {
   width: 100%;
   accent-color: var(--module-accent);
@@ -909,6 +945,306 @@ output {
   color: var(--muted);
   font-size: 16px;
   line-height: 1.7;
+}
+
+.phase-swipe {
+  width: min(760px, calc(100% - 24px));
+  padding-top: 0;
+}
+
+.phase-swipe .topBar {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  left: 22px;
+  z-index: 5;
+  margin-bottom: 0;
+}
+
+.drawScreen {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  min-height: 100dvh;
+  padding: 72px 0 0;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 247, 238, 0.98) 0%, rgba(255, 251, 241, 0.9) 46%, rgba(237, 250, 244, 0.96) 100%);
+  border-radius: 8px;
+}
+
+.drawScreen::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(rgba(139, 95, 55, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 95, 55, 0.035) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, transparent 0, rgba(0, 0, 0, 0.55) 28%, transparent 100%);
+  pointer-events: none;
+}
+
+.drawHeader {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  max-width: min(560px, 92vw);
+  text-align: center;
+}
+
+.miniDeck {
+  position: relative;
+  width: 102px;
+  height: 50px;
+  margin-bottom: 14px;
+}
+
+.miniDeck span {
+  position: absolute;
+  bottom: var(--lift);
+  left: calc(50% - 17px);
+  width: 34px;
+  height: 46px;
+  background-color: #ffffff;
+  background-position: center;
+  background-size: cover;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 6px;
+  box-shadow: 0 8px 18px rgba(132, 91, 58, 0.14);
+  transform: translateX(calc((var(--tilt) / 1deg) * 3px)) rotate(var(--tilt));
+  transform-origin: 50% 100%;
+}
+
+.drawHeader h1 {
+  margin: 0;
+  color: #2d2a27;
+  font-size: clamp(28px, 5vw, 42px);
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+.drawHeader h1 span {
+  display: block;
+  margin-top: 6px;
+  color: color-mix(in srgb, var(--module-accent) 74%, #d79056);
+}
+
+.drawHeader p {
+  max-width: 480px;
+  margin: 12px 0 0;
+  color: #7b6b5e;
+  font-size: 15px;
+  font-weight: 720;
+  line-height: 1.6;
+}
+
+.drawCarousel {
+  position: relative;
+  z-index: 1;
+  width: min(365px, 76vw);
+  height: clamp(440px, 58dvh, 560px);
+  margin-top: 22px;
+  perspective: 1100px;
+}
+
+.drawCarousel .decisionCard {
+  grid-template-rows: 52% 1fr;
+  overflow: hidden;
+  background: #ffffff;
+  border: 10px solid #ffffff;
+  border-radius: 28px;
+  box-shadow:
+    0 28px 72px rgba(112, 79, 50, 0.2),
+    0 0 0 2px rgba(247, 190, 143, 0.18);
+}
+
+.drawCarousel .decisionCard.active {
+  cursor: grab;
+}
+
+.drawCarousel .decisionCard.side {
+  z-index: 0;
+  opacity: 0.82;
+  filter: saturate(0.9) brightness(0.98);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.drawCarousel .decisionCard.side.left {
+  transform-origin: 100% 86%;
+}
+
+.drawCarousel .decisionCard.side.right {
+  transform-origin: 0 86%;
+}
+
+.drawCarousel .decisionCard.active {
+  z-index: 2;
+}
+
+.drawCarousel .cardMedia {
+  min-height: 0;
+  border-radius: 18px 18px 8px 8px;
+}
+
+.drawCarousel .cardMedia::after {
+  right: 18px;
+  bottom: 14px;
+  width: 60px;
+  height: 9px;
+  background: color-mix(in srgb, var(--accent) 82%, #ffffff);
+}
+
+.drawCarousel .cardContent {
+  padding: 18px 18px 20px;
+  background: #ffffff;
+}
+
+.drawCarousel .cardTitleRow {
+  gap: 8px;
+}
+
+.drawCarousel .cardTitleRow h2 {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #1f242d;
+  font-size: clamp(23px, 6vw, 34px);
+  line-height: 1.16;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.drawCarousel .cardContent p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 10px;
+  color: #6f7685;
+  font-size: clamp(15px, 3.7vw, 17px);
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.drawCarousel .metaRow {
+  padding-top: 14px;
+}
+
+.drawCarousel .metaRow span {
+  font-size: 12px;
+}
+
+.drawPointer {
+  position: relative;
+  z-index: 2;
+  width: 0;
+  height: 0;
+  margin-top: 10px;
+  border-right: 18px solid transparent;
+  border-bottom: 28px solid #ffb076;
+  border-left: 18px solid transparent;
+  filter: drop-shadow(0 12px 14px rgba(211, 129, 76, 0.32));
+}
+
+.goCloud {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(480px, 108%);
+  height: 138px;
+  margin-top: -2px;
+  place-items: center;
+}
+
+.goCloud::before {
+  position: absolute;
+  inset: 30px -28px -34px;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 248, 218, 0.82)),
+    #ffffff;
+  border-radius: 52% 52% 0 0 / 48px 48px 0 0;
+  box-shadow:
+    0 -12px 34px rgba(247, 185, 126, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.goButton {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 104px;
+  height: 104px;
+  place-items: center;
+  color: #ffffff;
+  background: #ffae75;
+  border: 7px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  box-shadow:
+    0 18px 38px rgba(213, 129, 74, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.goButton::before {
+  position: absolute;
+  inset: -14px;
+  content: "";
+  border: 2px dashed rgba(255, 174, 117, 0.38);
+  border-radius: inherit;
+}
+
+.goButton span {
+  font-size: 30px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.goButton:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 24px 48px rgba(213, 129, 74, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.drawFooter {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-top: -18px;
+  padding-bottom: 22px;
+  color: #746b63;
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.drawNextButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  color: #2f3440;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(228, 214, 202, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(132, 91, 58, 0.1);
+}
+
+.drawFooter span,
+.drawFooter em {
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(228, 214, 202, 0.72);
+  border-radius: 8px;
+  font-style: normal;
 }
 
 .swipeScreen {
@@ -1285,6 +1621,18 @@ output {
     font-size: 24px;
   }
 
+  .phase-swipe {
+    width: calc(100% - 18px);
+  }
+
+  .drawScreen {
+    min-height: 100dvh;
+  }
+
+  .drawCarousel {
+    width: min(350px, 76vw);
+  }
+
   .resultImage {
     min-height: 260px;
   }
@@ -1389,6 +1737,11 @@ output {
     grid-column: 1 / -1;
   }
 
+  .drawCountBox {
+    grid-template-columns: 32px minmax(0, 1fr) 38px;
+    padding: 12px;
+  }
+
   .decisionStrip {
     align-items: stretch;
     justify-content: flex-start;
@@ -1454,6 +1807,79 @@ output {
 
   .swipeHeader {
     padding: 0 2px;
+  }
+
+  .drawScreen {
+    padding-top: 54px;
+  }
+
+  .drawHeader h1 {
+    font-size: clamp(27px, 8.2vw, 34px);
+  }
+
+  .drawHeader p {
+    display: -webkit-box;
+    overflow: hidden;
+    max-width: 310px;
+    margin-top: 8px;
+    font-size: 13px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .miniDeck {
+    margin-bottom: 10px;
+    transform: scale(0.92);
+  }
+
+  .drawCarousel {
+    width: min(318px, 74vw);
+    height: clamp(362px, 49dvh, 440px);
+    margin-top: 16px;
+  }
+
+  .drawCarousel .decisionCard {
+    grid-template-rows: 50% 1fr;
+    border-width: 8px;
+    border-radius: 24px;
+  }
+
+  .drawCarousel .cardContent {
+    padding: 15px;
+  }
+
+  .drawCarousel .cardTitleRow h2 {
+    font-size: clamp(22px, 6.8vw, 28px);
+  }
+
+  .drawCarousel .cardContent p {
+    font-size: 14px;
+    -webkit-line-clamp: 3;
+  }
+
+  .drawPointer {
+    margin-top: 7px;
+    border-right-width: 15px;
+    border-bottom-width: 24px;
+    border-left-width: 15px;
+  }
+
+  .goCloud {
+    height: 104px;
+  }
+
+  .goButton {
+    width: 82px;
+    height: 82px;
+  }
+
+  .goButton span {
+    font-size: 27px;
+  }
+
+  .drawFooter {
+    margin-top: -16px;
+    padding-bottom: 18px;
   }
 
   .cardTitleRow h2 {
