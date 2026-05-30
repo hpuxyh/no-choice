@@ -292,11 +292,14 @@
       @keyframes fall { to { transform: translateY(115vh) rotate(720deg); opacity: .9; } }
       .toast { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 30; background: var(--ink); color: var(--paper); font-weight: 800; font-size: 12.5px; padding: 9px 15px; border-radius: 10px; opacity: 0; transition: opacity .25s; }
       .toast.show { opacity: 1; }
+      .soundGate { position: absolute; right: 14px; top: 54px; z-index: 45; border: 3px solid var(--ink); border-radius: 999px; background: var(--yellow); color: var(--ink); box-shadow: var(--shadow-sm); padding: 8px 12px; font: inherit; font-size: 12px; font-weight: 950; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity .18s ease, transform .18s ease; }
+      .soundGate.ready { opacity: 0; pointer-events: none; transform: translateY(-8px); }
     </style>
   </head>
   <body>
     <audio id="bgm" src="audio/choice-loop.mp3" preload="auto" loop playsinline></audio>
     <div class="phone">
+      <button class="soundGate pixel" id="soundGate" type="button" onpointerdown="startBgmFromButton(event)" onclick="startBgmFromButton(event)">🔊 开启音乐</button>
       <div class="screens">
         <!-- 1) WELCOME -->
         <section class="screen active homeScreen" data-screen="welcome">
@@ -520,25 +523,40 @@
       // 上传照片后展示的预生成像素头像（demo：原图 → 像素图）
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";
       const $ = (s) => document.querySelector(s);
-      const BGM_VOLUME = 0.5;
+      const BGM_VOLUME = 0.72;
       let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, lastCoords = null, restaurantContext = null, restaurantContextPromise = null, rankedRestaurantPois = null, restaurantRankingSignature = "", restaurantRankingPromise = null, restaurantRankingTimer = null, useComicImages = CAN_USE_COMIC_IMAGES && safeStorageGet("choice-over-use-comic") === "1";
       let bgmUnlockInstalled = false;
 
       function go(name){ startBgm(); document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
+      function setSoundGate(playing){
+        const gate = $("#soundGate");
+        if(gate) gate.classList.toggle("ready", Boolean(playing));
+      }
       function playBgm(){
         const audio = $("#bgm");
         if(!audio) return Promise.resolve(false);
         audio.loop = true;
+        audio.muted = false;
         audio.volume = BGM_VOLUME;
         const playPromise = audio.play();
         if(playPromise && typeof playPromise.then === "function"){
-          return playPromise.then(()=>true).catch(()=>false);
+          return playPromise.then(()=>{ setSoundGate(true); return true; }).catch(()=>{ setSoundGate(false); return false; });
         }
+        setSoundGate(true);
         return Promise.resolve(true);
       }
       function startBgm(){
         playBgm().then((ok)=>{ if(!ok) installBgmUnlock(); });
       }
+      window.startBgmFromButton = function(event){
+        if(event){
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        playBgm().then((ok)=>{
+          if(!ok) toast("再点一下开启音乐");
+        });
+      };
       function installBgmUnlock(){
         if(bgmUnlockInstalled) return;
         bgmUnlockInstalled = true;
