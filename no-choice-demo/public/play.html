@@ -58,6 +58,8 @@
       .avatarSlot.set canvas { display: block; }
       .avatarSlot.pic .avatarPic { display: block; }
       .avatarSlot.set .avatarEmoji, .avatarSlot.pic .avatarEmoji { display: none; }
+      .avatarSlot.loading::before { content: ""; position: absolute; inset: 0; background: rgba(26,23,20,.45); z-index: 2; }
+      .avatarSlot.loading::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border: 4px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; z-index: 3; }
       .avatarEmoji { font-size: 40px; line-height: 1; }
       .avatarGallery { display: flex; gap: 7px; overflow-x: auto; padding: 2px 0 4px; }
       .gAv { flex: none; width: 46px; height: 46px; border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; display: grid; place-items: center; font-size: 26px; background: var(--paper); cursor: pointer; box-shadow: var(--shadow-sm); padding: 0; }
@@ -358,6 +360,9 @@
       const ACCENTS = ["var(--red)", "var(--green)", "var(--yellow)", "var(--purple)", "var(--blue)"];
       const CAN_USE_COMIC_IMAGES = location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".pages.dev");
       const COMIC_IMAGE_ENDPOINT = location.protocol === "file:" ? "http://127.0.0.1:8788/api/comic-image" : "/api/comic-image";
+      // 头像 AI（豆包 Seedream）：上传照片 → 卡通像素头像。与漫画图同源，需要 worker + 配置 key
+      const AVATAR_ENDPOINT = location.protocol === "file:" ? "http://127.0.0.1:8788/api/avatar" : "/api/avatar";
+      const CAN_USE_AVATAR_AI = CAN_USE_COMIC_IMAGES;
       const $ = (s) => document.querySelector(s);
       let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, lastCoords = null, useComicImages = CAN_USE_COMIC_IMAGES;
 
@@ -539,11 +544,13 @@
         if (!f) return;
         const img = new Image();
         img.onload = () => {
+          const side = Math.min(img.width, img.height);
+          const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+          // 1) 本地像素化：即时占位，也是 AI 不可用时的兜底
           const px = 18; // 大色块 → 游戏动画感 8-bit 像素
           const tmp = document.createElement("canvas"); tmp.width = px; tmp.height = px;
           const tctx = tmp.getContext("2d");
-          const side = Math.min(img.width, img.height);
-          tctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, px, px);
+          tctx.drawImage(img, sx, sy, side, side, 0, 0, px, px);
           try {
             const id = tctx.getImageData(0, 0, px, px), d = id.data;
             for (let i = 0; i < d.length; i += 4) { d[i] = Math.round(d[i] / 85) * 85; d[i + 1] = Math.round(d[i + 1] / 85) * 85; d[i + 2] = Math.round(d[i + 2] / 85) * 85; }
@@ -558,11 +565,52 @@
           try { photoData = canv.toDataURL(); } catch (err) { photoData = ""; }
           document.querySelectorAll(".gAv").forEach((x) => x.classList.remove("on"));
           updatePill();
-          toast("游戏像素小头像已生成");
+          // 2) 把中清晰度方图交给豆包，生成卡通像素头像
+          const srcData = squareDataURL(img, sx, sy, side, 512);
           URL.revokeObjectURL(img.src);
+          if (srcData && CAN_USE_AVATAR_AI) generatePixelAvatar(srcData);
+          else toast(CAN_USE_AVATAR_AI ? "图片读取失败，用本地像素头像" : "已生成本地像素头像（线上版接豆包 AI）");
         };
         img.src = URL.createObjectURL(f);
       });
+
+      // 中清晰度方图（喂给豆包，避免大图 & 保留细节）
+      function squareDataURL(img, sx, sy, side, target) {
+        const c = document.createElement("canvas"); c.width = target; c.height = target;
+        const cx = c.getContext("2d");
+        cx.drawImage(img, sx, sy, side, side, 0, 0, target, target);
+        try { return c.toDataURL("image/jpeg", 0.85); } catch (err) { return ""; }
+      }
+
+      // 调用豆包 Seedream：上传照片 → 卡通像素风头像
+      let avatarBusy = false;
+      async function generatePixelAvatar(dataUrl) {
+        if (avatarBusy) return;
+        avatarBusy = true;
+        slot.classList.add("loading");
+        toast("豆包正在生成卡通像素头像…");
+        try {
+          const res = await fetch(AVATAR_ENDPOINT, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ image: dataUrl, prompt: "帮我通过这个图生成一个卡通像素风头像，不要马赛克。" }),
+          });
+          const data = await res.json().catch(() => null);
+          if (!res.ok || !data || !data.ok || !data.url) throw new Error((data && data.message) || "生成失败");
+          // 用豆包返回的头像替换本地像素图
+          photoData = ""; avatarSrc = data.url;
+          slot.classList.remove("set"); slot.classList.add("pic");
+          if (avatarPic) avatarPic.src = data.url;
+          document.querySelectorAll(".gAv").forEach((x) => x.classList.remove("on"));
+          updatePill();
+          toast("豆包卡通像素头像已生成 ✨");
+        } catch (err) {
+          toast("AI 头像生成失败，先用本地像素头像");
+        } finally {
+          avatarBusy = false;
+          slot.classList.remove("loading");
+        }
+      }
 
       // 选择页：上传选项图片，显示缩略图
       document.getElementById("choicePhoto").addEventListener("change", (e) => {
