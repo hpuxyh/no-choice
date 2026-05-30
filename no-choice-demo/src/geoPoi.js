@@ -1,4 +1,5 @@
 const defaultPoiEndpoint = "/api/poi";
+const minDinnerCost = 150;
 
 export function canUseLocation(moduleId) {
   return moduleId === "dinner" || moduleId === "weekend";
@@ -88,10 +89,12 @@ export async function searchNearbyPois({ coords, moduleId, keyword }) {
     };
   }
 
+  const pois = normalizePois(data.pois, moduleId);
+
   return {
     ok: true,
-    pois: normalizePois(data.pois),
-    message: data.pois?.length ? `已找到 ${data.pois.length} 个附近参考点` : "附近暂时没有合适结果",
+    pois,
+    message: pois.length ? `已找到 ${pois.length} 个附近参考点` : "附近暂时没有合适结果",
   };
 }
 
@@ -148,9 +151,9 @@ export function getLocationStatusLabel(state) {
   return "可选";
 }
 
-function normalizePois(pois = []) {
+function normalizePois(pois = [], moduleId) {
   return pois
-    .filter((poi) => poi && poi.name)
+    .filter((poi) => poi && poi.name && isTargetPoi(poi, moduleId))
     .map((poi) => ({
       id: String(poi.id || poi.name),
       name: String(poi.name),
@@ -164,6 +167,23 @@ function normalizePois(pois = []) {
       location: poi.location || null,
     }))
     .slice(0, 8);
+}
+
+function isTargetPoi(poi, moduleId) {
+  if (moduleId !== "dinner") {
+    return true;
+  }
+  const cost = readCostValue(poi.cost);
+  return Number.isFinite(cost) && cost >= minDinnerCost;
+}
+
+function readCostValue(value) {
+  const direct = Number(value);
+  if (Number.isFinite(direct)) {
+    return direct;
+  }
+  const match = String(value || "").match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : Number.NaN;
 }
 
 function getLocationErrorMessage(error) {

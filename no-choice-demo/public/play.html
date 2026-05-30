@@ -969,11 +969,17 @@
         return { id: poi.id || poi.name, name: poi.name, address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""), type: typeParts[typeParts.length-1] || typeParts[0] || "餐厅", distance: Number(poi.distance) || 0, rating: business.rating || "", cost: business.cost || "", image, location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null };
       }
       function isTargetCostPoi(poi){
-        const cost = Number(poi?.cost);
+        const cost = readCostValue(poi?.cost);
         return Number.isFinite(cost) && cost >= MIN_RESTAURANT_COST;
       }
+      function readCostValue(value){
+        const direct = Number(value);
+        if(Number.isFinite(direct)) return direct;
+        const match = String(value || "").match(/\d+(?:\.\d+)?/);
+        return match ? Number(match[0]) : Number.NaN;
+      }
       function poisToCards(pois){
-        const named = pois.filter(p=>p.name);
+        const named = pois.filter(p=>p.name && isTargetCostPoi(p));
         const source = [...named.filter(p=>p.image), ...named.filter(p=>!p.image)];
         return source.map((p,i)=>({ emoji: "🍽️", name: p.name, art: ACCENTS[i % ACCENTS.length], image: p.image, reason: poiReason(p), meta: [formatDistance(p.distance), p.rating ? `${p.rating}分` : "", p.cost ? `人均${formatCost(p.cost)}` : p.type].filter(Boolean).slice(0,3), theme: INFO_THEMES[i % INFO_THEMES.length], navUrl: p.location ? `https://uri.amap.com/marker?position=${p.location.lng},${p.location.lat}&name=${encodeURIComponent(p.name)}` : "", orderUrl: `https://www.amap.com/search?query=${encodeURIComponent(p.name)}` })).slice(0,5);
       }
@@ -984,7 +990,7 @@
         return [`离你${distance || "不远"}`, rating, cost].filter(Boolean).join("，") + "。先按真实附近餐厅推进，少一点纠结。";
       }
       function formatDistance(value){ const d = Number(value); if(!Number.isFinite(d) || d <= 0) return ""; return d >= 1000 ? `${(d/1000).toFixed(d >= 3000 ? 0 : 1)}km` : `${Math.round(d)}m`; }
-      function formatCost(value){ const cost = Number(value); if(Number.isFinite(cost) && cost > 0) return String(Math.round(cost)); return String(value || "").replace(/\.00$/, ""); }
+      function formatCost(value){ const cost = readCostValue(value); if(Number.isFinite(cost) && cost > 0) return String(Math.round(cost)); return String(value || "").replace(/\.00$/, ""); }
       function escapeHTML(value){ return String(value ?? "").replace(/[&<>"']/g, (ch)=>({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch])); }
       function escapeAttr(value){ return escapeHTML(value); }
       function cssUrl(value){ return String(value || "").replace(/['"\\\n\r]/g, (ch)=>encodeURIComponent(ch)); }

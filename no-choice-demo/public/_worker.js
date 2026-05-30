@@ -1,8 +1,11 @@
+const MIN_DINNER_COST = 150;
+
 const poiConfigs = {
   dinner: {
     keyword: "餐厅",
     types: "050000",
     radius: "3500",
+    minCost: MIN_DINNER_COST,
   },
   weekend: {
     keyword: "休闲",
@@ -445,7 +448,7 @@ async function fetchAroundPois({ center, key, keyword, config }) {
   url.searchParams.set("types", config.types);
   url.searchParams.set("keywords", keyword);
   url.searchParams.set("sortrule", "distance");
-  url.searchParams.set("page_size", "8");
+  url.searchParams.set("page_size", config.minCost ? "25" : "8");
   url.searchParams.set("show_fields", "business,photos");
   url.searchParams.set("output", "json");
 
@@ -456,7 +459,7 @@ async function fetchAroundPois({ center, key, keyword, config }) {
     throw new Error(data.info || "高德 POI 返回异常");
   }
 
-  return (data.pois || []).map(normalizeAmapPoi).filter(Boolean).slice(0, 8);
+  return (data.pois || []).map(normalizeAmapPoi).filter((poi) => isTargetPoi(poi, config)).slice(0, 8);
 }
 
 function normalizeAmapPoi(poi) {
@@ -482,6 +485,26 @@ function normalizeAmapPoi(poi) {
     image,
     location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
   };
+}
+
+function isTargetPoi(poi, config) {
+  if (!poi) {
+    return false;
+  }
+  if (!config?.minCost) {
+    return true;
+  }
+  const cost = readCostValue(poi.cost);
+  return Number.isFinite(cost) && cost >= config.minCost;
+}
+
+function readCostValue(value) {
+  const direct = Number(value);
+  if (Number.isFinite(direct)) {
+    return direct;
+  }
+  const match = String(value || "").match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : Number.NaN;
 }
 
 function json(body, status = 200) {

@@ -848,12 +848,19 @@
       }
 
       function isTargetCostPoi(poi){
-        const cost = Number(poi?.cost);
+        const cost = readCostValue(poi?.cost);
         return Number.isFinite(cost) && cost >= MIN_RESTAURANT_COST;
       }
 
+      function readCostValue(value){
+        const direct = Number(value);
+        if(Number.isFinite(direct)) return direct;
+        const match = String(value || "").match(/\d+(?:\.\d+)?/);
+        return match ? Number(match[0]) : Number.NaN;
+      }
+
       function poisToCards(pois){
-        const named = pois.filter(p=>p.name);
+        const named = pois.filter(p=>p.name && isTargetCostPoi(p));
         const photoPois = named.filter(p=>p.image);
         const source = [...photoPois, ...named.filter(p=>!p.image)];
         return source
@@ -885,7 +892,7 @@
       }
 
       function formatCost(value){
-        const cost = Number(value);
+        const cost = readCostValue(value);
         if(Number.isFinite(cost) && cost > 0) return String(Math.round(cost));
         return String(value || "").replace(/\.00$/, "");
       }
