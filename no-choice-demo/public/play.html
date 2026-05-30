@@ -70,6 +70,14 @@
       .locBtn.granted { background: var(--green); color: #fff; }
       .btn[data-locked] { opacity: .42; }
       .btn.big { font-size: 18px; padding: 16px; }
+      /* 配置页结构化快选 */
+      .hintCard { font-size: 11.5px; font-weight: 700; padding: 9px 12px; background: #fff7df; border: 2px dashed var(--ink); border-radius: 11px; color: #4a4226; flex: none; }
+      .profileCard { gap: 9px; padding: 12px; flex: none; }
+      .pRow { display: flex; align-items: center; gap: 10px; }
+      .pRow > label { width: 44px; flex: none; font-size: 13px; font-weight: 850; }
+      .segChips { display: flex; gap: 6px; flex-wrap: wrap; }
+      .segChips .chip { font-size: 12.5px; padding: 6px 10px; }
+      .sel { flex: 1; min-width: 0; appearance: none; -webkit-appearance: none; cursor: pointer; background: var(--paper) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' fill='none' stroke='%231a1714' stroke-width='2'/></svg>") no-repeat right 11px center; padding-right: 30px; }
 
       /* GAME / VOICE */
       .voiceRow { display: flex; gap: 8px; align-items: stretch; flex: none; }
@@ -88,6 +96,23 @@
       .titleMark { font-size: 20px; color: var(--red); }
       .coin { position: relative; flex: 1 1 auto; min-height: 96px; border-radius: 14px; border: 3px solid var(--ink); background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 8px, transparent 8px 16px), var(--yellow); box-shadow: var(--shadow); display: grid; place-items: center; overflow: hidden; }
       .coin .emoji { font-size: 56px; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.25)); animation: float 2.4s ease-in-out infinite; }
+      /* 街机机箱 */
+      .cabinet { width: min(186px, 62%); background: #2a2540; border: 3px solid var(--ink); border-radius: 14px; padding: 12px 12px 10px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 9px; align-items: center; z-index: 1; }
+      .cabinet .screen { position: relative; width: 100%; height: 92px; background: radial-gradient(circle at 50% 38%, #154a32, #08160f); border: 2px solid var(--ink); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; overflow: hidden; }
+      .cabinet .screen::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 2px, transparent 2px 4px); }
+      .screenIcon { font-size: 36px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.45)); animation: float 2.4s ease-in-out infinite; z-index: 1; }
+      .blink { font-size: 10px; color: #7CFC00; text-shadow: 0 0 6px rgba(124,252,0,.6); animation: blink 1.05s steps(1) infinite; z-index: 1; }
+      @keyframes blink { 50% { opacity: 0; } }
+      .controls { display: flex; align-items: center; gap: 11px; }
+      .stick { font-size: 24px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.3)); }
+      .btnDot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--ink); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+      .btnDot.r { background: var(--red); } .btnDot.b { background: var(--blue); } .btnDot.g { background: var(--green); }
+      .slot { width: 56px; height: 8px; background: var(--ink); border-radius: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,.6); }
+      .deco { position: absolute; font-size: 22px; z-index: 0; animation: floatD 3s ease-in-out infinite; }
+      .deco.d1 { top: 14px; left: 16px; } .deco.d2 { top: 22px; right: 18px; animation-delay: .4s; }
+      .deco.d3 { bottom: 18px; left: 20px; animation-delay: .8s; } .deco.d4 { bottom: 26px; right: 16px; animation-delay: 1.2s; }
+      .deco.d5 { top: 48%; left: 9px; animation-delay: .6s; }
+      @keyframes floatD { 0%,100% { transform: translateY(0) rotate(-7deg); } 50% { transform: translateY(-9px) rotate(7deg); } }
       .coin { width: 100%; font: inherit; cursor: pointer; }
       .coin:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
       .coin canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; object-fit: cover; display: none; }
@@ -175,7 +200,14 @@
         <section class="screen active" data-screen="welcome">
           <div class="topbar"><span class="badge red pixel">CHALLENGE ACTIVE</span><span class="dots pixel">PLAYLIST 01/08</span></div>
           <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead" style="font-size:28px">选择困难症外挂</div></div>
-          <div class="coin"><span class="emoji">🎮</span></div>
+          <div class="coin">
+            <span class="deco d1">🪙</span><span class="deco d2">✨</span><span class="deco d3">👾</span><span class="deco d4">⭐</span><span class="deco d5">🪙</span>
+            <div class="cabinet">
+              <div class="screen"><span class="screenIcon">🎮</span><span class="blink pixel">INSERT COIN</span></div>
+              <div class="controls"><span class="stick">🕹️</span><span class="btnDot r"></span><span class="btnDot b"></span><span class="btnDot g"></span></div>
+              <div class="slot"></div>
+            </div>
+          </div>
           <div class="sub">把“你定 / 我随便”变成一键通关。<br />属于年轻人的游戏化抉择 NPC。</div>
           <div class="slogan">「犹豫会败北，但你可以赖我」</div>
           <button class="btn alt" onclick="go('config')">🪙 投掷硬币开始游戏</button>
@@ -194,9 +226,18 @@
               </div>
             </div>
           </div>
-          <div class="voiceRow">
-            <textarea class="field" id="custom" placeholder="自定义（可选）：性别 / 出生日期 / MBTI / 星座…"></textarea>
-            <button class="micBtn" id="micCustom" type="button" onclick="startVoice('custom', this)">🎤</button>
+          <div class="hintCard">📊 填得越多，NPC 越懂你的口味（都可不填）</div>
+          <div class="card profileCard">
+            <div class="pRow"><label>性别</label><div class="segChips" id="genderChips"><span class="chip">♀ 女</span><span class="chip">♂ 男</span><span class="chip">🤖 不说</span></div></div>
+            <div class="pRow"><label>星座</label>
+              <select class="field sel" id="zodiac"><option value="">未选</option><option>白羊</option><option>金牛</option><option>双子</option><option>巨蟹</option><option>狮子</option><option>处女</option><option>天秤</option><option>天蝎</option><option>射手</option><option>摩羯</option><option>水瓶</option><option>双鱼</option></select>
+            </div>
+            <div class="pRow"><label>MBTI</label>
+              <select class="field sel" id="mbti"><option value="">未选</option><option>INTJ</option><option>INTP</option><option>ENTJ</option><option>ENTP</option><option>INFJ</option><option>INFP</option><option>ENFJ</option><option>ENFP</option><option>ISTJ</option><option>ISFJ</option><option>ESTJ</option><option>ESFJ</option><option>ISTP</option><option>ISFP</option><option>ESTP</option><option>ESFP</option></select>
+            </div>
+            <div class="pRow"><label>其他</label>
+              <div class="voiceRow" style="flex:1"><input class="field" id="custom" placeholder="生日 / 口味 / 忌口…（可语音）" /><button class="micBtn" type="button" onclick="startVoice('custom', this)">🎤</button></div>
+            </div>
           </div>
           <input type="file" id="photo" accept="image/*" hidden />
           <div class="spacer"></div>
@@ -451,6 +492,13 @@
           URL.revokeObjectURL(img.src);
         };
         img.src = URL.createObjectURL(f);
+      });
+
+      // 性别单选
+      $("#genderChips").addEventListener("click", (e) => {
+        if (!e.target.classList.contains("chip")) return;
+        [...e.currentTarget.children].forEach((c) => c.classList.remove("on"));
+        e.target.classList.add("on");
       });
 
       // 定位默认已授权，点按钮显示当前位置
