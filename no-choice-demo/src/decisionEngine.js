@@ -31,9 +31,9 @@ export const presets = [
     id: "dinner",
     label: "今晚吃什么",
     question: "今晚吃什么？",
-    context: "我在国贸，朋友在常营，都不想吃主食，想找中间点。",
+    context: "我在国贸，对方在常营，都不想吃主食，想找一个路程折中的地方。",
     conditionIds: ["midpoint", "noStaple"],
-    customConditions: ["我在国贸，朋友在常营"],
+    customConditions: ["我在国贸，对方在常营"],
     mode: "auto",
     options: "",
     count: 4,
@@ -42,7 +42,7 @@ export const presets = [
     id: "gift",
     label: "送什么礼物",
     question: "送给刚入职的朋友什么生日礼物？",
-    context: "预算 300 元以内，希望实用但不要太无聊。",
+    context: "预算 300 元以内，希望对方真的用得上，也不要太普通。",
     conditionIds: ["budget", "practical", "notBoring"],
     customConditions: ["预算 300 元以内"],
     mode: "auto",
@@ -52,8 +52,8 @@ export const presets = [
   {
     id: "quit",
     label: "要不要辞职",
-    question: "要不要辞职？",
-    context: "最近项目压力大，但还没有拿到新 offer。",
+    question: "要不要现在辞职？",
+    context: "最近项目压力大，但还没有拿到新 offer，希望不要裸辞。",
     conditionIds: ["lowRisk", "buffer"],
     customConditions: ["最近项目压力大", "还没有拿到新 offer"],
     mode: "auto",
@@ -75,47 +75,47 @@ export const presets = [
 
 export const personaMeta = {
   gentle: {
-    name: "温柔朋友",
-    mark: "陪你站队",
+    name: "稳妥派",
+    mark: "先保行动空间",
   },
   sharp: {
-    name: "损友",
-    mark: "替你开口",
+    name: "直接派",
+    mark: "少想一点",
   },
   mystic: {
-    name: "玄学大师",
-    mark: "负责乱准",
+    name: "轻松派",
+    mark: "给纠结降噪",
   },
 };
 
 const typeMeta = {
   info: {
-    label: "信息推荐型",
-    tone: "模型推荐",
-    description: "大卡片会带评分、人均、距离等演示字段。",
+    label: "地点/服务推荐",
+    tone: "按条件筛选",
+    description: "适合吃饭、约会、周末去哪。接入位置和 POI 后会更准。",
   },
   open: {
-    label: "开放推荐型",
-    tone: "灵感生成",
-    description: "根据问题生成候选，再用滑卡逼你承诺。",
+    label: "灵感候选",
+    tone: "生成可选项",
+    description: "先给出几个足够合理的方向，再用滑卡帮你收口。",
   },
   yesno: {
-    label: "是否型",
-    tone: "一锤定音",
-    description: "跳过滑卡，直接给做或不做。",
+    label: "是/否判断",
+    tone: "直接结论",
+    description: "适合可逆、低风险的问题。重大决定只给行动建议，不替你拍死。",
   },
   custom: {
-    label: "纯自定义型",
-    tone: "你给候选",
-    description: "保留你的选项，只负责拍板。",
+    label: "自定义候选",
+    tone: "只做取舍",
+    description: "你已经有候选时，只负责比较和收口。",
   },
 };
 
 const fallbackLines = [
-  "别滑了，真没有了。",
-  "好家伙，选择困难晚期。",
-  "系统看不下去了，替你钦定。",
-  "再滑就要滑出人生了。",
+  "候选已经看完，继续比较收益不大。",
+  "信息已经够用了，现在需要一个动作。",
+  "没有更完美的选项了，先把今天往前推一步。",
+  "再想十分钟也差不多，先收口。",
 ];
 
 const luckyItems = ["一杯冰美式", "左手边第二盏灯", "今天的云", "路口第一个绿灯", "手机电量末位数"];
@@ -158,7 +158,7 @@ export function buildDecision({ question, context, mode, manualOptions, cardCoun
   const options = normalizeOptions(manualOptions);
 
   if (!cleanQuestion) {
-    return { ok: false, error: "先写一个问题。比如：今晚吃什么？" };
+    return { ok: false, error: "先写一个你卡住的问题。比如：今晚吃什么？" };
   }
 
   const type = detectQuestionType(cleanQuestion, mode === "manual" && options.length > 0);
@@ -182,7 +182,7 @@ export function buildDecision({ question, context, mode, manualOptions, cardCoun
   }
 
   if (mode === "manual" && options.length < 3) {
-    return { ok: false, error: "手动候选至少给 3 个，才有被迫取舍的味道。" };
+    return { ok: false, error: "手动候选至少需要 3 个，才有比较和取舍的空间。" };
   }
 
   const count = mode === "manual" ? Math.min(options.length, 8) : clamp(Number(cardCount) || 3, 3, 8);
@@ -256,7 +256,7 @@ function makeManualCards(options, question, count) {
   return options.slice(0, count).map((title, index) => ({
     id: `manual-${index}-${title}`,
     title,
-    reason: `你把「${title}」写进候选里，说明它已经通过了第一轮筛选。`,
+    reason: `「${title}」已经进入你的候选池，说明它至少满足了基本条件。`,
     meta: ["自定义", `候选 ${index + 1}`],
     image: manualImages[index % manualImages.length],
     accent: manualAccents[index % manualAccents.length],
@@ -266,12 +266,20 @@ function makeManualCards(options, question, count) {
 
 function makeYesNoCard(question, context) {
   const score = stableNumber(`${question}${context}`, 100);
-  const positive = score >= 38;
+  const negativeSignals = /(没有.*offer|没.*offer|裸辞|风险|留后路|缓一缓|不确定|先别|还没准备|成本高)/.test(
+    `${question}${context}`,
+  );
+  const positiveSignals = /(可逆|低成本|今天能做|现在能做|试试|先推进|已经准备|确定|有备选|有 offer|拿到 offer)/.test(
+    `${question}${context}`,
+  );
+  const positive = positiveSignals || (!negativeSignals && score >= 45);
   return {
     id: "yes-no",
-    title: positive ? "做" : "先别做",
-    reason: positive ? "你已经问出口了，说明它不是一时冲动。" : "现在的不确定不是胆小，是信息还差一点。",
-    meta: [positive ? "推进" : "缓一缓", `信号 ${score}`],
+    title: positive ? "先做一个小版本" : "先别直接做",
+    reason: positive
+      ? "当前信号足够支持你先迈一小步，不必等到完全确定。"
+      : "现在更适合补信息或留备选，别把自己推到不可逆的位置。",
+    meta: [positive ? "可推进" : "先缓冲", positive ? "先小步验证" : "补足信息", `信号 ${score}`],
     image: openImages[positive ? 2 : 1],
     accent: positive ? "#17a673" : "#ef6f61",
   };
@@ -283,84 +291,91 @@ function makeReason({ card, question, persona, source, type }) {
 
   if (persona === "gentle") {
     if (source === "fallback") {
-      return `你把所有选项都划走，也是一种偏好暴露。那就让「${title}」接住今天的犹豫，先走一步再说。`;
+      return `你把所有候选都看过了，说明没有一个完美答案。选「${title}」不是草率，是把今天先推进。`;
     }
     if (type === "yesno") {
-      return `这个决定不需要完美，只需要让你从原地出来。「${title}」是今天比较诚实的答案。`;
+      return `这个问题不用一次解决一生，只要先保留行动空间。「${title}」是今天更稳的做法。`;
     }
-    return `你停在「${title}」上面的那一下，身体比脑子诚实。先把这一步交给它。`;
+    return `「${title}」和你给出的条件匹配度更高，也不会把后续选择锁死。先按这个走。`;
   }
 
   if (persona === "sharp") {
     if (source === "fallback") {
-      return `你都滑到底了还不选，那我替你选「${title}」。别装了，今天就需要一个人拍桌子。`;
+      return `你已经比较完了，再比较只是拖延。今天就选「${title}」，把下一步做出来。`;
     }
     if (type === "yesno") {
-      return `你心里早有答案，只是想找人替你说出来。行，我说：${title}。`;
+      return `别把“再想想”当成进展。当前条件下，更清楚的结论是：${title}。`;
     }
-    return `你不是没有标准，是标准太多。「${title}」已经够好了，别再开十个标签页。`;
+    return `你不是没有标准，是标准太多。「${title}」已经满足主条件，先别继续加题。`;
+  }
+
+  if (type === "yesno") {
+    if (title.startsWith("先别")) {
+      return `轻松一点看，外部信号都在提醒你先留缓冲。「${title}」不是放弃，是先把信息补齐。`;
+    }
+    return `轻松一点看，今天适合先做小版本。「${title}」的重点不是冲动，而是低成本验证。`;
   }
 
   const style = pickRandom(["tarot", "stars", "almanac", "quiz"]);
   if (style === "tarot") {
-    return `刚翻到${pickRandom(tarotCards)}，牌面指向「${title}」。它不保证完美，但保证你终于不用卡住。`;
+    return `轻松一点看，${pickRandom(tarotCards)}更偏向「${title}」。它不保证完美，但足够让你停止空转。`;
   }
   if (style === "stars") {
-    return `${pickRandom(constellations)}相关能量正旺，幸运物是${item}。今天的问题「${question}」，答案偏向「${title}」。`;
+    return `如果一定要借个外部信号，${pickRandom(constellations)}和${item}都站「${title}」。别太严肃，先行动。`;
   }
   if (style === "almanac") {
-    return `黄历显示：${pickRandom(almanacActions)}。所以「${title}」今日胜出，犹豫请明天再营业。`;
+    return `今日小原则：${pickRandom(almanacActions)}。所以「${title}」胜出，剩下的等执行后再复盘。`;
   }
-  return `测测综合指数显示，「${title}」与你今天的行动力匹配度 93%。剩下 7% 是你还想纠结的尊严。`;
+  return `综合看，「${title}」和你今天的行动力更匹配。不是唯一正确，只是最适合先开始。`;
 }
 
 const foodPool = [
   {
-    title: "东四小馆",
-    reason: "菜品轻、选择多，适合两个人都不想被主食拖住的晚上。",
-    meta: ["评分 4.7", "人均 ¥96", "距中点 1.2km"],
+    title: "中点附近轻食店",
+    reason: "先把路程拉平，再选低负担菜品，比较符合两个人都不想吃主食的条件。",
+    meta: ["位置优先", "低负担", "需接 POI"],
     accent: "#17a673",
   },
   {
-    title: "花椒树下火锅",
-    reason: "锅底可以半份，氛围热闹，适合把纠结交给蘸料。",
-    meta: ["评分 4.6", "人均 ¥132", "距中点 1.8km"],
+    title: "小份火锅或串串",
+    reason: "菜品可以少量多样，适合没想好吃什么但又想有点热闹的晚上。",
+    meta: ["选择弹性", "适合聊天", "预算中等"],
     accent: "#ef6f61",
   },
   {
-    title: "午后越南粉",
-    reason: "清爽、出餐快，对不想吃主食的人也有春卷和沙拉。",
-    meta: ["评分 4.5", "人均 ¥78", "距中点 900m"],
+    title: "越南粉/沙拉轻餐",
+    reason: "出餐快、负担轻，主食压力也比较小，适合工作日晚上收尾。",
+    meta: ["出餐快", "清爽", "低压力"],
     accent: "#f3b63f",
   },
   {
-    title: "巷口烧鸟",
-    reason: "小份多样，点单压力低，聊天空间比正式餐厅更松。",
-    meta: ["评分 4.8", "人均 ¥148", "距中点 2.1km"],
+    title: "小份烧鸟",
+    reason: "小份点单能降低试错成本，聊天也比正式餐厅更放松。",
+    meta: ["小份多样", "可续摊", "氛围轻松"],
     accent: "#4147d5",
   },
   {
-    title: "不太甜甜品室",
-    reason: "如果晚餐只是借口，甜品和茶更容易把气氛托住。",
-    meta: ["评分 4.6", "人均 ¥64", "距中点 1.5km"],
+    title: "甜品和茶",
+    reason: "如果吃饭只是见面的载体，甜品茶饮更轻，不会把晚上变得太正式。",
+    meta: ["轻量见面", "预算可控", "不赶场"],
     accent: "#dd669b",
   },
   {
-    title: "半山精酿",
-    reason: "轻食、无酒精选项都有，适合临时把晚饭变成小聚。",
-    meta: ["评分 4.4", "人均 ¥118", "距中点 2.4km"],
+    title: "轻食精酿",
+    reason: "有吃有喝，氛围比纯餐厅松，适合把晚饭变成小聚。",
+    meta: ["可聊天", "可控时长", "需确认营业"],
     accent: "#2a83c5",
   },
   {
-    title: "云吞计划",
-    reason: "低负担、低客单，适合今天只想快速解决但不想随便。",
-    meta: ["评分 4.5", "人均 ¥52", "距中点 700m"],
+    title: "云吞/汤粉小店",
+    reason: "低客单、低负担，适合今天只想快速解决但不想随便。",
+    meta: ["省时间", "低预算", "不折腾"],
     accent: "#d87a28",
   },
   {
-    title: "晚风 Bistro",
-    reason: "灯光和座位都更适合慢慢聊，选择少反而省心。",
-    meta: ["评分 4.7", "人均 ¥168", "距中点 2.6km"],
+    title: "安静 Bistro",
+    reason: "如果重点是聊天，座位、灯光和噪音比菜品数量更重要。",
+    meta: ["聊天优先", "氛围好", "建议预约"],
     accent: "#7957d5",
   },
 ];
@@ -557,7 +572,7 @@ const openPool = [
   },
   {
     title: "最方便的那个",
-    reason: "距离和时间已经替你投票了，别假装没听见。",
+    reason: "距离和时间已经给出很强信号，优先选阻力最小的路径。",
     meta: ["近", "快", "不折腾"],
     accent: "#4147d5",
   },

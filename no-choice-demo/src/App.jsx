@@ -28,17 +28,17 @@ const dragLimit = 96;
 
 const conditionOptions = [
   { id: "midpoint", label: "找中间点" },
-  { id: "nearby", label: "离我近一点" },
-  { id: "budget", label: "别太贵" },
+  { id: "nearby", label: "离我更近" },
+  { id: "budget", label: "预算别超" },
   { id: "quiet", label: "适合聊天" },
-  { id: "fast", label: "快一点" },
-  { id: "fresh", label: "新鲜一点" },
+  { id: "fast", label: "今天能定" },
+  { id: "fresh", label: "有点新鲜" },
   { id: "noStaple", label: "不吃主食" },
-  { id: "practical", label: "实用一点" },
-  { id: "notBoring", label: "不要太无聊" },
-  { id: "lowRisk", label: "低风险" },
+  { id: "practical", label: "实用优先" },
+  { id: "notBoring", label: "别太普通" },
+  { id: "lowRisk", label: "风险要低" },
   { id: "buffer", label: "留后路" },
-  { id: "today", label: "今天就能做" },
+  { id: "today", label: "现在能做" },
 ];
 
 const getInitialConditions = (preset) => preset.conditionIds ?? [];
@@ -233,7 +233,7 @@ export default function App() {
 
   async function shareResult() {
     if (!result) return;
-    const text = `不做选择替我拍板：就它了 - ${result.card.title}\n${result.reason}`;
+    const text = `不做选择给出的结论：${result.card.title}\n${result.reason}`;
 
     try {
       if (navigator.share) {
@@ -255,7 +255,7 @@ export default function App() {
           <span className="brandMark">不</span>
           <span>
             <strong>不做选择</strong>
-            <small>决策原型</small>
+            <small>把纠结收成一个决定</small>
           </span>
         </button>
         <div className="topActions">
@@ -279,18 +279,19 @@ export default function App() {
             </div>
 
             <label className="fieldGroup">
-              <span>问题</span>
+              <span>你卡住的问题</span>
               <textarea
                 className="questionInput"
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
                 rows={2}
+                placeholder="比如：今晚吃什么？"
               />
             </label>
 
             <div className="conditionPanel">
               <div className="sectionLabel">
-                <span>条件</span>
+                <span>偏好和限制</span>
                 <em>{selectedConditions.length + customConditions.length || "可不填"}</em>
               </div>
               <div className="conditionGrid" aria-label="条件选择">
@@ -315,7 +316,7 @@ export default function App() {
                       addCustomCondition();
                     }
                   }}
-                  placeholder="再补一句，比如：朋友在常营"
+                  placeholder="补充一句，比如：对方在常营"
                 />
                 <button className="miniIconButton" type="button" onClick={addCustomCondition} aria-label="添加条件">
                   <Plus size={18} />
@@ -336,11 +337,11 @@ export default function App() {
             <div className="segmented" role="tablist" aria-label="候选来源">
               <button className={mode === "auto" ? "active" : ""} type="button" onClick={() => setMode("auto")}>
                 <Wand2 size={17} />
-                自动推荐
+                帮我生成
               </button>
               <button className={mode === "manual" ? "active" : ""} type="button" onClick={() => setMode("manual")}>
                 <Dices size={17} />
-                手动候选
+                我有候选
               </button>
             </div>
 
@@ -351,7 +352,7 @@ export default function App() {
                   value={manualOptions}
                   onChange={(event) => setManualOptions(event.target.value)}
                   rows={5}
-                  placeholder={"每行一个选项\n至少 3 个，最多 8 个"}
+                  placeholder={"每行一个候选\n至少 3 个，最多 8 个"}
                 />
                 {manualList.length > 0 && (
                   <div className="candidatePreview">
@@ -363,7 +364,7 @@ export default function App() {
               </label>
             ) : (
               <div className="sliderBox">
-                <label htmlFor="cardCount">卡片数</label>
+                <label htmlFor="cardCount">生成几张</label>
                 <input
                   id="cardCount"
                   type="range"
@@ -386,7 +387,7 @@ export default function App() {
 
             <button className="primaryButton" type="button" onClick={startDecision}>
               <SendHorizontal size={19} />
-              开局
+              开始拍板
             </button>
           </div>
 
@@ -482,11 +483,11 @@ export default function App() {
               <div className="resultActions">
                 <button className="secondaryButton" type="button" onClick={restartSame}>
                   <RefreshCcw size={18} />
-                  再来一局
+                  重新判断
                 </button>
                 <button className="primaryButton compact" type="button" onClick={shareResult}>
                   {navigator.share ? <Share2 size={18} /> : <Copy size={18} />}
-                  分享
+                  分享结果
                 </button>
               </div>
               {shareStatus && <span className="shareStatus">{shareStatus}</span>}
@@ -546,7 +547,7 @@ function DecisionCard({
               就它了
             </span>
             <span className="stamp rejectStamp" style={{ opacity: rejectOpacity }}>
-              划走
+              先不要
             </span>
           </>
         )}
