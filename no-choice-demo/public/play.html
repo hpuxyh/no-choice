@@ -264,16 +264,12 @@
       .ctrlSide.pick { background: var(--blue); color: #fffaf2; }
       .ctrlSide[disabled] { opacity: .55; filter: grayscale(.2); cursor: default; }
 
-      /* 下水道（Super-Mario warp pipe）：卡片下滑被吸入，点击=永久拉黑 */
-      .pipeBtn { flex: none; position: relative; width: 128px; padding: 0; border: none; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: transform .1s; }
-      .pipeBtn:active { transform: translateY(2px); }
+      /* 下水道：扁平按钮（去掉立体管子），下滑拉黑；比左右键大、直达屏幕底端 */
+      .pipeBtn { flex: none; width: 128px; height: 74px; padding: 0; border: 3px solid var(--ink); border-radius: 14px; background: var(--pipe); color: #fffaf2; box-shadow: var(--shadow-sm); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; transition: transform .08s, box-shadow .08s, filter .12s; }
+      .pipeBtn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
       .pipeBtn[disabled] { opacity: .55; filter: grayscale(.2); cursor: default; }
-      .pipeBtn .rim { height: 26px; width: 128px; border: 3px solid var(--ink); border-radius: 8px; display: grid; place-items: center;
-        background: linear-gradient(90deg, var(--pipe-d) 0 12%, var(--pipe-l) 12% 26%, var(--pipe) 26% 100%); box-shadow: var(--shadow-sm); }
-      .pipeBtn .plabel { position: relative; z-index: 1; font-size: 12px; font-weight: 950; color: #fffaf2; text-shadow: 1px 1px 0 rgba(0,0,0,.5); letter-spacing: .5px; }
-      .pipeBtn .body { position: relative; height: 52px; width: 104px; margin: -3px auto 0; border: 3px solid var(--ink); border-top: none;
-        background: linear-gradient(90deg, var(--pipe-d) 0 14%, var(--pipe-l) 14% 30%, var(--pipe) 30% 100%); }
-      .pipeBtn .mouth { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); width: 104px; height: 11px; background: rgba(0,0,0,.55); border-radius: 50%; }
+      .pipeBtn .big { font-size: 22px; font-weight: 950; line-height: 1.05; letter-spacing: .5px; text-shadow: 1px 1px 0 rgba(0,0,0,.35); }
+      .pipeBtn .sm { font-size: 10px; font-weight: 800; opacity: .92; }
 
       /* WIN overlay */
       .win { position: absolute; inset: 0; z-index: 40; display: none; place-items: center; padding: 18px; background: rgba(26,23,20,.55); backdrop-filter: blur(3px); }
@@ -396,7 +392,7 @@
           </div>
           <div class="deckControls">
             <button class="ctrlSide no" type="button" data-act data-dir="left" onclick="tapDecision('left')"><span class="big">Pass</span><span class="sm">左滑待定</span></button>
-            <button class="pipeBtn" id="pipe" type="button" data-act data-dir="down" onclick="tapDecision('down')"><div class="rim"><span class="plabel">Bye bye</span></div><div class="body"><div class="mouth"></div></div></button>
+            <button class="pipeBtn" id="pipe" type="button" data-act data-dir="down" onclick="tapDecision('down')"><span class="big">Bye bye</span><span class="sm">下滑拉黑</span></button>
             <button class="ctrlSide pick" type="button" data-act data-dir="right" onclick="tapDecision('right')"><span class="big">Pick</span><span class="sm">右滑就它</span></button>
           </div>
           <div class="toast" id="toast"></div>
@@ -627,15 +623,12 @@
       function setTopFace(c){ if(topEl) topEl.innerHTML=faceHTML(c, true); }
 
       // 先轮转抽出顶端卡牌，settle 后才允许滑动
+      // 直接亮出下一张就能滑，不再每次轮转/抖动闪烁
       function dealRound(){
-        ready=false; clearInterval(revT);
-        updateGestureButtons();
-        let k=0; const total=9+Math.floor(Math.random()*5);
-        topEl.classList.add("revealing");
-        revT=setInterval(()=>{
-          setTopFace(activePool[k%activePool.length]); k++;
-          if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); updateGestureButtons(); toast("看清楚了 · 左滑 Pass 待定 / 右滑 Pick 就它 / 下滑 Bye bye"); }
-        }, 65);
+        clearInterval(revT);
+        if(!topEl) return;
+        setTopFace(deck[0]);
+        ready=true; attachDrag(topEl); updateGestureButtons();
       }
 
       function updateCounter(){
@@ -742,7 +735,7 @@
 
       let toastT=null;
       function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1200); }
-      function resetAll(){ $("#win").classList.remove("show"); $("#confetti").innerHTML=""; go("welcome"); }
+      function resetAll(){ $("#win").classList.remove("show"); $("#confetti").innerHTML=""; updatePill(); go("game"); }
 
       // ---- 配置页：照片→游戏像素小头像、定位、自定义语音输入 ----
       const CUTE = ["🍄","👾","🐸","🦖","🐤","👻","🤖","🐱","🐙","⭐","🎈","🍙"];
