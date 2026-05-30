@@ -12,7 +12,8 @@
 
 ## Demo 网站
 
-- 在线演示：https://hpuxyh.github.io/no-choice/
+- 手机优先演示：https://no-choice.pages.dev/
+- GitHub Pages 镜像：https://hpuxyh.github.io/no-choice/
 - 本地预览：http://127.0.0.1:5173/
 
 ## 运行
