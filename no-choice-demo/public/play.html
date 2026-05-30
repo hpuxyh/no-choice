@@ -6,7 +6,7 @@
     <title>CHOICE OVER · 抽卡预览</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet" />
     <style>
       :root {
         --paper: #f3ecdd; --ink: #1a1714; --red: #ff5a4d; --purple: #6c5ce7;
@@ -20,7 +20,7 @@
         background: #e7ddc8;
         background-image: radial-gradient(circle at 1px 1px, rgba(26,23,20,.06) 1px, transparent 0);
         background-size: 22px 22px;
-        font-family: "DotGothic16", "Noto Sans SC", system-ui, sans-serif; color: var(--ink);
+        font-family: "Noto Sans SC", system-ui, sans-serif; color: var(--ink);
         display: grid; place-items: center;
       }
       .pixel { font-family: "Silkscreen", monospace; letter-spacing: .5px; }
@@ -64,6 +64,8 @@
       .field:focus { outline: none; background: #fff; box-shadow: var(--shadow-sm); }
       textarea.field { resize: none; height: 60px; line-height: 1.45; flex: none; }
       .chipwrap.small .chip { font-size: 11.5px; padding: 5px 9px; }
+      .homeChips { display: flex; gap: 8px; }
+      .homeChips .chip { flex: 1; justify-content: center; white-space: nowrap; padding: 9px 4px; }
       .hintRow { font-size: 9.5px; color: #8a8170; }
       .locBtn { width: 100%; font-weight: 900; font-size: 15px; padding: 13px; border: 3px solid var(--ink); border-radius: 13px; background: var(--yellow); color: var(--ink); box-shadow: var(--shadow-sm); cursor: pointer; flex: none; transition: transform .08s; }
       .locBtn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
@@ -214,23 +216,19 @@
         <!-- 1) WELCOME -->
         <section class="screen active" data-screen="welcome">
           <div class="topbar"><span class="badge red pixel">CHALLENGE ACTIVE</span><span class="dots pixel">PLAYLIST 01/08</span></div>
-          <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead welcomeTitle" style="font-size:27px">选择困难症外挂</div></div>
-          <div class="coin">
-            <span class="deco d1">🪙</span><span class="deco d2">✨</span><span class="deco d3">👾</span><span class="deco d4">⭐</span><span class="deco d5">💎</span>
-            <div class="cabinet">
-              <div class="screen"><span class="screenIcon">🎮</span><span class="blink pixel">INSERT COIN</span></div>
-              <div class="controls"><span class="stick">🕹️</span><span class="btnDot r"></span><span class="btnDot b"></span><span class="btnDot g"></span></div>
-              <div class="slot"></div>
-            </div>
-          </div>
-          <button class="btn alt" onclick="go('config')">🪙 投掷硬币，开始游戏</button>
-          <div class="tagline">让日常选择像通关一样痛快</div>
+          <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead" style="font-size:28px">选择困难症外挂</div></div>
+          <div class="coin"><span class="emoji">🎮</span></div>
+          <div class="sub">把“你定 / 我随便”变成一键通关。<br />你的专属游戏化抉择 NPC。</div>
+          <div class="slogan">「让日常选择像通关一样痛快！」</div>
+          <div class="chipwrap homeChips"><span class="chip on">🍜 今晚吃什么</span><span class="chip">🗺️ 周末去哪</span><span class="chip">🎁 送礼物</span></div>
+          <button class="btn alt" onclick="go('config')">▶ 插入硬币，开始挑战</button>
         </section>
 
         <!-- 2) CONFIG -->
         <section class="screen configScreen" data-screen="config">
           <div class="topbar"><span class="badge purple pixel">PLAYER SETUP</span><button class="back" onclick="skipConfig()">一键跳过 ⏭</button></div>
           <div class="lead" style="font-size:22px">设置你的角色</div>
+          <div class="sub">欢迎来到没有选择困难的世界，请设置你的初始形象 👾</div>
           <div class="setupCard">
             <div class="avatarRow">
               <button class="avatarSlot" id="avatarSlot" type="button"><canvas id="avatarCanvas" width="64" height="64"></canvas><span class="avatarPlus" id="avatarPlus">＋</span></button>
