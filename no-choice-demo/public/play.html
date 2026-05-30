@@ -6,7 +6,7 @@
     <title>CHOICE OVER · 抽卡预览</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet" />
     <style>
       :root {
         --paper: #f3ecdd; --ink: #1a1714; --red: #ff5a4d; --purple: #6c5ce7;
@@ -20,7 +20,7 @@
         background: #e7ddc8;
         background-image: radial-gradient(circle at 1px 1px, rgba(26,23,20,.06) 1px, transparent 0);
         background-size: 22px 22px;
-        font-family: "Noto Sans SC", system-ui, sans-serif; color: var(--ink);
+        font-family: "DotGothic16", "Noto Sans SC", system-ui, sans-serif; color: var(--ink);
         display: grid; place-items: center;
       }
       .pixel { font-family: "Silkscreen", monospace; letter-spacing: .5px; }
@@ -70,6 +70,18 @@
       .locBtn.granted { background: var(--green); color: #fff; }
       .btn[data-locked] { opacity: .42; }
       .btn.big { font-size: 18px; padding: 16px; }
+      .btn.huge { font-size: 20px; padding: 20px; border-radius: 16px; }
+      /* 配置页排版放松：内容均匀铺满，按钮在底 */
+      .configScreen { gap: 13px; justify-content: space-between; }
+      .configScreen .setupCard, .configScreen .profileCard { padding: 14px; }
+      .configScreen .profileCard { gap: 12px; }
+      .configScreen .pRow > label { width: 48px; }
+      /* 选择页上传图片 */
+      .inputActions { display: flex; gap: 8px; flex: none; }
+      .inputActions .micBig { flex: 1; font-size: 13px; padding: 12px; }
+      .thumbRow { display: flex; gap: 6px; flex-wrap: wrap; flex: none; }
+      .thumbRow:empty { display: none; }
+      .thumb { width: 46px; height: 46px; border: 2px solid var(--ink); border-radius: 8px; object-fit: cover; box-shadow: var(--shadow-sm); }
       /* 配置页结构化快选 */
       .hintCard { font-size: 11.5px; font-weight: 700; padding: 9px 12px; background: #fff7df; border: 2px dashed var(--ink); border-radius: 11px; color: #4a4226; flex: none; }
       .profileCard { gap: 9px; padding: 12px; flex: none; }
@@ -97,17 +109,20 @@
       .coin { position: relative; flex: 1 1 auto; min-height: 96px; border-radius: 14px; border: 3px solid var(--ink); background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 8px, transparent 8px 16px), var(--yellow); box-shadow: var(--shadow); display: grid; place-items: center; overflow: hidden; }
       .coin .emoji { font-size: 56px; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.25)); animation: float 2.4s ease-in-out infinite; }
       /* 街机机箱 */
-      .cabinet { width: min(186px, 62%); background: #2a2540; border: 3px solid var(--ink); border-radius: 14px; padding: 12px 12px 10px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 9px; align-items: center; z-index: 1; }
-      .cabinet .screen { position: relative; width: 100%; height: 92px; background: radial-gradient(circle at 50% 38%, #154a32, #08160f); border: 2px solid var(--ink); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; overflow: hidden; }
+      .cabinet { width: min(248px, 80%); background: #2a2540; border: 3px solid var(--ink); border-radius: 16px; padding: 15px 15px 13px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; align-items: center; z-index: 1; }
+      .cabinet .screen { position: relative; width: 100%; height: 132px; background: radial-gradient(circle at 50% 38%, #154a32, #08160f); border: 2px solid var(--ink); border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; overflow: hidden; }
       .cabinet .screen::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 2px, transparent 2px 4px); }
-      .screenIcon { font-size: 36px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.45)); animation: float 2.4s ease-in-out infinite; z-index: 1; }
-      .blink { font-size: 10px; color: #7CFC00; text-shadow: 0 0 6px rgba(124,252,0,.6); animation: blink 1.05s steps(1) infinite; z-index: 1; }
-      @keyframes blink { 50% { opacity: 0; } }
-      .controls { display: flex; align-items: center; gap: 11px; }
-      .stick { font-size: 24px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.3)); }
-      .btnDot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--ink); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+      .screenIcon { font-size: 50px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.45)); animation: float 2.4s ease-in-out infinite; z-index: 1; }
+      .blink { font-size: 12px; color: #ffe14d; text-shadow: 0 0 7px currentColor; animation: blinkC 1.3s steps(1) infinite; z-index: 1; }
+      @keyframes blinkC { 0% { color: #ffe14d; opacity: 1; } 25% { opacity: 0; } 50% { color: #ff7ab8; opacity: 1; } 75% { opacity: 0; } }
+      .controls { display: flex; align-items: center; gap: 14px; }
+      .stick { font-size: 30px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.3)); }
+      .btnDot { width: 19px; height: 19px; border-radius: 50%; border: 2px solid var(--ink); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
       .btnDot.r { background: var(--red); } .btnDot.b { background: var(--blue); } .btnDot.g { background: var(--green); }
-      .slot { width: 56px; height: 8px; background: var(--ink); border-radius: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,.6); }
+      .slot { width: 72px; height: 9px; background: var(--ink); border-radius: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,.6); }
+      .welcomeTitle { color: #d24b32; text-shadow: 2px 2px 0 rgba(0,0,0,.1); }
+      .tagline { flex: none; text-align: center; font-size: 13px; color: #9a8f78; padding: 2px 0 4px; }
+      .deco { text-shadow: 0 0 8px rgba(255,255,255,.5); }
       .deco { position: absolute; font-size: 22px; z-index: 0; animation: floatD 3s ease-in-out infinite; }
       .deco.d1 { top: 14px; left: 16px; } .deco.d2 { top: 22px; right: 18px; animation-delay: .4s; }
       .deco.d3 { bottom: 18px; left: 20px; animation-delay: .8s; } .deco.d4 { bottom: 26px; right: 16px; animation-delay: 1.2s; }
@@ -199,29 +214,28 @@
         <!-- 1) WELCOME -->
         <section class="screen active" data-screen="welcome">
           <div class="topbar"><span class="badge red pixel">CHALLENGE ACTIVE</span><span class="dots pixel">PLAYLIST 01/08</span></div>
-          <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead" style="font-size:28px">选择困难症外挂</div></div>
+          <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead welcomeTitle" style="font-size:27px">选择困难症外挂</div></div>
           <div class="coin">
-            <span class="deco d1">🪙</span><span class="deco d2">✨</span><span class="deco d3">👾</span><span class="deco d4">⭐</span><span class="deco d5">🪙</span>
+            <span class="deco d1">🪙</span><span class="deco d2">✨</span><span class="deco d3">👾</span><span class="deco d4">⭐</span><span class="deco d5">💎</span>
             <div class="cabinet">
               <div class="screen"><span class="screenIcon">🎮</span><span class="blink pixel">INSERT COIN</span></div>
               <div class="controls"><span class="stick">🕹️</span><span class="btnDot r"></span><span class="btnDot b"></span><span class="btnDot g"></span></div>
               <div class="slot"></div>
             </div>
           </div>
-          <div class="sub">把“你定 / 我随便”变成一键通关。<br />属于年轻人的游戏化抉择 NPC。</div>
-          <div class="slogan">「犹豫会败北，但你可以赖我」</div>
-          <button class="btn alt" onclick="go('config')">🪙 投掷硬币开始游戏</button>
+          <button class="btn alt" onclick="go('config')">🪙 投掷硬币，开始游戏</button>
+          <div class="tagline">让日常选择像通关一样痛快</div>
         </section>
 
         <!-- 2) CONFIG -->
-        <section class="screen" data-screen="config">
+        <section class="screen configScreen" data-screen="config">
           <div class="topbar"><span class="badge purple pixel">PLAYER SETUP</span><button class="back" onclick="skipConfig()">一键跳过 ⏭</button></div>
-          <div class="lead" style="font-size:21px">设置你的角色（可跳过）</div>
+          <div class="lead" style="font-size:22px">设置你的角色</div>
           <div class="setupCard">
             <div class="avatarRow">
               <button class="avatarSlot" id="avatarSlot" type="button"><canvas id="avatarCanvas" width="64" height="64"></canvas><span class="avatarPlus" id="avatarPlus">＋</span></button>
               <div class="infoCol">
-                <div class="hintRow pixel">UPLOAD PHOTO →<br />生成游戏像素小头像（可跳过）</div>
+                <div class="hintRow pixel">UPLOAD PHOTO →<br />生成游戏像素小头像</div>
                 <button class="locBtn" id="locBtn" onclick="grantLoc()">📍 授权定位 · 显示当前位置</button>
               </div>
             </div>
@@ -240,8 +254,7 @@
             </div>
           </div>
           <input type="file" id="photo" accept="image/*" hidden />
-          <div class="spacer"></div>
-          <button class="btn" onclick="finishConfig()">完成，进入游戏 →</button>
+          <button class="btn huge" onclick="finishConfig()">完成，进入游戏 →</button>
         </section>
 
         <!-- 3) GAME -->
@@ -250,8 +263,13 @@
           <div class="gameHero">
             <div class="lead" style="font-size:23px; text-align:center; line-height:1.25">选择难？<br />开一局就有答案！</div>
             <div class="voiceBox">
-              <textarea class="field bigInput" id="choiceInput" placeholder="说出或打出你的纠结…&#10;例如：今晚到底吃什么？"></textarea>
-              <button class="micBig" id="micChoice" type="button" onclick="startVoice('choiceInput', this)">🎤 点击语音说出你的选择</button>
+              <textarea class="field bigInput" id="choiceInput" placeholder="说出、打出或拍下你的纠结…&#10;例如：今晚到底吃什么？"></textarea>
+              <div class="thumbRow" id="choiceThumbs"></div>
+              <div class="inputActions">
+                <button class="micBig" id="micChoice" type="button" onclick="startVoice('choiceInput', this)">🎤 语音说出选择</button>
+                <button class="micBig" type="button" onclick="document.getElementById('choicePhoto').click()">🖼️ 上传图片</button>
+              </div>
+              <input type="file" id="choicePhoto" accept="image/*" hidden />
             </div>
           </div>
           <button class="btn alt big" onclick="go('mode')">🎮 游戏模式 →</button>
@@ -492,6 +510,18 @@
           URL.revokeObjectURL(img.src);
         };
         img.src = URL.createObjectURL(f);
+      });
+
+      // 选择页：上传选项图片，显示缩略图
+      document.getElementById("choicePhoto").addEventListener("change", (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const img = document.createElement("img");
+        img.className = "thumb";
+        img.src = URL.createObjectURL(f);
+        $("#choiceThumbs").appendChild(img);
+        toast("已添加图片，会一起作为选择依据");
+        e.target.value = "";
       });
 
       // 性别单选
