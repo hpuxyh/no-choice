@@ -19,6 +19,8 @@
   --blue: #3554dc;
   --yellow: #f0b734;
   --surface: #f8fafc;
+  --module-accent: var(--green);
+  --module-soft: #eef8f3;
   --shadow-sm: 0 8px 24px rgba(23, 26, 32, 0.08);
   --shadow-md: 0 22px 60px rgba(23, 26, 32, 0.14);
   --shadow-lg: 0 34px 90px rgba(23, 26, 32, 0.2);
@@ -200,7 +202,7 @@ input:focus-visible {
   left: 0;
   height: 3px;
   content: "";
-  background: linear-gradient(90deg, var(--blue), var(--green), var(--yellow), var(--red));
+  background: linear-gradient(90deg, var(--module-accent), var(--yellow), var(--blue));
 }
 
 .presetRow {
@@ -212,24 +214,89 @@ input:focus-visible {
 .presetButton {
   min-width: 0;
   min-height: 44px;
-  padding: 0 10px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 8px 10px;
   color: #303849;
   background: #ffffff;
   border: 1px solid #e3e8f0;
   border-radius: 7px;
-  font-size: 14px;
-  font-weight: 760;
+  text-align: left;
   box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
   transition:
+    background 160ms ease,
     transform 160ms ease,
     border-color 160ms ease,
     box-shadow 160ms ease;
+}
+
+.presetButton strong,
+.presetButton small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presetButton strong {
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.presetButton small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 720;
 }
 
 .presetButton:hover {
   border-color: #bfc9da;
   box-shadow: 0 9px 20px rgba(23, 26, 32, 0.08);
   transform: translateY(-1px);
+}
+
+.presetButton.active {
+  background: var(--preset-soft);
+  border-color: var(--preset-accent);
+  box-shadow: 0 10px 24px rgba(23, 26, 32, 0.1);
+}
+
+.presetButton.active strong {
+  color: var(--preset-accent);
+}
+
+.moduleBrief {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  background:
+    linear-gradient(135deg, var(--module-soft), rgba(255, 255, 255, 0.78) 68%),
+    #ffffff;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+}
+
+.moduleBrief span {
+  color: var(--module-accent);
+  font-size: 12px;
+  font-weight: 860;
+}
+
+.moduleBrief h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+.moduleBrief p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.62;
 }
 
 .fieldGroup {
@@ -264,7 +331,7 @@ textarea {
 
 textarea:focus {
   background: #ffffff;
-  border-color: rgba(53, 84, 220, 0.55);
+  border-color: var(--module-accent);
   box-shadow:
     0 0 0 4px rgba(53, 84, 220, 0.1),
     inset 0 1px 0 rgba(17, 24, 39, 0.03);
@@ -340,8 +407,8 @@ textarea::placeholder {
 
 .conditionChip.active {
   color: #ffffff;
-  background: #171a20;
-  border-color: #171a20;
+  background: var(--module-accent);
+  border-color: var(--module-accent);
 }
 
 .customConditionRow {
@@ -362,7 +429,7 @@ textarea::placeholder {
 }
 
 .customConditionRow input:focus {
-  border-color: rgba(53, 84, 220, 0.55);
+  border-color: var(--module-accent);
   box-shadow:
     0 0 0 4px rgba(53, 84, 220, 0.1),
     inset 0 1px 0 rgba(17, 24, 39, 0.03);
@@ -374,7 +441,7 @@ textarea::placeholder {
   height: 40px;
   place-items: center;
   color: #ffffff;
-  background: #171a20;
+  background: var(--module-accent);
   border-radius: 8px;
 }
 
@@ -394,8 +461,8 @@ textarea::placeholder {
   gap: 6px;
   padding: 0 9px;
   color: #303849;
-  background: #eef8f3;
-  border: 1px solid #cfeadd;
+  background: var(--module-soft);
+  border: 1px solid #d9e2ee;
   border-radius: 7px;
   font-size: 13px;
   font-weight: 760;
@@ -467,7 +534,7 @@ textarea::placeholder {
 
 input[type="range"] {
   width: 100%;
-  accent-color: var(--blue);
+  accent-color: var(--module-accent);
 }
 
 output {
@@ -490,7 +557,7 @@ output {
   padding: 9px 10px;
   color: #374151;
   background:
-    linear-gradient(135deg, rgba(53, 84, 220, 0.16), transparent 54%),
+    linear-gradient(135deg, var(--module-accent), transparent 54%),
     #171a20;
   border-radius: 8px;
   box-shadow: 0 14px 28px rgba(23, 26, 32, 0.16);
@@ -513,7 +580,7 @@ output {
 .decisionStrip strong {
   padding: 5px 9px;
   color: #111827;
-  background: var(--yellow);
+  background: var(--module-soft);
   border-radius: 6px;
   font-size: 13px;
 }
@@ -606,8 +673,8 @@ output {
 .previewCard.back {
   transform: translate(24px, 22px) rotate(5deg);
   background:
-    linear-gradient(135deg, rgba(22, 164, 106, 0.18), transparent 52%),
-    #e9fbf3;
+    linear-gradient(135deg, var(--module-soft), transparent 52%),
+    #ffffff;
 }
 
 .previewCard.mid {
@@ -633,7 +700,7 @@ output {
   color: #ffffff;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 34%),
-    linear-gradient(160deg, #3554dc 0 38%, #171a20 38% 62%, #16a46a 62% 100%);
+    linear-gradient(160deg, var(--module-accent) 0 38%, #171a20 38% 62%, var(--blue) 62% 100%);
   border-radius: 7px;
 }
 
@@ -654,7 +721,7 @@ output {
   width: 76px;
   height: 8px;
   content: "";
-  background: var(--yellow);
+  background: var(--module-soft);
   border-radius: 8px;
 }
 
@@ -665,7 +732,7 @@ output {
 }
 
 .previewCard span {
-  color: var(--blue);
+  color: var(--module-accent);
   font-weight: 820;
 }
 
@@ -742,7 +809,7 @@ output {
 .progressTrack span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--green), var(--yellow), var(--red));
+  background: linear-gradient(90deg, var(--module-accent), var(--yellow), var(--red));
   border-radius: inherit;
   transition: width 260ms ease;
 }
@@ -910,7 +977,7 @@ output {
 }
 
 .roundAction.accept {
-  background: var(--green);
+  background: var(--module-accent);
 }
 
 .toast {
@@ -975,7 +1042,7 @@ output {
   left: 0;
   height: 4px;
   content: "";
-  background: linear-gradient(90deg, var(--green), var(--yellow), var(--red), var(--blue));
+  background: linear-gradient(90deg, var(--module-accent), var(--yellow), var(--red), var(--blue));
 }
 
 .resultKicker,
@@ -987,7 +1054,7 @@ output {
   min-height: 34px;
   padding: 0 10px;
   color: #171a20;
-  background: #f3b63f;
+  background: var(--module-soft);
   border-radius: 8px;
   font-weight: 850;
 }

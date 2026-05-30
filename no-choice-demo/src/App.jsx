@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import {
   buildDecision,
+  getModuleProfile,
   getTypeMeta,
   makeFallbackResult,
   makeResult,
@@ -26,25 +27,11 @@ import {
 
 const dragLimit = 96;
 
-const conditionOptions = [
-  { id: "midpoint", label: "找中间点" },
-  { id: "nearby", label: "离我更近" },
-  { id: "budget", label: "预算别超" },
-  { id: "quiet", label: "适合聊天" },
-  { id: "fast", label: "今天能定" },
-  { id: "fresh", label: "有点新鲜" },
-  { id: "noStaple", label: "不吃主食" },
-  { id: "practical", label: "实用优先" },
-  { id: "notBoring", label: "别太普通" },
-  { id: "lowRisk", label: "风险要低" },
-  { id: "buffer", label: "留后路" },
-  { id: "today", label: "现在能做" },
-];
-
 const getInitialConditions = (preset) => preset.conditionIds ?? [];
 const getInitialCustomConditions = (preset) => preset.customConditions ?? (preset.context ? [preset.context] : []);
 
 export default function App() {
+  const [activeModuleId, setActiveModuleId] = useState(presets[0].id);
   const [question, setQuestion] = useState(presets[0].question);
   const [selectedConditions, setSelectedConditions] = useState(getInitialConditions(presets[0]));
   const [customConditions, setCustomConditions] = useState(getInitialCustomConditions(presets[0]));
@@ -62,6 +49,8 @@ export default function App() {
   const [shareStatus, setShareStatus] = useState("");
   const startPoint = useRef({ x: 0, y: 0 });
 
+  const activeModule = getModuleProfile(activeModuleId);
+  const conditionOptions = activeModule.conditions;
   const manualList = useMemo(() => normalizeOptions(manualOptions), [manualOptions]);
   const context = useMemo(() => {
     const selectedLabels = conditionOptions
@@ -69,9 +58,10 @@ export default function App() {
       .map((option) => option.label);
 
     return [...selectedLabels, ...customConditions].join("，");
-  }, [customConditions, selectedConditions]);
+  }, [conditionOptions, customConditions, selectedConditions]);
   const inferredType = useMemo(() => {
     const preview = buildDecision({
+      moduleId: activeModuleId,
       question,
       context,
       mode,
@@ -79,16 +69,18 @@ export default function App() {
       cardCount,
     });
     return preview.ok ? preview.type : "open";
-  }, [cardCount, context, manualOptions, mode, question]);
-  const typeInfo = getTypeMeta(inferredType);
+  }, [activeModuleId, cardCount, context, manualOptions, mode, question]);
+  const typeInfo = getTypeMeta(inferredType, activeModuleId);
   const activeCard = session?.cards[session.index] ?? null;
   const progress = session ? `${session.index + 1} / ${session.cards.length}` : "0 / 0";
+  const resultModule = result ? getModuleProfile(result.moduleId) : activeModule;
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [phase]);
 
   function applyPreset(preset) {
+    setActiveModuleId(preset.id);
     setQuestion(preset.question);
     setSelectedConditions(getInitialConditions(preset));
     setCustomConditions(getInitialCustomConditions(preset));
@@ -120,7 +112,7 @@ export default function App() {
   }
 
   function startDecision() {
-    const next = buildDecision({ question, context, mode, manualOptions, cardCount });
+    const next = buildDecision({ moduleId: activeModuleId, question, context, mode, manualOptions, cardCount });
     setError("");
     setNotice("");
     setShareStatus("");
@@ -136,6 +128,7 @@ export default function App() {
         question: question.trim(),
         type: next.type,
         persona: next.persona,
+        moduleId: next.moduleId,
         cards: next.cards,
         index: 0,
       });
@@ -147,6 +140,7 @@ export default function App() {
       question: question.trim(),
       type: next.type,
       persona: next.persona,
+      moduleId: next.moduleId,
       cards: next.cards,
       index: 0,
     });
@@ -212,6 +206,7 @@ export default function App() {
             persona: session.persona,
             source: "locked",
             type: session.type,
+            moduleId: session.moduleId,
           }),
         );
         setPhase("result");
@@ -249,7 +244,10 @@ export default function App() {
   }
 
   return (
-    <main className={`appShell phase-${phase}`}>
+    <main
+      className={`appShell phase-${phase}`}
+      style={{ "--module-accent": activeModule.accent, "--module-soft": activeModule.soft }}
+    >
       <header className="topBar">
         <button className="brandButton" type="button" onClick={resetToSetup} aria-label="回到开局">
           <span className="brandMark">不</span>
@@ -271,27 +269,43 @@ export default function App() {
         <section className="setupGrid" aria-label="开局">
           <div className="controlPanel">
             <div className="presetRow" aria-label="预设场景">
-              {presets.map((preset) => (
-                <button key={preset.id} className="presetButton" type="button" onClick={() => applyPreset(preset)}>
-                  {preset.label}
-                </button>
-              ))}
+              {presets.map((preset) => {
+                const presetProfile = getModuleProfile(preset.id);
+                return (
+                  <button
+                    key={preset.id}
+                    className={`presetButton ${activeModuleId === preset.id ? "active" : ""}`}
+                    type="button"
+                    style={{ "--preset-accent": presetProfile.accent, "--preset-soft": presetProfile.soft }}
+                    onClick={() => applyPreset(preset)}
+                  >
+                    <strong>{preset.label}</strong>
+                    <small>{presetProfile.short}</small>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="moduleBrief">
+              <span>{activeModule.kicker}</span>
+              <h1>{activeModule.headline}</h1>
+              <p>{activeModule.description}</p>
             </div>
 
             <label className="fieldGroup">
-              <span>你卡住的问题</span>
+              <span>{activeModule.questionLabel}</span>
               <textarea
                 className="questionInput"
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
                 rows={2}
-                placeholder="比如：今晚吃什么？"
+                placeholder={activeModule.questionPlaceholder}
               />
             </label>
 
             <div className="conditionPanel">
               <div className="sectionLabel">
-                <span>偏好和限制</span>
+                <span>{activeModule.conditionLabel}</span>
                 <em>{selectedConditions.length + customConditions.length || "可不填"}</em>
               </div>
               <div className="conditionGrid" aria-label="条件选择">
@@ -316,7 +330,7 @@ export default function App() {
                       addCustomCondition();
                     }
                   }}
-                  placeholder="补充一句，比如：对方在常营"
+                  placeholder={activeModule.customPlaceholder}
                 />
                 <button className="miniIconButton" type="button" onClick={addCustomCondition} aria-label="添加条件">
                   <Plus size={18} />
@@ -337,22 +351,22 @@ export default function App() {
             <div className="segmented" role="tablist" aria-label="候选来源">
               <button className={mode === "auto" ? "active" : ""} type="button" onClick={() => setMode("auto")}>
                 <Wand2 size={17} />
-                帮我生成
+                {activeModule.autoLabel}
               </button>
               <button className={mode === "manual" ? "active" : ""} type="button" onClick={() => setMode("manual")}>
                 <Dices size={17} />
-                我有候选
+                {activeModule.manualLabel}
               </button>
             </div>
 
             {mode === "manual" ? (
               <label className="fieldGroup candidateEditor">
-                <span>候选项</span>
+                <span>{activeModule.candidateLabel}</span>
                 <textarea
                   value={manualOptions}
                   onChange={(event) => setManualOptions(event.target.value)}
                   rows={5}
-                  placeholder={"每行一个候选\n至少 3 个，最多 8 个"}
+                  placeholder={activeModule.manualPlaceholder}
                 />
                 {manualList.length > 0 && (
                   <div className="candidatePreview">
@@ -364,7 +378,7 @@ export default function App() {
               </label>
             ) : (
               <div className="sliderBox">
-                <label htmlFor="cardCount">生成几张</label>
+                <label htmlFor="cardCount">{activeModule.countLabel}</label>
                 <input
                   id="cardCount"
                   type="range"
@@ -387,7 +401,7 @@ export default function App() {
 
             <button className="primaryButton" type="button" onClick={startDecision}>
               <SendHorizontal size={19} />
-              开始拍板
+              {activeModule.startLabel}
             </button>
           </div>
 
@@ -399,9 +413,9 @@ export default function App() {
                 <div className="previewArt">
                   <Sparkles size={24} />
                 </div>
-                <span>{typeInfo.label}</span>
-                <strong>{question || "今晚吃什么？"}</strong>
-                <p>{typeInfo.description}</p>
+                <span>{activeModule.previewBadge}</span>
+                <strong>{question || activeModule.questionPlaceholder}</strong>
+                <p>{activeModule.previewDescription}</p>
               </div>
             </div>
           </aside>
@@ -412,7 +426,7 @@ export default function App() {
         <section className="swipeScreen" aria-label="滑卡">
           <div className="swipeHeader">
             <div>
-              <span>{getTypeMeta(session.type).label}</span>
+              <span>{getTypeMeta(session.type, session.moduleId).label}</span>
               <strong>{progress}</strong>
             </div>
             <div className="personaPill">
@@ -470,10 +484,10 @@ export default function App() {
             <div className="resultBody">
               <div className="resultKicker">
                 <BadgeCheck size={18} />
-                {personaMeta[result.persona].name}
+                {resultModule.resultKicker} · {personaMeta[result.persona].name}
               </div>
               {result.source === "fallback" && <p className="fallbackLine">{result.fallbackLine}</p>}
-              <h1>就它了 — {result.card.title}</h1>
+              <h1>{resultModule.resultPrefix} — {result.card.title}</h1>
               <p>{result.reason}</p>
               <div className="metaRow">
                 {result.card.meta.map((item) => (
