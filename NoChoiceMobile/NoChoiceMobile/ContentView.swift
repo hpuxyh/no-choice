@@ -1,3 +1,4 @@
+import CoreLocation
 import SwiftUI
 
 private enum Phase {
@@ -35,6 +36,7 @@ private struct DecisionCard: Identifiable, Equatable {
     let meta: [String]
     let tint: Color
     let symbol: String
+    let imageURL: URL?
 }
 
 private struct DecisionResult {
@@ -42,6 +44,130 @@ private struct DecisionResult {
     let persona: Persona
     let reason: String
     let fallbackLine: String?
+}
+
+private struct AmapPoiResponse: Decodable {
+    let ok: Bool
+    let message: String?
+    let pois: [AmapPoi]?
+}
+
+private struct AmapPoi: Identifiable, Decodable, Equatable {
+    let id: String
+    let name: String
+    let address: String
+    let type: String
+    let distance: Int
+    let rating: String
+    let image: String
+
+    var imageURL: URL? {
+        URL(string: image)
+    }
+
+    var distanceText: String {
+        distance >= 1000 ? String(format: "%.1fkm", Double(distance) / 1000) : "\(distance)m"
+    }
+}
+
+private final class DinnerLocationModel: NSObject, ObservableObject, CLLocationManagerDelegate {
+    @Published var isLoading = false
+    @Published var message = ""
+    @Published var coordinateText = ""
+    @Published var accuracyText = ""
+    @Published var pois: [AmapPoi] = []
+
+    private let manager = CLLocationManager()
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+    }
+
+    func requestNearbyRestaurants() {
+        isLoading = true
+        message = "正在获取当前位置"
+        pois = []
+
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        case .restricted, .denied:
+            isLoading = false
+            message = "定位权限未开启，请在系统设置里允许定位。"
+        default:
+            manager.requestLocation()
+        }
+    }
+
+    func clear() {
+        isLoading = false
+        message = ""
+        coordinateText = ""
+        accuracyText = ""
+        pois = []
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        if manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways {
+            manager.requestLocation()
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else {
+            isLoading = false
+            message = "没有拿到当前位置。"
+            return
+        }
+
+        coordinateText = String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude)
+        accuracyText = location.horizontalAccuracy > 0 ? "精度约 \(Int(location.horizontalAccuracy.rounded()))m" : "精度未知"
+        fetchPois(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        isLoading = false
+        message = "定位失败，稍后再试。"
+    }
+
+    private func fetchPois(latitude: CLLocationDegrees, longitude: CLLocationDegrees) {
+        guard var components = URLComponents(string: "https://no-choice.pages.dev/api/poi") else { return }
+        components.queryItems = [
+            URLQueryItem(name: "lat", value: String(format: "%.6f", latitude)),
+            URLQueryItem(name: "lng", value: String(format: "%.6f", longitude)),
+            URLQueryItem(name: "module", value: "dinner"),
+            URLQueryItem(name: "keyword", value: "餐厅")
+        ]
+
+        guard let url = components.url else { return }
+        message = "正在查附近餐厅"
+
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isLoading = false
+
+                if error != nil {
+                    self.message = "附近餐厅接口暂时不可用。"
+                    return
+                }
+
+                guard
+                    let data,
+                    let response = try? JSONDecoder().decode(AmapPoiResponse.self, from: data),
+                    response.ok
+                else {
+                    self.message = "附近餐厅接口暂时不可用。"
+                    return
+                }
+
+                self.pois = response.pois ?? []
+                self.message = self.pois.isEmpty ? "附近暂时没有合适餐厅。" : "已找到 \(self.pois.count) 个附近餐厅"
+            }
+        }.resume()
+    }
 }
 
 private let presets: [Preset] = [
@@ -95,6 +221,7 @@ private let conditionChoices = [
 
 struct ContentView: View {
     @State private var phase: Phase = .setup
+    @State private var activePresetId = presets[0].id
     @State private var question = presets[0].question
     @State private var selectedConditions = Set(presets[0].conditions)
     @State private var customConditions = presets[0].custom
@@ -108,6 +235,7 @@ struct ContentView: View {
     @State private var result: DecisionResult?
     @State private var dragOffset: CGSize = .zero
     @State private var notice: String?
+    @StateObject private var dinnerLocation = DinnerLocationModel()
 
     var body: some View {
         ZStack {
@@ -123,8 +251,11 @@ struct ContentView: View {
                     mode: $mode,
                     manualOptions: $manualOptions,
                     cardCount: $cardCount,
+                    activePresetId: activePresetId,
+                    dinnerLocation: dinnerLocation,
                     start: startDecision,
-                    applyPreset: applyPreset
+                    applyPreset: applyPreset,
+                    addPoiCandidate: addPoiCandidate
                 )
                 .transition(.opacity)
             case .swipe:
@@ -149,6 +280,7 @@ struct ContentView: View {
     }
 
     private func applyPreset(_ preset: Preset) {
+        activePresetId = preset.id
         question = preset.question
         selectedConditions = Set(preset.conditions)
         customConditions = preset.custom
@@ -156,6 +288,21 @@ struct ContentView: View {
         mode = preset.mode
         manualOptions = preset.options
         cardCount = preset.count
+        if preset.id != "dinner" {
+            dinnerLocation.clear()
+        }
+    }
+
+    private func addPoiCandidate(_ poi: AmapPoi) {
+        mode = .manual
+        var options = manualOptions
+            .split(whereSeparator: { "\n,，、;".contains($0) })
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if !options.contains(poi.name) {
+            options.insert(poi.name, at: 0)
+        }
+        manualOptions = options.prefix(8).joined(separator: "\n")
     }
 
     private func startDecision() {
@@ -255,7 +402,8 @@ struct ContentView: View {
             reason: positive ? "你已经问出口了，说明它不是一时冲动。" : "现在的不确定不是胆小，是信息还差一点。",
             meta: [positive ? "推进" : "缓一缓", "一锤定音"],
             tint: positive ? .green : .orange,
-            symbol: positive ? "checkmark.seal.fill" : "pause.circle.fill"
+            symbol: positive ? "checkmark.seal.fill" : "pause.circle.fill",
+            imageURL: nil
         )
     }
 
@@ -282,6 +430,21 @@ struct ContentView: View {
                 card("半山精酿", "轻食、无酒精选项都有，适合临时把晚饭变成小聚。", ["评分 4.4", "人均 ¥118"], .teal, "wineglass.fill")
             ]
         }
+
+        if activePresetId == "dinner", !dinnerLocation.pois.isEmpty {
+            let realCards = dinnerLocation.pois.prefix(cardCount).map { poi in
+                card(
+                    poi.name,
+                    "\(poi.name) 是当前位置附近的真实高德 POI，距离约 \(poi.distanceText)。先把今晚这顿落到能导航的位置。",
+                    [poi.distanceText, poi.rating.isEmpty ? poi.type : "\(poi.rating)分", poi.type].filter { !$0.isEmpty },
+                    .green,
+                    "mappin.and.ellipse",
+                    imageURL: poi.imageURL
+                )
+            }
+            return Array(realCards.prefix(cardCount))
+        }
+
         return Array(pool.prefix(cardCount))
     }
 
@@ -295,8 +458,8 @@ struct ContentView: View {
         }
     }
 
-    private func card(_ title: String, _ reason: String, _ meta: [String], _ tint: Color, _ symbol: String) -> DecisionCard {
-        DecisionCard(title: title, reason: reason, meta: meta, tint: tint, symbol: symbol)
+    private func card(_ title: String, _ reason: String, _ meta: [String], _ tint: Color, _ symbol: String, imageURL: URL? = nil) -> DecisionCard {
+        DecisionCard(title: title, reason: reason, meta: meta, tint: tint, symbol: symbol, imageURL: imageURL)
     }
 }
 
@@ -313,8 +476,11 @@ private struct SetupView: View {
     @Binding var mode: ChoiceMode
     @Binding var manualOptions: String
     @Binding var cardCount: Int
+    let activePresetId: String
+    @ObservedObject var dinnerLocation: DinnerLocationModel
     let start: () -> Void
     let applyPreset: (Preset) -> Void
+    let addPoiCandidate: (AmapPoi) -> Void
 
     var body: some View {
         ScrollView {
@@ -345,6 +511,10 @@ private struct SetupView: View {
                     customConditions: $customConditions,
                     conditionDraft: $conditionDraft
                 )
+
+                if activePresetId == "dinner" {
+                    DinnerLocationPanel(model: dinnerLocation, addPoiCandidate: addPoiCandidate)
+                }
 
                 Picker("", selection: $mode) {
                     ForEach(ChoiceMode.allCases, id: \.self) { item in
@@ -497,6 +667,126 @@ private struct ConditionPicker: View {
     }
 }
 
+private struct DinnerLocationPanel: View {
+    @ObservedObject var model: DinnerLocationModel
+    let addPoiCandidate: (AmapPoi) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("附近餐厅")
+                    .font(.subheadline.weight(.bold))
+                Spacer()
+                Text(model.pois.isEmpty ? "可选" : "\(model.pois.count) 个点")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                model.requestNearbyRestaurants()
+            } label: {
+                Label(model.isLoading ? "定位中" : model.pois.isEmpty ? "获取当前位置" : "重新定位", systemImage: "location.fill")
+                    .font(.headline.weight(.black))
+                    .frame(maxWidth: .infinity, minHeight: 48)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white)
+            .background(.green)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .disabled(model.isLoading)
+
+            if !model.coordinateText.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(model.coordinateText)
+                        .font(.subheadline.weight(.black))
+                    Text(model.accuracyText)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if !model.message.isEmpty {
+                Text(model.message)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(model.pois.isEmpty && !model.isLoading ? .orange : .secondary)
+            }
+
+            if !model.pois.isEmpty {
+                VStack(spacing: 10) {
+                    ForEach(model.pois.prefix(4)) { poi in
+                        Button {
+                            addPoiCandidate(poi)
+                        } label: {
+                            HStack(spacing: 12) {
+                                PoiThumb(url: poi.imageURL)
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(poi.name)
+                                        .font(.subheadline.weight(.black))
+                                        .lineLimit(1)
+                                    Text([poi.distanceText, poi.rating.isEmpty ? "" : "\(poi.rating)分", poi.type]
+                                        .filter { !$0.isEmpty }
+                                        .joined(separator: " · "))
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    Text(poi.address)
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+
+                                Spacer(minLength: 0)
+                            }
+                            .padding(10)
+                            .background(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(.black.opacity(0.08)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.green.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.green.opacity(0.16)))
+    }
+}
+
+private struct PoiThumb: View {
+    let url: URL?
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.green.opacity(0.2))
+
+            if let url {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.title3.weight(.black))
+                            .foregroundStyle(.green)
+                    }
+                }
+            } else {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.title3.weight(.black))
+                    .foregroundStyle(.green)
+            }
+        }
+        .frame(width: 58, height: 58)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
 private struct SwipeView: View {
     let cards: [DecisionCard]
     let activeIndex: Int
@@ -602,23 +892,8 @@ private struct DecisionCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack {
-                LinearGradient(colors: [card.tint.opacity(0.92), .black.opacity(0.88)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                Image(systemName: card.symbol)
-                    .font(.system(size: 74, weight: .black))
-                    .foregroundStyle(.white.opacity(0.9))
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Capsule()
-                            .fill(card.tint)
-                            .frame(width: 58, height: 8)
-                    }
-                    .padding(18)
-                }
-            }
-            .frame(height: 218)
+            CardMediaView(card: card, iconSize: 74)
+                .frame(height: 218)
 
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
@@ -656,6 +931,46 @@ private struct DecisionCardView: View {
     }
 }
 
+private struct CardMediaView: View {
+    let card: DecisionCard
+    let iconSize: CGFloat
+
+    var body: some View {
+        ZStack {
+            if let imageURL = card.imageURL {
+                AsyncImage(url: imageURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        LinearGradient(colors: [card.tint.opacity(0.92), .black.opacity(0.88)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    }
+                }
+                .clipped()
+                LinearGradient(colors: [.black.opacity(0.04), .black.opacity(0.48)], startPoint: .top, endPoint: .bottom)
+            } else {
+                LinearGradient(colors: [card.tint.opacity(0.92), .black.opacity(0.88)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Image(systemName: card.symbol)
+                    .font(.system(size: iconSize, weight: .black))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
+
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Capsule()
+                        .fill(card.tint)
+                        .frame(width: 58, height: 8)
+                }
+                .padding(18)
+            }
+        }
+    }
+}
+
 private struct ResultView: View {
     let result: DecisionResult
     let onAgain: () -> Void
@@ -676,13 +991,8 @@ private struct ResultView: View {
             }
 
             VStack(alignment: .leading, spacing: 0) {
-                ZStack {
-                    LinearGradient(colors: [result.card.tint.opacity(0.88), .black], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    Image(systemName: result.card.symbol)
-                        .font(.system(size: 88, weight: .black))
-                        .foregroundStyle(.white.opacity(0.9))
-                }
-                .frame(height: 250)
+                CardMediaView(card: result.card, iconSize: 88)
+                    .frame(height: 250)
 
                 VStack(alignment: .leading, spacing: 18) {
                     Label(result.persona.rawValue, systemImage: "badge.checkmark")
