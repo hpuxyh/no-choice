@@ -39,10 +39,6 @@ export default {
       return handleComicImageRequest(request, env);
     }
 
-    if (url.pathname === "/api/avatar") {
-      return handleAvatarRequest(request, env);
-    }
-
     return env.ASSETS.fetch(request);
   },
 };
@@ -193,54 +189,6 @@ async function handleComicImageRequest(request, env) {
     });
   } catch (error) {
     return json({ ok: false, message: error.message || "漫画图片生成失败" }, 502);
-  }
-}
-
-async function handleAvatarRequest(request, env) {
-  if (request.method !== "POST") {
-    return json({ ok: false, message: "只支持 POST" }, 405);
-  }
-
-  const key = env.DOUBAO_SEEDREAM_API_KEY || env.ARK_API_KEY || env.DOUBAO_API_KEY || "";
-  if (!key) {
-    return json(
-      {
-        ok: false,
-        needsKey: true,
-        message: "Cloudflare 还没有配置 DOUBAO_SEEDREAM_API_KEY",
-      },
-      501,
-    );
-  }
-
-  let input;
-  try {
-    input = await request.json();
-  } catch {
-    return json({ ok: false, message: "请求内容不是有效 JSON" }, 400);
-  }
-
-  // 头像输入既可以是 https 图片，也可以是上传照片的 base64 data URL
-  const image = cleanImageInput(input?.image);
-  if (!image) {
-    return json({ ok: false, message: "缺少有效图片" }, 400);
-  }
-
-  const prompt =
-    cleanText(input?.prompt, 500) || "帮我通过这个图生成一个卡通像素风头像，不要马赛克。";
-
-  try {
-    const model = env.DOUBAO_IMAGE_MODEL || env.DOUBAO_SEEDREAM_MODEL || "doubao-seedream-5-0-260128";
-    const size = env.DOUBAO_AVATAR_SIZE || "1024x1024";
-    const output = await generateComicImage({ key, model, image, prompt, size });
-    return json({
-      ok: true,
-      provider: "doubao-seedream",
-      model,
-      url: output.url,
-    });
-  } catch (error) {
-    return json({ ok: false, message: error.message || "头像生成失败" }, 502);
   }
 }
 
@@ -566,18 +514,6 @@ function cleanToken(value, limit) {
 function cleanUrl(value) {
   const text = cleanText(value, 500);
   return /^https?:\/\//.test(text) ? text : "";
-}
-
-// 头像图片入参：允许 https 链接或上传照片的 base64 data URL（data URL 不能截断）
-function cleanImageInput(value) {
-  const text = String(value || "").trim();
-  if (/^https?:\/\//.test(text)) {
-    return text.slice(0, 5000);
-  }
-  if (/^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+$/i.test(text)) {
-    return text.replace(/\s+/g, "");
-  }
-  return "";
 }
 
 function formatDistance(value) {
