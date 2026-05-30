@@ -14,9 +14,9 @@
 
 - 快速建局：预设常见选择困难场景，也支持自己输入问题。
 - 条件收集：用标签和补充输入记录偏好、约束和临时想法。
-- 自动推荐：根据问题类型和条件生成候选卡片。
+- AI 推荐：把问题、条件、手动候选、位置和 POI 组装后交给 DeepSeek，返回 3 张候选卡；失败时回退本地规则。
 - 抽卡拍板：每次先收口成 3 张答案卡，用户可以换一张，也可以点 GO 直接定当前卡。
-- 直接结论：是否题会直接给出“做/不做”判断和理由。
+- 是否题处理：AI 优先拆成可执行选项；本地兜底会给出“做/不做”判断和理由。
 - 解释口吻：支持不同风格的推荐理由，降低“被算法命令”的生硬感。
 - 手机定位：吃饭和周末模块支持点击获取当前位置；吃饭模块在 Cloudflare 版通过 `/api/poi` 拉取附近真实餐厅、距离、评分、地址和店铺图。
 
@@ -75,7 +75,7 @@ xcodebuild -project NoChoiceMobile/NoChoiceMobile.xcodeproj -scheme NoChoiceMobi
 
 ## Current Scope
 
-- 大模型推荐暂时用本地规则和候选池模拟。
+- DeepSeek 推荐已通过 Cloudflare `/api/decide` 接入，密钥只放在 Cloudflare Pages Secret。
 - 餐厅和地点候选在未配置地图 Key 时仍使用策略/类别示例；配置 `AMAP_WEB_SERVICE_KEY` 后可返回真实附近 POI。
 - 当前重点是验证“少比较、快拍板”的交互节奏。
 
@@ -86,7 +86,7 @@ xcodebuild -project NoChoiceMobile/NoChoiceMobile.xcodeproj -scheme NoChoiceMobi
 1. 位置和 POI：吃饭模块优先级最高，周末模块次之。当前已支持当前位置、附近餐厅、距离、评分、地址和图片；下一步可以补营业时间、价格、人均、导航跳转和“我与朋友的中点”。
 2. 天气和活动：周末模块建议接天气、展览/演出/体验活动或票务数据，用来判断室内外、雨天备用和预约可行性。
 3. 电商和商品搜索：礼物模块适合接商品搜索、价格、库存、配送时效和图片。前期可以只做跳转，先不做站内交易。
-4. 大模型：适合生成候选、解释推荐理由、把用户自然语言条件转成结构化筛选项。API key 不应该放在前端，需要后端或 Serverless 代理。
+4. 大模型：当前通过 `/api/decide` 调用 DeepSeek 生成候选、解释推荐理由，并把自然语言条件和 POI 一起纳入判断。API key 不放在前端，需要后端或 Serverless 代理。
 5. 图片：真实地点优先用 POI 返回的店铺图，礼物优先用商品图；没有真实数据时，用固定素材或图片 API 做氛围图即可。
 6. 用户输入兜底：必须保留。位置权限可能被拒绝，POI/商品也可能无结果，所以始终允许用户手动输入城市、商圈、候选项和限制。
 
@@ -98,6 +98,7 @@ Web 手机端定位使用浏览器 Geolocation，原生 iOS 使用 CoreLocation�
 
 1. 高德开放平台 Web 服务 API Key。
 2. 在 Cloudflare Pages 项目环境变量里设置 `AMAP_WEB_SERVICE_KEY`。
-3. 重新部署 Cloudflare Pages。
+3. DeepSeek API Key，并在 Cloudflare Pages 项目环境变量里设置 `DEEPSEEK_API_KEY`。
+4. 重新部署 Cloudflare Pages。
 
-GitHub Pages 镜像没有后端代理，因此可以获取手机定位，但不会返回真实 POI。
+GitHub Pages 镜像没有后端代理，因此可以获取手机定位，但不会返回真实 POI 或 AI 推荐。

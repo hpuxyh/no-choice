@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import {
   buildDecision,
+  detectQuestionType,
   getModuleProfile,
   getTypeMeta,
   makeFallbackResult,
@@ -25,6 +26,7 @@ import {
   personaMeta,
   presets,
 } from "./decisionEngine";
+import { requestAiDecision } from "./aiDecide";
 import {
   buildLocationContext,
   canUseLocation,
@@ -68,23 +70,17 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [shareStatus, setShareStatus] = useState("");
   const [geoState, setGeoState] = useState(emptyGeoState);
+  const [isDeciding, setIsDeciding] = useState(false);
   const startPoint = useRef({ x: 0, y: 0 });
 
   const activeModule = getModuleProfile(activeModuleId);
   const conditionOptions = activeModule.conditions;
   const locationEnabled = canUseLocation(activeModuleId);
   const manualList = useMemo(() => normalizeOptions(manualOptions), [manualOptions]);
-  const locationContext = useMemo(
-    () => buildLocationContext(activeModuleId, geoState.coords, geoState.pois),
-    [activeModuleId, geoState.coords, geoState.pois],
+  const context = useMemo(
+    () => getContextFromGeo(geoState),
+    [activeModuleId, conditionOptions, customConditions, geoState, selectedConditions],
   );
-  const context = useMemo(() => {
-    const selectedLabels = conditionOptions
-      .filter((option) => selectedConditions.includes(option.id))
-      .map((option) => option.label);
-
-    return [...selectedLabels, ...customConditions, locationContext].filter(Boolean).join("，");
-  }, [conditionOptions, customConditions, locationContext, selectedConditions]);
   const inferredType = useMemo(() => {
     const preview = buildDecision({
       moduleId: activeModuleId,
@@ -129,6 +125,15 @@ export default function App() {
     setPhase("setup");
   }
 
+  function getSelectedConditionLabels() {
+    return conditionOptions.filter((option) => selectedConditions.includes(option.id)).map((option) => option.label);
+  }
+
+  function getContextFromGeo(sourceGeoState = geoState) {
+    const locationText = buildLocationContext(activeModuleId, sourceGeoState.coords, sourceGeoState.pois);
+    return [...getSelectedConditionLabels(), ...customConditions, locationText].filter(Boolean).join("，");
+  }
+
   function toggleCondition(id) {
     setSelectedConditions((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
@@ -148,7 +153,10 @@ export default function App() {
 
   async function useCurrentLocation() {
     if (!locationEnabled) return;
+    await fetchLocationState();
+  }
 
+  async function fetchLocationState() {
     setError("");
     setGeoState((current) => ({
       ...current,
@@ -161,15 +169,17 @@ export default function App() {
 
     try {
       const coords = await getCurrentPosition();
-      setGeoState((current) => ({
-        ...current,
+      const locatingState = {
+        ...geoState,
         status: "located",
         coords,
         error: "",
         pois: [],
         poiStatus: "loading",
         poiMessage: "正在查附近点位",
-      }));
+      };
+
+      setGeoState(locatingState);
 
       const poiResult = await searchNearbyPois({
         coords,
@@ -177,22 +187,27 @@ export default function App() {
         keyword: getPoiKeyword(activeModuleId, question),
       });
 
-      setGeoState((current) => ({
-        ...current,
+      const nextState = {
+        ...locatingState,
         status: "located",
         coords,
         pois: poiResult.pois || [],
         poiStatus: poiResult.ok ? "ready" : poiResult.needsKey ? "needsKey" : "empty",
         poiMessage: poiResult.message,
-      }));
+      };
+
+      setGeoState(nextState);
+      return nextState;
     } catch (locationError) {
-      setGeoState((current) => ({
-        ...current,
-        status: current.coords ? "located" : "error",
+      const nextState = {
+        ...geoState,
+        status: geoState.coords ? "located" : "error",
         error: locationError.message,
         poiStatus: "idle",
         poiMessage: "",
-      }));
+      };
+      setGeoState(nextState);
+      return nextState;
     }
   }
 
@@ -204,27 +219,87 @@ export default function App() {
     });
   }
 
-  function startDecision() {
-    const next = buildDecision({
-      moduleId: activeModuleId,
-      question,
-      context,
-      mode,
-      manualOptions,
-      cardCount,
-      poiCandidates: locationEnabled ? geoState.pois : [],
-    });
+  async function startDecision() {
+    if (isDeciding) return;
+
     setError("");
     setNotice("");
     setShareStatus("");
+    setIsDeciding(true);
 
-    if (!next.ok) {
-      setError(next.error);
+    if (!question.trim()) {
+      setError("先写一个你卡住的问题。比如：今晚吃什么？");
+      setIsDeciding(false);
       return;
     }
 
-    if (next.immediateResult) {
-      setResult(next.immediateResult);
+    let effectiveGeoState = geoState;
+
+    try {
+      if (locationEnabled && !geoState.coords) {
+        effectiveGeoState = await fetchLocationState();
+      }
+
+      const decisionContext = getContextFromGeo(effectiveGeoState);
+      const poiCandidates = locationEnabled ? effectiveGeoState.pois : [];
+      const aiDecision = await requestAiDecision({
+        moduleId: activeModuleId,
+        moduleLabel: activeModule.label,
+        question: question.trim(),
+        context: decisionContext,
+        selectedConditions: getSelectedConditionLabels(),
+        customConditions,
+        mode,
+        manualCandidates: normalizeOptions(manualOptions),
+        location: locationEnabled && effectiveGeoState.coords ? effectiveGeoState.coords : null,
+        pois: poiCandidates,
+        outputCount: 3,
+      });
+
+      setSession({
+        question: question.trim(),
+        type: mode === "manual" ? "custom" : detectQuestionType(question, false, activeModuleId),
+        persona: "gentle",
+        moduleId: activeModuleId,
+        cards: aiDecision.cards,
+        index: 0,
+      });
+      setResult(null);
+      setPhase("swipe");
+      return;
+    } catch {
+      const decisionContext = getContextFromGeo(effectiveGeoState);
+      const next = buildDecision({
+        moduleId: activeModuleId,
+        question,
+        context: decisionContext,
+        mode,
+        manualOptions,
+        cardCount,
+        poiCandidates: locationEnabled ? effectiveGeoState.pois : [],
+      });
+
+      if (!next.ok) {
+        setError(next.error);
+        return;
+      }
+
+      setNotice("AI 推荐暂时不可用，先用本地规则抽卡。");
+
+      if (next.immediateResult) {
+        setResult(next.immediateResult);
+        setSession({
+          question: question.trim(),
+          type: next.type,
+          persona: next.persona,
+          moduleId: next.moduleId,
+          cards: next.cards,
+          index: 0,
+        });
+        setPhase("result");
+        return;
+      }
+
       setSession({
         question: question.trim(),
         type: next.type,
@@ -233,19 +308,10 @@ export default function App() {
         cards: next.cards,
         index: 0,
       });
-      setPhase("result");
-      return;
+      setPhase("swipe");
+    } finally {
+      setIsDeciding(false);
     }
-
-    setSession({
-      question: question.trim(),
-      type: next.type,
-      persona: next.persona,
-      moduleId: next.moduleId,
-      cards: next.cards,
-      index: 0,
-    });
-    setPhase("swipe");
   }
 
   function resetToSetup() {
@@ -256,6 +322,7 @@ export default function App() {
     setFly(null);
     setNotice("");
     setShareStatus("");
+    setIsDeciding(false);
   }
 
   function restartSame() {
@@ -580,9 +647,9 @@ export default function App() {
 
             {error && <p className="errorText">{error}</p>}
 
-            <button className="primaryButton" type="button" onClick={startDecision}>
-              <SendHorizontal size={19} />
-              {activeModule.startLabel}
+            <button className="primaryButton" type="button" onClick={startDecision} disabled={isDeciding}>
+              {isDeciding ? <Sparkles size={19} /> : <SendHorizontal size={19} />}
+              {isDeciding ? "正在抽卡" : activeModule.startLabel}
             </button>
           </div>
 

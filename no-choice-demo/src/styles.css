@@ -823,6 +823,12 @@ output {
   box-shadow: 0 20px 42px rgba(23, 26, 32, 0.24);
 }
 
+.primaryButton:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
 .primaryButton.compact {
   min-height: 44px;
   box-shadow: none;
