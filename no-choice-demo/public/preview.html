@@ -116,6 +116,8 @@
       .gcard p { font-size: 12px; font-weight: 750; color: var(--info-muted, #5f574a); line-height: 1.45; overflow: hidden; }
       .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
       .mtag { font-size: 10px; font-weight: 900; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--tag-bg, rgba(255,252,244,.78)); color: var(--tag-fg, var(--ink)); }
+      .navMini { width: 100%; min-height: 38px; border: 3px solid var(--ink); border-radius: 11px; background: var(--ink); color: var(--paper); box-shadow: var(--shadow-sm); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; }
+      .navMini:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
 
       .gcard.flyR { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(135%,-10%) rotate(20deg) !important; opacity: 0; }
       .gcard.flyL { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(-135%,-10%) rotate(-20deg) !important; opacity: 0; }
@@ -125,7 +127,7 @@
       .gcard.revealing { animation: wobble .9s ease-in-out; }
       @keyframes wobble { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-2.5deg); } 75% { transform: rotate(2.5deg); } }
 
-      .stamp { position: absolute; top: 18px; padding: 6px 11px; border: 4px solid; border-radius: 9px; font-size: 19px; font-weight: 950; opacity: 0; z-index: 6; }
+      .stamp { position: absolute; top: 18px; padding: 6px 11px; border: 4px solid; border-radius: 9px; font-size: 19px; font-weight: 950; opacity: 0; z-index: 6; pointer-events: none; }
       .stamp.s-r { right: 14px; color: var(--green); transform: rotate(12deg); }
       .stamp.s-l { left: 14px; color: #c79100; transform: rotate(-12deg); }
       .stamp.s-d { left: 50%; bottom: 16px; top: auto; transform: translateX(-50%); color: var(--red); }
@@ -138,8 +140,18 @@
         background: linear-gradient(90deg, var(--pipe-d) 0 14%, var(--pipe-l) 14% 30%, var(--pipe) 30% 100%); }
       .pipe .mouth { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 138px; height: 14px; background: rgba(0,0,0,.55); border-radius: 50%; }
 
-      .gestureHint { display: flex; justify-content: space-around; font-size: 10.5px; font-weight: 800; flex: none; text-align: center; }
-      .gestureHint .r { color: var(--green); } .gestureHint .l { color: #b8860b; } .gestureHint .d { color: var(--red); }
+      .gestureHint { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: none; }
+      .gestureAction { min-width: 0; min-height: 52px; border: 3px solid var(--ink); border-radius: 13px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm); font: inherit; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 7px; transition: transform .08s, box-shadow .08s, filter .12s; }
+      .gestureAction:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+      .gestureAction .arrow { flex: none; width: 24px; height: 24px; border: 2px solid var(--ink); border-radius: 8px; display: grid; place-items: center; background: rgba(255,255,255,.68); font-size: 15px; line-height: 1; }
+      .gestureAction .txt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.08; text-align: left; min-width: 0; }
+      .gestureAction .txt b { font-size: 13px; }
+      .gestureAction .txt span { font-size: 10px; opacity: .82; margin-top: 2px; white-space: nowrap; }
+      .gestureAction.l { background: #ffcf24; }
+      .gestureAction.d { background: #ff554f; color: #fffaf2; }
+      .gestureAction.r { background: #6d58e8; color: #fffaf2; }
+      .gestureAction.d .arrow { color: var(--red); }
+      .gestureAction[disabled] { opacity: .55; filter: grayscale(.2); cursor: default; }
 
       /* WIN overlay */
       .win { position: absolute; inset: 0; z-index: 40; display: none; place-items: center; padding: 18px; background: rgba(26,23,20,.55); backdrop-filter: blur(3px); }
@@ -225,7 +237,11 @@
             <div class="deck" id="deck"></div>
             <div class="pipe" id="pipe"><div class="rim"></div><div class="body"><div class="mouth"></div></div></div>
           </div>
-          <div class="gestureHint"><span class="l">◀ 左滑<br/>待定</span><span class="d">▼ 下滑<br/>钻水管</span><span class="r">右滑 ▶<br/>就它了</span></div>
+          <div class="gestureHint">
+            <button class="gestureAction l" type="button" data-dir="left" onclick="tapDecision('left')"><span class="arrow">◀</span><span class="txt"><b>待定</b><span>左滑</span></span></button>
+            <button class="gestureAction d" type="button" data-dir="down" onclick="tapDecision('down')"><span class="arrow">▼</span><span class="txt"><b>丢掉</b><span>下滑</span></span></button>
+            <button class="gestureAction r" type="button" data-dir="right" onclick="tapDecision('right')"><span class="txt"><b>就它</b><span>右滑</span></span><span class="arrow">▶</span></button>
+          </div>
           <div class="toast" id="toast"></div>
         </section>
       </div>
@@ -271,6 +287,8 @@
 
       function go(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
       $("#buffs").addEventListener("click",(e)=>{ if(e.target.classList.contains("chip")) e.target.classList.toggle("on"); });
+      document.addEventListener("pointerdown", stopNavMiniEvent, true);
+      document.addEventListener("click", handleCardNavClick, true);
       syncComicToggle();
 
       function toggleComicMode(){
@@ -369,6 +387,7 @@
         const art = c.image
           ? `<div class="art photo" style="background-image:linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.36)), url('${cssUrl(c.image)}')">${escapeHTML(c.emoji || "🍽️")}</div>`
           : `<div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${escapeHTML(c.emoji || "🍽️")}</div>`;
+        const nav = c.navUrl ? `<button class="navMini" type="button" data-nav="${escapeAttr(c.navUrl)}">📍 去导航</button>` : "";
         return `
           ${art}
           <div class="info" style="${cardThemeStyle(c)}">
@@ -376,6 +395,7 @@
             <h3>${escapeHTML(c.name)}</h3>
             <p>${escapeHTML(c.reason)}</p>
             <div class="metaRow">${(c.meta || []).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("")}</div>
+            ${nav}
           </div>` + (withStamps ? `
           <div class="stamp s-r pixel">就它了</div>
           <div class="stamp s-l pixel">待定</div>
@@ -404,11 +424,12 @@
       // 先轮转抽出顶端卡牌，settle 后才允许滑动
       function dealRound(){
         ready=false; clearInterval(revT);
+        updateGestureButtons();
         let k=0; const total=9+Math.floor(Math.random()*5);
         topEl.classList.add("revealing");
         revT=setInterval(()=>{
           setTopFace(activePool[k%activePool.length]); k++;
-          if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); toast("看清楚了 · 左滑待定 / 右滑就它 / 下滑钻管"); }
+          if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); updateGestureButtons(); toast("看清楚了 · 左滑待定 / 右滑就它 / 下滑钻管"); }
         }, 65);
       }
 
@@ -441,8 +462,33 @@
         card.addEventListener("pointerup",onUp); card.addEventListener("pointercancel",onUp);
       }
 
+      function tapDecision(dir){
+        if(!ready || !topEl){
+          toast("等卡牌亮完再选");
+          return;
+        }
+        decide(topEl, dir);
+      }
+
+      function updateGestureButtons(){
+        document.querySelectorAll(".gestureAction").forEach(btn=>{ btn.disabled = !ready; });
+      }
+
+      function stopNavMiniEvent(event){
+        if(event.target.closest(".navMini")) event.stopPropagation();
+      }
+
+      function handleCardNavClick(event){
+        const btn = event.target.closest(".navMini");
+        if(!btn) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const url = btn.dataset.nav;
+        if(url) window.open(url, "_blank");
+      }
+
       function decide(card,dir){
-        ready=false; const top=deck[0];
+        ready=false; updateGestureButtons(); const top=deck[0];
         if(dir==="right"){ card.classList.add("flyR"); setTimeout(()=>win(top),250); return; }
         if(dir==="left"){ card.classList.add("flyL"); setTimeout(()=>{ pending.push(deck.shift()); afterRemove("待定 +1"); },280); return; }
         if(dir==="down"){
@@ -804,6 +850,9 @@
       function resetAll(){ $("#win").classList.remove("show"); $("#confetti").innerHTML=""; go("home"); }
       function escapeHTML(value){
         return String(value ?? "").replace(/[&<>"']/g, (ch)=>({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+      }
+      function escapeAttr(value){
+        return escapeHTML(value);
       }
       function cssUrl(value){
         return String(value || "").replace(/['"\\\n\r]/g, (ch)=>encodeURIComponent(ch));
