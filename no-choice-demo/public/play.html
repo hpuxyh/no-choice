@@ -211,9 +211,12 @@
       .pips { display: flex; gap: 4px; }
       .pip { width: 11px; height: 15px; border: 2px solid var(--ink); border-radius: 3px; background: var(--card); }
       .pip.spent { background: var(--ink); opacity: .25; }
+      /* 游戏化 slogan：移到卡片图片上方（计数行下方） */
+      .roundSlogan { flex: none; font-size: 12.5px; font-weight: 900; line-height: 1.35; color: var(--ink); padding: 8px 11px; border: 2px dashed var(--ink); border-radius: 11px; background: rgba(255,255,255,.5); }
+      .roundSlogan:empty { display: none; }
 
       .deckWrap { position: relative; flex: 1 1 auto; min-height: 0; }
-      .deck { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(290px, 76vw); height: calc(100% - 96px); }
+      .deck { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(290px, 76vw); height: calc(100% - 14px); }
       .gcard { position: absolute; inset: 0; border: 0; border-radius: 18px; box-shadow: 4px 5px 0 rgba(26,23,20,.72), -1px 1px 0 rgba(26,23,20,.18), inset 0 0 0 2px rgba(26,23,20,.12), 0 14px 30px rgba(26,23,20,.16); overflow: hidden; background: var(--card); will-change: transform; display: flex; flex-direction: column; }
       .gcard .art { height: 52%; display: grid; place-items: center; font-size: 64px; border-bottom: 0; transition: background .15s; }
       .gcard .art.photo { background-size: cover; background-position: center; color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.45); filter: saturate(1.35) contrast(1.12); }
@@ -250,26 +253,27 @@
       .stamp.s-l { left: 14px; color: #c79100; transform: rotate(-12deg); }
       .stamp.s-d { left: 50%; bottom: 16px; top: auto; transform: translateX(-50%); color: var(--red); }
 
-      /* Super-Mario warp pipe */
-      .pipe { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); width: 168px; z-index: 2; pointer-events: none; }
-      .pipe .rim { height: 30px; width: 168px; margin: 0 auto; border: 4px solid var(--ink); border-radius: 8px;
-        background: linear-gradient(90deg, var(--pipe-d) 0 12%, var(--pipe-l) 12% 26%, var(--pipe) 26% 100%); box-shadow: var(--shadow-sm); }
-      .pipe .body { height: 60px; width: 138px; margin: -4px auto 0; border: 4px solid var(--ink); border-top: none;
-        background: linear-gradient(90deg, var(--pipe-d) 0 14%, var(--pipe-l) 14% 30%, var(--pipe) 30% 100%); }
-      .pipe .mouth { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 138px; height: 14px; background: rgba(0,0,0,.55); border-radius: 50%; }
+      /* 底部控制：红 Pass · 下水道(Bye bye) · 蓝 Pick；下水道直达屏幕底端，左右键略小 */
+      /* margin 负值抵消 .screen 的 14px/16px 内边距，让下水道贴住屏幕底边 */
+      .deckControls { display: flex; align-items: flex-end; justify-content: center; gap: 12px; flex: none; margin: 2px -16px -14px; }
+      .ctrlSide { flex: none; width: 82px; height: 54px; border: 3px solid var(--ink); border-radius: 14px; box-shadow: var(--shadow-sm); font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; margin-bottom: 8px; transition: transform .08s, box-shadow .08s, filter .12s; }
+      .ctrlSide:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+      .ctrlSide .big { font-size: 19px; font-weight: 950; line-height: 1; letter-spacing: .5px; }
+      .ctrlSide .sm { font-size: 9.5px; font-weight: 800; opacity: .9; }
+      .ctrlSide.no { background: var(--red); color: #fffaf2; }
+      .ctrlSide.pick { background: var(--blue); color: #fffaf2; }
+      .ctrlSide[disabled] { opacity: .55; filter: grayscale(.2); cursor: default; }
 
-      .gestureHint { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: none; }
-      .gestureAction { min-width: 0; min-height: 52px; border: 3px solid var(--ink); border-radius: 13px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm); font: inherit; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 7px; transition: transform .08s, box-shadow .08s, filter .12s; }
-      .gestureAction:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
-      .gestureAction .arrow { flex: none; width: 24px; height: 24px; border: 2px solid var(--ink); border-radius: 8px; display: grid; place-items: center; background: rgba(255,255,255,.68); font-size: 15px; line-height: 1; }
-      .gestureAction .txt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.08; text-align: left; min-width: 0; }
-      .gestureAction .txt b { font-size: 13px; }
-      .gestureAction .txt span { font-size: 10px; opacity: .82; margin-top: 2px; white-space: nowrap; }
-      .gestureAction.l { background: #ffcf24; }
-      .gestureAction.d { background: #ff554f; color: #fffaf2; }
-      .gestureAction.r { background: #6d58e8; color: #fffaf2; }
-      .gestureAction.d .arrow { color: var(--red); }
-      .gestureAction[disabled] { opacity: .55; filter: grayscale(.2); cursor: default; }
+      /* 下水道（Super-Mario warp pipe）：卡片下滑被吸入，点击=永久拉黑 */
+      .pipeBtn { flex: none; position: relative; width: 128px; padding: 0; border: none; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: transform .1s; }
+      .pipeBtn:active { transform: translateY(2px); }
+      .pipeBtn[disabled] { opacity: .55; filter: grayscale(.2); cursor: default; }
+      .pipeBtn .rim { height: 26px; width: 128px; border: 3px solid var(--ink); border-radius: 8px; display: grid; place-items: center;
+        background: linear-gradient(90deg, var(--pipe-d) 0 12%, var(--pipe-l) 12% 26%, var(--pipe) 26% 100%); box-shadow: var(--shadow-sm); }
+      .pipeBtn .plabel { position: relative; z-index: 1; font-size: 12px; font-weight: 950; color: #fffaf2; text-shadow: 1px 1px 0 rgba(0,0,0,.5); letter-spacing: .5px; }
+      .pipeBtn .body { position: relative; height: 52px; width: 104px; margin: -3px auto 0; border: 3px solid var(--ink); border-top: none;
+        background: linear-gradient(90deg, var(--pipe-d) 0 14%, var(--pipe-l) 14% 30%, var(--pipe) 30% 100%); }
+      .pipeBtn .mouth { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); width: 104px; height: 11px; background: rgba(0,0,0,.55); border-radius: 50%; }
 
       /* WIN overlay */
       .win { position: absolute; inset: 0; z-index: 40; display: none; place-items: center; padding: 18px; background: rgba(26,23,20,.55); backdrop-filter: blur(3px); }
@@ -278,6 +282,8 @@
       @keyframes drop { 0% { transform: translateY(-120vh) rotate(-12deg); } 70% { transform: translateY(10px) rotate(3deg); } 100% { transform: none; } }
       .winCard .tag { font-size: 12px; color: var(--red); }
       .winCard .cg { font-weight: 900; font-size: 23px; margin: 2px 0 10px; }
+      .winCard .settleBig { font-weight: 950; font-size: 26px; line-height: 1.18; color: var(--red); margin: 2px 0 12px; letter-spacing: .5px; }
+      .winCard .settleBig:empty { display: none; }
       .winCard .face { height: 122px; border-radius: 13px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 58px; margin-bottom: 10px; }
       .winCard h2 { font-size: 22px; font-weight: 900; }
       .winCard p { font-size: 12.5px; font-weight: 600; color: #5f574a; line-height: 1.5; margin: 7px 0 10px; }
@@ -384,14 +390,14 @@
         <section class="screen" data-screen="deck">
           <div class="topbar"><span class="badge purple pixel" id="deckLabel">AI INTEL</span><button class="back" onclick="go('mode')">← 返回</button></div>
           <div class="counter"><span>这局只有</span><span class="pips" id="pips"></span><span id="leftN">5</span><span>张 · 看清楚再滑</span></div>
+          <div class="roundSlogan" id="roundSlogan"></div>
           <div class="deckWrap">
             <div class="deck" id="deck"></div>
-            <div class="pipe" id="pipe"><div class="rim"></div><div class="body"><div class="mouth"></div></div></div>
           </div>
-          <div class="gestureHint">
-            <button class="gestureAction l" type="button" data-dir="left" onclick="tapDecision('left')"><span class="arrow">◀</span><span class="txt"><b>待定</b><span>左滑</span></span></button>
-            <button class="gestureAction d" type="button" data-dir="down" onclick="tapDecision('down')"><span class="arrow">▼</span><span class="txt"><b>丢掉</b><span>下滑</span></span></button>
-            <button class="gestureAction r" type="button" data-dir="right" onclick="tapDecision('right')"><span class="txt"><b>就它</b><span>右滑</span></span><span class="arrow">▶</span></button>
+          <div class="deckControls">
+            <button class="ctrlSide no" type="button" data-act data-dir="left" onclick="tapDecision('left')"><span class="big">Pass</span><span class="sm">左滑待定</span></button>
+            <button class="pipeBtn" id="pipe" type="button" data-act data-dir="down" onclick="tapDecision('down')"><div class="rim"><span class="plabel">Bye bye</span></div><div class="body"><div class="mouth"></div></div></button>
+            <button class="ctrlSide pick" type="button" data-act data-dir="right" onclick="tapDecision('right')"><span class="big">Pick</span><span class="sm">右滑就它</span></button>
           </div>
           <div class="toast" id="toast"></div>
         </section>
@@ -402,6 +408,7 @@
         <div class="winCard">
           <div class="tag pixel">CHOICE OVER</div>
           <div class="cg pixel">Congratulations!</div>
+          <div class="settleBig" id="wSettle"></div>
           <div class="face" id="wFace">🍲</div>
           <h2 id="wName">自选麻辣烫</h2>
           <p id="wReason"></p>
@@ -590,14 +597,13 @@
           <div class="info" style="${cardThemeStyle(c)}">
             <div class="cnum pixel">NO.${c.no} / ${TOTAL} · 附近真实餐厅</div>
             <h3>${escapeHTML(c.name)}</h3>
-            <div class="gameSlogan">${escapeHTML(c.slogan || randomCardSlogan())}</div>
             <p>${escapeHTML(c.reason)}</p>
             <div class="metaRow">${(c.meta||[]).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("")}</div>
             ${nav}
           </div>` + (withStamps ? `
-          <div class="stamp s-r pixel">就它了</div>
-          <div class="stamp s-l pixel">待定</div>
-          <div class="stamp s-d pixel">丢掉</div>` : "");
+          <div class="stamp s-r pixel">Pick</div>
+          <div class="stamp s-l pixel">Pass</div>
+          <div class="stamp s-d pixel">Bye bye</div>` : "");
       }
 
       function renderDeck(){
@@ -614,6 +620,7 @@
         topEl=document.createElement("div"); topEl.className="gcard dealing"; topEl.style.zIndex=10;
         topEl.innerHTML=faceHTML(deck[0], true);
         el.appendChild(topEl);
+        const rs=$("#roundSlogan"); if(rs) rs.textContent = (deck[0] && deck[0].slogan) || "";
         updateCounter();
       }
 
@@ -627,7 +634,7 @@
         topEl.classList.add("revealing");
         revT=setInterval(()=>{
           setTopFace(activePool[k%activePool.length]); k++;
-          if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); updateGestureButtons(); toast("看清楚了 · 左滑待定 / 右滑就它 / 下滑钻管"); }
+          if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); updateGestureButtons(); toast("看清楚了 · 左滑 Pass 待定 / 右滑 Pick 就它 / 下滑 Bye bye"); }
         }, 65);
       }
 
@@ -669,40 +676,51 @@
       }
 
       function updateGestureButtons(){
-        document.querySelectorAll(".gestureAction").forEach(btn=>{ btn.disabled = !ready; });
+        document.querySelectorAll("[data-act]").forEach(btn=>{ btn.disabled = !ready; });
       }
 
       function decide(card,dir){
         ready=false; updateGestureButtons(); const top=deck[0];
-        if(dir==="right"){ card.classList.add("flyR"); setTimeout(()=>win(top),250); return; }
-        if(dir==="left"){ card.classList.add("flyL"); setTimeout(()=>{ pending.push(deck.shift()); afterRemove("待定 +1"); },280); return; }
+        if(dir==="right"){ card.classList.add("flyR"); setTimeout(()=>win(top,false),250); return; }
+        if(dir==="left"){
+          // No / 待定：本轮不再进入卡牌池，留作命运结算的候选（不会再转回来）
+          card.classList.add("flyL");
+          setTimeout(()=>{ pending.push(deck.shift()); afterRemove("Pass · 待定 +1"); },280); return;
+        }
         if(dir==="down"){
-          // 钻进水管：先把卡平移到水管口正上方，再缩小吸入
+          // 扔进下水道：永久拉黑，不作为候选
           const pipeRect=$("#pipe").getBoundingClientRect(), cardRect=card.getBoundingClientRect();
           const dx=(pipeRect.left+pipeRect.width/2)-(cardRect.left+cardRect.width/2);
           const dy=(pipeRect.top+6)-(cardRect.top+cardRect.height/2);
           card.classList.add("intoPipe");
           requestAnimationFrame(()=>{ card.style.transform=`translate(${dx}px,${dy}px) scale(.18)`; });
           gulp();
-          setTimeout(()=>{ deck.shift(); afterRemove("钻进水管，再也不见"); },520);
+          setTimeout(()=>{ deck.shift(); afterRemove("Bye bye · 永久拉黑"); },520);
         }
       }
 
-      function gulp(){ const p=$("#pipe"); p.style.transition="transform .14s"; p.style.transform="translateX(-50%) translateY(6px)"; setTimeout(()=>{ p.style.transform="translateX(-50%)"; },160); }
+      function gulp(){ const p=$("#pipe"); p.style.transition="transform .14s"; p.style.transform="translateY(6px)"; setTimeout(()=>{ p.style.transform=""; },160); }
 
       function afterRemove(msg){
         toast(msg);
-        if(deck.length===0){
-          if(pending.length){ deck=pending; pending=[]; renderDeck(); dealRound(); toast("待定的卡又转回来了"); }
-          else { renderDeck(); toast("卡都被你丢光了，重开一局"); setTimeout(resetDeck,800); }
-        } else { renderDeck(); dealRound(); }
+        if(deck.length===0){ settleByFate(); }   // 5 次机会用完 → 命运结算
+        else { renderDeck(); dealRound(); }
       }
 
-      function win(c){
+      // 五张机会用完仍没「就它」：大字提示 + 从被左滑(待定)的里随机定一个；全拉黑了就从本局全部里兜底随机
+      function settleByFate(){
+        const candidates = pending.length ? pending : activePool;
+        const pick = candidates[Math.floor(Math.random()*candidates.length)];
+        win(pick, true);
+      }
+
+      function win(c, byFate){
         const wf = $("#wFace");
         if(c.image){ wf.textContent=""; wf.classList.add("photo"); wf.style.background=`linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.26)), url('${cssUrl(c.image)}') center/cover`; }
         else { wf.classList.remove("photo"); wf.textContent=c.emoji; wf.style.background=`repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}`; }
-        $("#wName").textContent=(MODE_SETTLE_COPY[mode] || "就它了！")+" — "+c.name;
+        const settle = byFate ? (MODE_SETTLE_COPY[mode] || "就它了！") : "就它了！";
+        const sEl=$("#wSettle"); if(sEl) sEl.textContent=settle;
+        $("#wName").textContent=c.name;
         $("#wReason").textContent=(c.slogan ? c.slogan+"。 " : "")+c.reason;
         $("#wMeta").innerHTML=(c.meta||[]).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("");
         const nav=$("#wNav");
