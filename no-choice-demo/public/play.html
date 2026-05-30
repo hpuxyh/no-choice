@@ -115,12 +115,14 @@
       .deck { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(290px, 76vw); height: calc(100% - 96px); }
       .gcard { position: absolute; inset: 0; border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; background: var(--card); will-change: transform; display: flex; flex-direction: column; }
       .gcard .art { height: 52%; display: grid; place-items: center; font-size: 64px; border-bottom: 3px solid var(--ink); transition: background .15s; }
-      .gcard .info { padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
-      .gcard .cnum { font-size: 9px; color: #8a8170; }
+      .gcard .art.photo { background-size: cover; background-position: center; color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.45); filter: saturate(1.35) contrast(1.12); }
+      .gcard .info { padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; background: var(--info-bg, var(--card)); color: var(--info-fg, var(--ink)); }
+      .gcard .cnum { font-size: 9px; color: var(--info-muted, #8a8170); }
       .gcard h3 { font-size: 21px; font-weight: 900; line-height: 1.1; }
-      .gcard p { font-size: 12px; font-weight: 600; color: #5f574a; line-height: 1.45; overflow: hidden; }
+      .gcard p { font-size: 12px; font-weight: 700; color: var(--info-muted, #5f574a); line-height: 1.45; overflow: hidden; }
       .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
-      .mtag { font-size: 10px; font-weight: 800; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--paper); }
+      .mtag { font-size: 10px; font-weight: 800; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--tag-bg, var(--paper)); color: var(--tag-fg, var(--ink)); }
+      .winCard .face.photo { background-size: cover; background-position: center; color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.45); filter: saturate(1.35) contrast(1.12); }
 
       .gcard.flyR { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(135%,-10%) rotate(20deg) !important; opacity: 0; }
       .gcard.flyL { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(-135%,-10%) rotate(-20deg) !important; opacity: 0; }
@@ -254,13 +256,27 @@
     </div>
 
     <script>
+      // 漫画餐厅卡：附近真实餐厅 + 漫画风卡面（原型用 mock 图 + 漫画滤镜；
+      // 线上接 /api/poi 真实高德餐厅、/api/comic-image AI 漫画图后即为真实数据）
       const POOL = [
-        { emoji: "🍲", name: "自选麻辣烫", art: "var(--red)", reason: "各种菜随便选，避开主食零负担，东边折中、出餐快不排队。", meta: ["位置折中","低负担","不排队"] },
-        { emoji: "🍜", name: "越南粉轻食", art: "var(--green)", reason: "出餐快、清爽不油腻，工作日晚上收尾刚好。", meta: ["出餐快","清爽","低压力"] },
-        { emoji: "🍢", name: "小份烧鸟", art: "var(--yellow)", reason: "小份点单试错成本低，边吃边聊还能续摊。", meta: ["小份多样","可续摊","轻松"] },
-        { emoji: "🥗", name: "自选沙拉", art: "var(--purple)", reason: "清淡健康、分量自控，不吃主食也没负担。", meta: ["清淡","自由配","无负担"] },
-        { emoji: "🍶", name: "安静居酒屋", art: "var(--blue)", reason: "重点是聊天，座位灯光比菜更重要，变成小聚。", meta: ["聊天优先","氛围好","建议预约"] },
+        { emoji: "🍲", name: "蜀地·自选麻辣烫", art: "var(--red)", image: "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?auto=format&fit=crop&w=800&q=80", reason: "麻辣鲜香，菜随便选，避开主食零负担。出餐快、几乎不排队。", meta: ["📍320m","★4.6","¥45"] },
+        { emoji: "🍜", name: "西贡·越南粉", art: "var(--green)", image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80", reason: "清爽不油腻，汤头舒服，工作日晚上收尾刚好，两个人不会撑。", meta: ["📍480m","★4.5","¥38"] },
+        { emoji: "🍢", name: "鸟·小份烧鸟", art: "var(--yellow)", image: "https://images.unsplash.com/photo-1535007813616-79dc02ba4021?auto=format&fit=crop&w=800&q=80", reason: "小份多样能续摊，边吃边聊更放松，比正式餐厅自在。", meta: ["📍600m","★4.7","¥80"] },
+        { emoji: "🥗", name: "绿盒·自选沙拉", art: "var(--purple)", image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80", reason: "清淡自由配、分量自控，不吃主食也没负担，吃完不困。", meta: ["📍210m","★4.4","¥42"] },
+        { emoji: "🍶", name: "居·安静居酒屋", art: "var(--blue)", image: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80", reason: "座位安静、灯光好，小酒小食，重点是能慢慢聊。", meta: ["📍750m","★4.6","¥120"] },
       ];
+      // 卡片信息区主题色（沿用漫画卡流程的配色）
+      const INFO_THEMES = [
+        { bg: "#ff554f", fg: "#fffaf2", muted: "#ffe6dc", tagBg: "#fffaf2", tagFg: "#1a1714" },
+        { bg: "#6d58e8", fg: "#fffaf2", muted: "#e3ddff", tagBg: "#fffaf2", tagFg: "#1a1714" },
+        { bg: "#ffcf24", fg: "#1a1714", muted: "#4a4226", tagBg: "#1a1714", tagFg: "#fffaf2" },
+        { bg: "#22c96b", fg: "#0f2116", muted: "#0d3a20", tagBg: "#fffaf2", tagFg: "#1a1714" },
+        { bg: "#ff7ab8", fg: "#1a1714", muted: "#4a2436", tagBg: "#1a1714", tagFg: "#fffaf2" },
+      ];
+      function cardThemeStyle(c) {
+        const t = INFO_THEMES[((c.no || 1) - 1) % INFO_THEMES.length];
+        return `--info-bg:${t.bg};--info-fg:${t.fg};--info-muted:${t.muted};--tag-bg:${t.tagBg};--tag-fg:${t.tagFg};`;
+      }
       const TOTAL = POOL.length;
       const $ = (s) => document.querySelector(s);
       let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null;
@@ -277,10 +293,13 @@
       }
 
       function faceHTML(c, withStamps){
+        const art = c.image
+          ? `<div class="art photo" style="background-image:linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.42)), url('${c.image}')">${c.emoji || "🍽️"}</div>`
+          : `<div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${c.emoji}</div>`;
         return `
-          <div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${c.emoji}</div>
-          <div class="info">
-            <div class="cnum pixel">NO.${c.no} / ${TOTAL}</div>
+          ${art}
+          <div class="info" style="${cardThemeStyle(c)}">
+            <div class="cnum pixel">NO.${c.no} / ${TOTAL} · 附近真实餐厅</div>
             <h3>${c.name}</h3>
             <p>${c.reason}</p>
             <div class="metaRow">${c.meta.map(m=>`<span class="mtag">${m}</span>`).join("")}</div>
@@ -376,7 +395,9 @@
       }
 
       function win(c){
-        $("#wFace").textContent=c.emoji; $("#wFace").style.background=`repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}`;
+        const wf = $("#wFace");
+        if(c.image){ wf.textContent=c.emoji||""; wf.classList.add("photo"); wf.style.background=`linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.42)), url('${c.image}') center/cover`; }
+        else { wf.classList.remove("photo"); wf.textContent=c.emoji; wf.style.background=`repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}`; }
         $("#wName").textContent="就吃它 — "+c.name;
         $("#wReason").textContent=(mode==="霸总模式"?"概率已经替你拍板。":mode==="玄学模式"?"今日星盘站它，命中注定。":"")+c.reason;
         $("#wMeta").innerHTML=c.meta.map(m=>`<span class="mtag">${m}</span>`).join("");
