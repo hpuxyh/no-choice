@@ -2524,9 +2524,9 @@ output {
 
   .drawSlotMachine {
     width: calc(100vw - 18px);
-    height: clamp(360px, 50dvh, 430px);
-    margin-top: 18px;
-    --slot-card-width: clamp(108px, 30vw, 128px);
+    height: clamp(390px, 53dvh, 462px);
+    margin-top: 16px;
+    --slot-card-width: clamp(180px, 54vw, 220px);
   }
 
   .slotFocusFrame {
@@ -2548,14 +2548,14 @@ output {
   }
 
   .slotCard {
-    grid-template-rows: 66% 1fr;
+    grid-template-rows: 70% 1fr;
     border-width: 2px;
     border-radius: 12px;
     box-shadow: 6px 6px 0 rgba(26, 26, 26, 0.22);
   }
 
   .slotCard.focus {
-    transform: translate3d(calc(-50% + var(--slot-shift) + var(--slot-nudge)), 0, 0) scale(calc(var(--slot-scale) + 0.14));
+    transform: translate3d(calc(-50% + var(--slot-shift) + var(--slot-nudge)), 0, 0) scale(calc(var(--slot-scale) + 0.08));
   }
 
   .slotCardMedia {
@@ -2573,7 +2573,7 @@ output {
   }
 
   .slotCardContent p {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.3;
     -webkit-line-clamp: 2;
   }
