@@ -38,6 +38,16 @@ jobs:
       - name: Build
         run: npm run build -- --base=/no-choice/
 
+      - name: Keep legacy asset aliases
+        run: |
+          cp dist/assets/index.js dist/assets/index-CJJyRTnw.js
+          cp dist/assets/index.js dist/assets/index-Cbd5tPzE.js
+          cp dist/assets/index.js dist/assets/index-Dq_CQboZ.js
+          cp dist/assets/index.js dist/assets/index-vMOiIRKk.js
+          cp dist/assets/index.js dist/assets/index-DZX14dDF.js
+          cp dist/assets/index.css dist/assets/index-DHvZo4j5.css
+          cp dist/assets/index.css dist/assets/index-Dcu7xTJ2.css
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
