@@ -49,6 +49,14 @@
       .btn { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 900; font-size: 15px; padding: 13px; width: 100%; border: 3px solid var(--ink); border-radius: 13px; background: var(--ink); color: var(--paper); box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .08s; flex: none; }
       .btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
       .btn.alt { background: var(--yellow); color: var(--ink); } .btn.red { background: var(--red); color: #fff; } .btn.ghost { background: var(--card); color: var(--ink); }
+      .miniSwitch { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 2px solid var(--ink); border-radius: 11px; padding: 8px 10px; background: var(--card); box-shadow: var(--shadow-sm); flex: none; }
+      .miniSwitch .copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .miniSwitch strong { font-size: 12px; font-weight: 900; }
+      .miniSwitch span { font-size: 10px; font-weight: 750; color: #6b6253; }
+      .switchBtn { flex: none; min-width: 62px; border: 2px solid var(--ink); border-radius: 999px; padding: 3px; background: var(--ink); cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
+      .switchBtn .knob { display: block; width: 25px; height: 25px; border-radius: 50%; border: 2px solid var(--ink); background: var(--yellow); transform: translateX(27px); transition: transform .18s ease, background .18s ease; }
+      .switchBtn.off { background: rgba(26,23,20,.18); }
+      .switchBtn.off .knob { transform: translateX(0); background: var(--card); }
 
       /* WELCOME / SETUP */
       .setupCard { background: var(--card); border: 3px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow); padding: 12px; display: flex; flex-direction: column; gap: 9px; flex: none; }
@@ -88,6 +96,7 @@
       /* 选择页上传图片 */
       .inputActions { display: flex; gap: 8px; flex: none; }
       .inputActions .micBig { flex: 1; font-size: 13px; padding: 12px; }
+      .gameComicSwitch { margin-top: 2px; }
       .thumbRow { display: flex; gap: 6px; flex-wrap: wrap; flex: none; }
       .thumbRow:empty { display: none; }
       .thumb { width: 46px; height: 46px; border: 2px solid var(--ink); border-radius: 8px; object-fit: cover; box-shadow: var(--shadow-sm); }
@@ -205,12 +214,13 @@
 
       .deckWrap { position: relative; flex: 1 1 auto; min-height: 0; }
       .deck { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(290px, 76vw); height: calc(100% - 96px); }
-      .gcard { position: absolute; inset: 0; border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; background: var(--card); will-change: transform; display: flex; flex-direction: column; }
-      .gcard .art { height: 52%; display: grid; place-items: center; font-size: 64px; border-bottom: 3px solid var(--ink); transition: background .15s; }
+      .gcard { position: absolute; inset: 0; border: 0; border-radius: 18px; box-shadow: 4px 5px 0 rgba(26,23,20,.72), -1px 1px 0 rgba(26,23,20,.18), inset 0 0 0 2px rgba(26,23,20,.12), 0 14px 30px rgba(26,23,20,.16); overflow: hidden; background: var(--card); will-change: transform; display: flex; flex-direction: column; }
+      .gcard .art { height: 52%; display: grid; place-items: center; font-size: 64px; border-bottom: 0; transition: background .15s; }
       .gcard .art.photo { background-size: cover; background-position: center; color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.45); filter: saturate(1.35) contrast(1.12); }
       .gcard .info { padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; background: var(--info-bg, var(--card)); color: var(--info-fg, var(--ink)); }
       .gcard .cnum { font-size: 9px; color: var(--info-muted, #8a8170); }
       .gcard h3 { font-size: 21px; font-weight: 900; line-height: 1.1; }
+      .gameSlogan { font-size: 10.5px; font-weight: 900; line-height: 1.35; color: var(--info-fg, var(--ink)); opacity: .94; padding-left: 7px; border-left: 3px solid var(--tag-bg, rgba(255,255,255,.7)); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       .gcard p { font-size: 12px; font-weight: 700; color: var(--info-muted, #5f574a); line-height: 1.45; overflow: hidden; }
       .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
       .mtag { font-size: 10px; font-weight: 800; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--tag-bg, var(--paper)); color: var(--tag-fg, var(--ink)); }
@@ -224,7 +234,7 @@
       .loadingProgress span { display: block; height: 100%; width: var(--progress, 0%); background: var(--yellow); transition: width .25s ease; }
       .loadingCount { font-size: 10px; font-weight: 900; letter-spacing: 1px; }
       @keyframes spin { to { transform: rotate(360deg); } }
-      .navMini { width: 100%; min-height: 36px; border: 3px solid var(--ink); border-radius: 11px; background: var(--ink); color: var(--paper); box-shadow: var(--shadow-sm); font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; }
+      .navMini { width: 100%; min-height: 38px; border: 3px solid var(--ink); border-radius: 999px; background: var(--nav-bg, var(--card)); color: var(--nav-fg, var(--ink)); box-shadow: var(--shadow-sm); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; }
       .navMini:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
 
       .gcard.flyR { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(135%,-10%) rotate(20deg) !important; opacity: 0; }
@@ -248,8 +258,18 @@
         background: linear-gradient(90deg, var(--pipe-d) 0 14%, var(--pipe-l) 14% 30%, var(--pipe) 30% 100%); }
       .pipe .mouth { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 138px; height: 14px; background: rgba(0,0,0,.55); border-radius: 50%; }
 
-      .gestureHint { display: flex; justify-content: space-around; font-size: 10.5px; font-weight: 800; flex: none; text-align: center; }
-      .gestureHint .r { color: var(--green); } .gestureHint .l { color: #b8860b; } .gestureHint .d { color: var(--red); }
+      .gestureHint { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: none; }
+      .gestureAction { min-width: 0; min-height: 52px; border: 3px solid var(--ink); border-radius: 13px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm); font: inherit; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 7px; transition: transform .08s, box-shadow .08s, filter .12s; }
+      .gestureAction:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+      .gestureAction .arrow { flex: none; width: 24px; height: 24px; border: 2px solid var(--ink); border-radius: 8px; display: grid; place-items: center; background: rgba(255,255,255,.68); font-size: 15px; line-height: 1; }
+      .gestureAction .txt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.08; text-align: left; min-width: 0; }
+      .gestureAction .txt b { font-size: 13px; }
+      .gestureAction .txt span { font-size: 10px; opacity: .82; margin-top: 2px; white-space: nowrap; }
+      .gestureAction.l { background: #ffcf24; }
+      .gestureAction.d { background: #ff554f; color: #fffaf2; }
+      .gestureAction.r { background: #6d58e8; color: #fffaf2; }
+      .gestureAction.d .arrow { color: var(--red); }
+      .gestureAction[disabled] { opacity: .55; filter: grayscale(.2); cursor: default; }
 
       /* WIN overlay */
       .win { position: absolute; inset: 0; z-index: 40; display: none; place-items: center; padding: 18px; background: rgba(26,23,20,.55); backdrop-filter: blur(3px); }
@@ -294,8 +314,7 @@
             <div class="avatarRow">
               <button class="avatarSlot" id="avatarSlot" type="button" title="点头像上传自己的照片"><canvas id="avatarCanvas" width="64" height="64"></canvas><img class="avatarPic" id="avatarPic" alt="" /><span class="avatarEmoji" id="avatarEmoji">🍄</span></button>
               <div class="infoCol">
-                <div class="hintRow pixel">从下方图库挑一个，<br />或点头像上传照片生成像素头像</div>
-                <button class="locBtn" id="locBtn" onclick="grantLoc()">📍 授权定位 · 显示当前位置</button>
+                <div class="hintRow pixel">从下方图库挑一个，<br />或点头像上传照片生成像素头像。位置会在选模式后自动获取。</div>
               </div>
             </div>
             <div class="avatarGallery" id="avatarGallery"></div>
@@ -331,6 +350,10 @@
                 <button class="micBig" type="button" onclick="document.getElementById('choicePhoto').click()">🖼️ 上传图片</button>
               </div>
               <input type="file" id="choicePhoto" accept="image/*" hidden />
+              <div class="miniSwitch gameComicSwitch">
+                <div class="copy"><strong>漫画卡面</strong><span id="comicImageHint">关闭后直接用真实照片</span></div>
+                <button class="switchBtn off" id="comicImageToggle" type="button" aria-pressed="false" onclick="toggleComicImages()"><span class="knob"></span></button>
+              </div>
             </div>
           </div>
           <button class="btn alt big" onclick="go('mode')">🎮 游戏模式 →</button>
@@ -365,7 +388,11 @@
             <div class="deck" id="deck"></div>
             <div class="pipe" id="pipe"><div class="rim"></div><div class="body"><div class="mouth"></div></div></div>
           </div>
-          <div class="gestureHint"><span class="l">◀ 左滑<br/>待定</span><span class="d">▼ 下滑<br/>钻水管</span><span class="r">右滑 ▶<br/>就它了</span></div>
+          <div class="gestureHint">
+            <button class="gestureAction l" type="button" data-dir="left" onclick="tapDecision('left')"><span class="arrow">◀</span><span class="txt"><b>待定</b><span>左滑</span></span></button>
+            <button class="gestureAction d" type="button" data-dir="down" onclick="tapDecision('down')"><span class="arrow">▼</span><span class="txt"><b>丢掉</b><span>下滑</span></span></button>
+            <button class="gestureAction r" type="button" data-dir="right" onclick="tapDecision('right')"><span class="txt"><b>就它</b><span>右滑</span></span><span class="arrow">▶</span></button>
+          </div>
           <div class="toast" id="toast"></div>
         </section>
       </div>
@@ -379,7 +406,7 @@
           <h2 id="wName">自选麻辣烫</h2>
           <p id="wReason"></p>
           <div class="metaRow" id="wMeta"></div>
-          <div class="links"><button class="btn alt" id="wNav">🗺️ 导航</button><button class="btn red" id="wOrder">🛵 下单</button></div>
+          <div class="links"><button class="btn alt" id="wNav">🗺️ 导航</button></div>
           <button class="btn" onclick="resetAll()">🔁 再来一局</button>
         </div>
       </div>
@@ -403,9 +430,37 @@
         { bg: "#22c96b", fg: "#0f2116", muted: "#0d3a20", tagBg: "#fffaf2", tagFg: "#1a1714" },
         { bg: "#ff7ab8", fg: "#1a1714", muted: "#4a2436", tagBg: "#1a1714", tagFg: "#fffaf2" },
       ];
+      const CARD_SLOGANS = [
+        "纠结不用保底，一发直出人生答案",
+        "告别反复脑补，抉择池单抽出奇迹",
+        "不用垫刀赌运气，转盘直接锁定最优解",
+        "脑内十连全歪？来这一发搞定选择题",
+        "犹豫debuff持续掉快乐？一键清掉异常状态",
+        "选择困难主线卡关，系统一键速通副本",
+        "放弃单人苦思，召唤命运NPC帮你过任务",
+        "左右横跳原地刷怪，不如直接结算选项",
+        "系统警告：长时间纠结，快乐值持续衰减",
+        "叮！命运系统已自动帮你完成抉择任务",
+        "检测到玩家重度选择困难，开启自动判定模式",
+        "无需手动思考，托管模式直接敲定选择",
+        "抽个选项，结束内耗",
+        "抉择开盲盒，万事不纠结",
+        "托管人生，轻松通关",
+        "别在脑海无限循环复盘，打开APP抽一发，直接通关选择副本",
+        "与其卡在人生分叉路口反复SL读档，不如交给系统一键判定",
+        "对抗选择困难这款怪，不用自己磨血，命运转盘一招秒杀"
+      ];
+      const MODE_SETTLE_COPY = {
+        "霸总模式": "别选了，就他了！",
+        "AI 模式": "别翻了，真的没有了！",
+        "玄学模式": "别寻了，缘分定了！"
+      };
       function cardThemeStyle(c) {
         const t = INFO_THEMES[((c.no || 1) - 1) % INFO_THEMES.length];
-        return `--info-bg:${t.bg};--info-fg:${t.fg};--info-muted:${t.muted};--tag-bg:${t.tagBg};--tag-fg:${t.tagFg};`;
+        return `--info-bg:${t.bg};--info-fg:${t.fg};--info-muted:${t.muted};--tag-bg:${t.tagBg};--tag-fg:${t.tagFg};--nav-bg:${t.tagBg};--nav-fg:${t.tagFg};`;
+      }
+      function randomCardSlogan(){
+        return CARD_SLOGANS[Math.floor(Math.random() * CARD_SLOGANS.length)];
       }
       const TOTAL = POOL.length;
       // 真实餐厅管线（与 preview.html 同源）：高德 POI(JSONP) + AI 漫画图(worker)
@@ -417,9 +472,38 @@
       // 上传照片后展示的预生成像素头像（demo：原图 → 像素图）
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";
       const $ = (s) => document.querySelector(s);
-      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, lastCoords = null, useComicImages = CAN_USE_COMIC_IMAGES;
+      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, lastCoords = null, useComicImages = CAN_USE_COMIC_IMAGES && safeStorageGet("choice-over-use-comic") === "1";
 
       function go(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
+      syncComicImageToggle();
+
+      function toggleComicImages(){
+        if(!CAN_USE_COMIC_IMAGES){
+          toast("当前网址先用真实照片，漫画生成需要后端接口");
+          return;
+        }
+        useComicImages = !useComicImages;
+        safeStorageSet("choice-over-use-comic", useComicImages ? "1" : "0");
+        syncComicImageToggle();
+        toast(useComicImages ? "已开启漫画卡面，会多等一会儿" : "已关闭漫画卡面，直接用真实照片");
+      }
+
+      function syncComicImageToggle(){
+        const btn = $("#comicImageToggle");
+        const hint = $("#comicImageHint");
+        if(!btn || !hint) return;
+        if(!CAN_USE_COMIC_IMAGES){
+          useComicImages = false;
+          btn.classList.add("off");
+          btn.setAttribute("aria-pressed", "false");
+          btn.setAttribute("aria-disabled", "true");
+          hint.textContent = "当前网址先用真实照片";
+          return;
+        }
+        btn.classList.toggle("off", !useComicImages);
+        btn.setAttribute("aria-pressed", useComicImages ? "true" : "false");
+        hint.textContent = useComicImages ? "开启后等 5 张漫画图生成" : "关闭后直接用真实照片";
+      }
 
       async function startGame(name,label){ mode=name; $("#deckLabel").textContent=label+" · DECK"; go("deck"); await prepareLocationDeck(); }
 
@@ -463,6 +547,7 @@
 
       async function prepareLocationDeck(){
         ready=false; clearInterval(revT); pending=[];
+        updateGestureButtons();
         try{
           renderLoadingDeck("正在定位附近餐厅", "读取你的位置，再从高德拿真实餐厅。");
           let coords;
@@ -483,8 +568,12 @@
       }
 
       function resetDeck(cards = POOL){
-        activePool = (cards && cards.length ? cards : POOL);
-        deck = activePool.map((c,i)=>({...c, no:i+1}));
+        activePool = (cards && cards.length ? cards : POOL).map((c,i)=>({
+          ...c,
+          no:i+1,
+          slogan: c.slogan || randomCardSlogan()
+        }));
+        deck = activePool.map(c=>({...c}));
         for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
         pending = [];
         renderDeck(); dealRound();
@@ -492,7 +581,7 @@
 
       function faceHTML(c, withStamps){
         const art = c.image
-          ? `<div class="art photo" style="background-image:linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.42)), url('${cssUrl(c.image)}')">${escapeHTML(c.emoji || "🍽️")}</div>`
+          ? `<div class="art photo" style="background-image:linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.26)), url('${cssUrl(c.image)}')"></div>`
           : `<div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${escapeHTML(c.emoji || "🍽️")}</div>`;
         const nav = c.navUrl ? `<button class="navMini" type="button" data-nav="${escapeAttr(c.navUrl)}">📍 去导航</button>` : "";
         return `
@@ -500,6 +589,7 @@
           <div class="info" style="${cardThemeStyle(c)}">
             <div class="cnum pixel">NO.${c.no} / ${TOTAL} · 附近真实餐厅</div>
             <h3>${escapeHTML(c.name)}</h3>
+            <div class="gameSlogan">${escapeHTML(c.slogan || randomCardSlogan())}</div>
             <p>${escapeHTML(c.reason)}</p>
             <div class="metaRow">${(c.meta||[]).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("")}</div>
             ${nav}
@@ -531,11 +621,12 @@
       // 先轮转抽出顶端卡牌，settle 后才允许滑动
       function dealRound(){
         ready=false; clearInterval(revT);
+        updateGestureButtons();
         let k=0; const total=9+Math.floor(Math.random()*5);
         topEl.classList.add("revealing");
         revT=setInterval(()=>{
-          setTopFace(POOL[k%POOL.length]); k++;
-          if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); toast("看清楚了 · 左滑待定 / 右滑就它 / 下滑钻管"); }
+          setTopFace(activePool[k%activePool.length]); k++;
+          if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); updateGestureButtons(); toast("看清楚了 · 左滑待定 / 右滑就它 / 下滑钻管"); }
         }, 65);
       }
 
@@ -568,8 +659,20 @@
         card.addEventListener("pointerup",onUp); card.addEventListener("pointercancel",onUp);
       }
 
+      function tapDecision(dir){
+        if(!ready || !topEl){
+          toast("等卡牌亮完再选");
+          return;
+        }
+        decide(topEl, dir);
+      }
+
+      function updateGestureButtons(){
+        document.querySelectorAll(".gestureAction").forEach(btn=>{ btn.disabled = !ready; });
+      }
+
       function decide(card,dir){
-        ready=false; const top=deck[0];
+        ready=false; updateGestureButtons(); const top=deck[0];
         if(dir==="right"){ card.classList.add("flyR"); setTimeout(()=>win(top),250); return; }
         if(dir==="left"){ card.classList.add("flyL"); setTimeout(()=>{ pending.push(deck.shift()); afterRemove("待定 +1"); },280); return; }
         if(dir==="down"){
@@ -596,14 +699,13 @@
 
       function win(c){
         const wf = $("#wFace");
-        if(c.image){ wf.textContent=c.emoji||""; wf.classList.add("photo"); wf.style.background=`linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.42)), url('${cssUrl(c.image)}') center/cover`; }
+        if(c.image){ wf.textContent=""; wf.classList.add("photo"); wf.style.background=`linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.26)), url('${cssUrl(c.image)}') center/cover`; }
         else { wf.classList.remove("photo"); wf.textContent=c.emoji; wf.style.background=`repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}`; }
-        $("#wName").textContent="就吃它 — "+c.name;
-        $("#wReason").textContent=(mode==="霸总模式"?"概率已经替你拍板。":mode==="玄学模式"?"今日星盘站它，命中注定。":"")+c.reason;
+        $("#wName").textContent=(MODE_SETTLE_COPY[mode] || "就它了！")+" — "+c.name;
+        $("#wReason").textContent=(c.slogan ? c.slogan+"。 " : "")+c.reason;
         $("#wMeta").innerHTML=(c.meta||[]).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("");
-        const nav=$("#wNav"), order=$("#wOrder");
+        const nav=$("#wNav");
         if(nav) nav.onclick=()=> c.navUrl ? window.open(c.navUrl,"_blank") : alert("原型示例：暂无导航地址");
-        if(order) order.onclick=()=> c.orderUrl ? window.open(c.orderUrl,"_blank") : alert("原型示例：暂无下单链接");
         $("#win").classList.add("show"); confetti();
       }
 
@@ -678,9 +780,6 @@
         e.target.classList.add("on");
       });
 
-      // 定位默认已授权，点按钮显示当前位置
-      function grantLoc() { const b = $("#locBtn"); b.classList.add("granted"); b.textContent = "✅ 当前位置：朝阳 · 酒仙桥"; toast("已显示当前位置"); }
-
       function updatePill() {
         const p = $("#playerPill");
         const src = photoData || avatarSrc;
@@ -736,6 +835,7 @@
         const progressHTML = progress ? loadingProgressHTML(progress) : "";
         el.innerHTML=`<div class="gcard loadingCard" style="z-index:10"><div class="spinner"></div><strong>${escapeHTML(title)}</strong><p>${escapeHTML(text)}</p>${progressHTML}</div>`;
         $("#leftN").textContent="..."; $("#pips").innerHTML="";
+        updateGestureButtons();
       }
       function loadingProgressHTML({ done = 0, total = 5 } = {}){
         const safeTotal = Math.max(1, Number(total) || 5);

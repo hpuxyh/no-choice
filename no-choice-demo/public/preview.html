@@ -25,7 +25,7 @@
       }
       .pixel { font-family: "Silkscreen", monospace; letter-spacing: .5px; }
       .phone { position: relative; width: min(412px, 100vw); height: 100dvh; background: var(--paper); overflow: hidden; display: flex; flex-direction: column; }
-      @media (min-width: 460px) { .phone { width: 400px; height: min(840px, 100dvh - 16px); border: 3px solid var(--ink); border-radius: 30px; box-shadow: var(--shadow); } }
+      @media (min-width: 460px) { .phone { width: 400px; height: min(840px, 100dvh - 16px); border-radius: 30px; box-shadow: 0 14px 0 rgba(26,23,20,.12), 0 24px 48px rgba(26,23,20,.14); } }
 
       .screens { position: relative; flex: 1; min-height: 0; }
       /* 每屏一屏装下：overflow hidden，用 flex 自适应 */
@@ -33,7 +33,7 @@
       .screen.active { display: flex; animation: pop .26s ease; }
       @keyframes pop { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 
-      .topbar { display: flex; align-items: center; justify-content: space-between; flex: none; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; flex: none; padding-right: 96px; min-height: 32px; }
       .badge { font-size: 9px; padding: 5px 8px 4px; border: 2px solid var(--ink); border-radius: 7px; background: var(--card); box-shadow: var(--shadow-sm); }
       .badge.red { background: var(--red); color: #fff; } .badge.purple { background: var(--purple); color: #fff; } .badge.yellow { background: var(--yellow); }
       .dots { font-size: 9px; opacity: .6; }
@@ -65,11 +65,6 @@
       textarea.field { resize: none; height: 60px; line-height: 1.45; flex: none; }
       .chipwrap.small .chip { font-size: 11.5px; padding: 5px 9px; }
       .hintRow { font-size: 9.5px; color: #8a8170; }
-      .locBtn { width: 100%; font-weight: 900; font-size: 15px; padding: 13px; border: 3px solid var(--ink); border-radius: 13px; background: var(--yellow); color: var(--ink); box-shadow: var(--shadow-sm); cursor: pointer; flex: none; transition: transform .08s; }
-      .locBtn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
-      .locBtn.granted { background: var(--green); color: #fff; }
-      .btn[data-locked] { opacity: .42; }
-
       /* HOME */
       .titleMark { font-size: 20px; color: var(--red); }
       .coin { position: relative; flex: 1 1 auto; min-height: 96px; border-radius: 14px; border: 3px solid var(--ink); background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 8px, transparent 8px 16px), var(--yellow); box-shadow: var(--shadow); display: grid; place-items: center; overflow: hidden; }
@@ -91,6 +86,11 @@
       .switchBtn .knob { display: block; width: 25px; height: 25px; border-radius: 50%; border: 2px solid var(--ink); background: var(--yellow); transform: translateX(27px); transition: transform .18s ease, background .18s ease; }
       .switchBtn.off { background: rgba(26,23,20,.18); }
       .switchBtn.off .knob { transform: translateX(0); background: var(--card); }
+      .styleModeDock { position: absolute; top: 14px; right: 14px; z-index: 45; display: flex; align-items: center; gap: 6px; padding: 5px 7px 5px 9px; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); box-shadow: var(--shadow-sm); }
+      .styleModeText { min-width: 24px; font-size: 11px; font-weight: 900; line-height: 1; }
+      .styleModeDock .switchBtn { min-width: 44px; padding: 2px; box-shadow: none; }
+      .styleModeDock .switchBtn .knob { width: 18px; height: 18px; transform: translateX(20px); }
+      .styleModeDock .switchBtn.off .knob { transform: translateX(0); }
 
       /* MODE */
       .mode { display: flex; gap: 11px; align-items: center; padding: 12px; border: 3px solid var(--ink); border-radius: 15px; box-shadow: var(--shadow); cursor: pointer; transition: transform .08s; flex: none; }
@@ -107,8 +107,8 @@
 
       .deckWrap { position: relative; flex: 1 1 auto; min-height: 0; }
       .deck { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(290px, 76vw); height: calc(100% - 96px); }
-      .gcard { position: absolute; inset: 0; border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; background: var(--card); will-change: transform; display: flex; flex-direction: column; }
-      .gcard .art { height: 52%; display: grid; place-items: center; font-size: 64px; border-bottom: 3px solid var(--ink); transition: background .15s; }
+      .gcard { position: absolute; inset: 0; border: 0; border-radius: 18px; box-shadow: 4px 5px 0 rgba(26,23,20,.72), -1px 1px 0 rgba(26,23,20,.18), inset 0 0 0 2px rgba(26,23,20,.12), 0 14px 30px rgba(26,23,20,.16); overflow: hidden; background: var(--card); will-change: transform; display: flex; flex-direction: column; }
+      .gcard .art { height: 52%; display: grid; place-items: center; font-size: 64px; border-bottom: 0; transition: background .15s; }
       .gcard .art.photo { background-size: cover; background-position: center; color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.45); }
       .gcard .info { padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; background: var(--info-bg, var(--card)); color: var(--info-fg, var(--ink)); }
       .gcard .cnum { font-size: 9px; color: var(--info-muted, #8a8170); }
@@ -116,7 +116,7 @@
       .gcard p { font-size: 12px; font-weight: 750; color: var(--info-muted, #5f574a); line-height: 1.45; overflow: hidden; }
       .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
       .mtag { font-size: 10px; font-weight: 900; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--tag-bg, rgba(255,252,244,.78)); color: var(--tag-fg, var(--ink)); }
-      .navMini { width: 100%; min-height: 38px; border: 3px solid var(--ink); border-radius: 11px; background: var(--ink); color: var(--paper); box-shadow: var(--shadow-sm); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; }
+      .navMini { width: 100%; min-height: 38px; border: 3px solid var(--ink); border-radius: 999px; background: var(--nav-bg, var(--card)); color: var(--nav-fg, var(--ink)); box-shadow: var(--shadow-sm); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; }
       .navMini:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
 
       .gcard.flyR { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(135%,-10%) rotate(20deg) !important; opacity: 0; }
@@ -180,10 +180,91 @@
       .loadingProgress span { display: block; height: 100%; width: var(--progress, 0%); background: var(--yellow); transition: width .25s ease; }
       .loadingCount { font-size: 10px; font-weight: 900; letter-spacing: 1px; }
       @keyframes spin { to { transform: rotate(360deg); } }
+
+      body.style-simple {
+        --paper: #f7f8fb; --ink: #151922; --card: #ffffff;
+        background: #eef1f6;
+        background-image: none;
+      }
+      body.style-simple .pixel { font-family: "Noto Sans SC", system-ui, sans-serif; letter-spacing: 0; }
+      body.style-simple .phone { background: var(--paper); }
+      @media (min-width: 460px) {
+        body.style-simple .phone { border: 1px solid rgba(21,25,34,.06); box-shadow: 0 18px 50px rgba(21,25,34,.13); }
+      }
+      body.style-simple .screen.active { animation: simpleFade .2s ease; }
+      @keyframes simpleFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+      body.style-simple .styleModeDock { border: 1px solid rgba(21,25,34,.1); background: rgba(255,255,255,.86); box-shadow: 0 10px 24px rgba(21,25,34,.08); backdrop-filter: blur(10px); }
+      body.style-simple .styleModeDock .switchBtn { border: 1px solid rgba(21,25,34,.18); background: #151922; }
+      body.style-simple .styleModeDock .switchBtn.off { background: #d8dde6; }
+      body.style-simple .styleModeDock .switchBtn .knob { border: 0; background: #fff; }
+      body.style-simple .badge { border: 1px solid #e3e7ee; border-radius: 999px; background: #fff; color: #667085; box-shadow: none; }
+      body.style-simple .badge.red,
+      body.style-simple .badge.purple,
+      body.style-simple .badge.yellow { background: #fff; color: #667085; }
+      body.style-simple .back { color: #344054; }
+      body.style-simple .titleMark { color: #667085; }
+      body.style-simple .lead { letter-spacing: 0; color: #101828; }
+      body.style-simple .sub,
+      body.style-simple .hintRow { color: #667085; }
+      body.style-simple .card,
+      body.style-simple .setupCard { border: 1px solid #e3e7ee; border-radius: 18px; box-shadow: 0 12px 30px rgba(21,25,34,.06); background: #fff; }
+      body.style-simple .chip { border: 1px solid #d9dee8; border-radius: 999px; background: #fff; color: #344054; font-weight: 800; }
+      body.style-simple .chip.on { border-color: #151922; background: #151922; color: #fff; }
+      body.style-simple .btn { border: 0; border-radius: 15px; background: #151922; color: #fff; box-shadow: 0 12px 26px rgba(21,25,34,.16); }
+      body.style-simple .btn:active { transform: translateY(1px); box-shadow: 0 7px 16px rgba(21,25,34,.14); }
+      body.style-simple .btn.ghost { border: 1px solid #e3e7ee; background: #fff; color: #344054; box-shadow: none; }
+      body.style-simple .btn.alt { background: #eef2ff; color: #3730a3; box-shadow: none; }
+      body.style-simple .btn.red { background: #fff1f0; color: #b42318; box-shadow: none; }
+      body.style-simple .coin { border: 1px solid #e3e7ee; border-radius: 22px; background: linear-gradient(135deg, #fff, #eef4ff); box-shadow: 0 14px 34px rgba(21,25,34,.08); }
+      body.style-simple .coin:active { transform: translateY(1px); box-shadow: 0 9px 24px rgba(21,25,34,.08); }
+      body.style-simple .coinPlus { color: #8a94a6; filter: none; }
+      body.style-simple .coinHint { color: #667085; }
+      body.style-simple .slogan { border: 1px solid #e3e7ee; border-radius: 14px; background: #fff; color: #344054; }
+      body.style-simple .avatarSlot,
+      body.style-simple .field { border: 1px solid #d9dee8; box-shadow: none; background: #fff; }
+      body.style-simple .mode { border: 1px solid #e3e7ee; border-radius: 18px; background: #fff; color: #101828; box-shadow: 0 10px 26px rgba(21,25,34,.07); }
+      body.style-simple .mode.boss,
+      body.style-simple .mode.ai,
+      body.style-simple .mode.myst { background: #fff; color: #101828; }
+      body.style-simple .mode:active { transform: translateY(1px); box-shadow: 0 7px 18px rgba(21,25,34,.08); }
+      body.style-simple .mode .ic { border: 0; background: #f2f4f7; box-shadow: none; }
+      body.style-simple .mode .ds,
+      body.style-simple .mode .tagline { color: #667085; opacity: 1; }
+      body.style-simple .counter { color: #344054; }
+      body.style-simple .pip { width: 8px; height: 8px; border: 0; border-radius: 999px; background: #d0d5dd; }
+      body.style-simple .pip.spent { background: #151922; opacity: 1; }
+      body.style-simple .gcard { border: 1px solid rgba(21,25,34,.08); border-radius: 22px; box-shadow: 0 20px 46px rgba(21,25,34,.16); }
+      body.style-simple .gcard .info { background: #fff !important; color: #101828 !important; padding: 15px 14px; }
+      body.style-simple .gcard .cnum { color: #98a2b3 !important; }
+      body.style-simple .gcard p { color: #475467 !important; font-weight: 750; }
+      body.style-simple .mtag { border: 0; border-radius: 999px; background: #f2f4f7 !important; color: #344054 !important; padding: 6px 9px; }
+      body.style-simple .navMini { border: 0; border-radius: 14px; background: #151922 !important; color: #fff !important; box-shadow: none; }
+      body.style-simple .navMini:active { transform: translateY(1px); box-shadow: none; }
+      body.style-simple .pipe { opacity: .08; filter: grayscale(1); }
+      body.style-simple .gestureAction { border: 0; border-radius: 16px; background: #fff; color: #344054; box-shadow: 0 8px 20px rgba(21,25,34,.08); }
+      body.style-simple .gestureAction.l,
+      body.style-simple .gestureAction.d,
+      body.style-simple .gestureAction.r { background: #fff; color: #344054; }
+      body.style-simple .gestureAction.r { background: #151922; color: #fff; }
+      body.style-simple .gestureAction .arrow { border: 0; background: #f2f4f7; }
+      body.style-simple .gestureAction.r .arrow { background: rgba(255,255,255,.16); }
+      body.style-simple .stamp { border-width: 2px; background: rgba(255,255,255,.9); }
+      body.style-simple .win { background: rgba(21,25,34,.24); backdrop-filter: blur(10px); }
+      body.style-simple .winCard { border: 1px solid #e3e7ee; border-radius: 24px; background: #fff; box-shadow: 0 24px 60px rgba(21,25,34,.2); }
+      body.style-simple .winCard .tag { color: #667085; }
+      body.style-simple .winCard .face { border: 0; background: #f2f4f7; }
+      body.style-simple .loadingCard .spinner { border-color: rgba(21,25,34,.12); border-top-color: #151922; }
+      body.style-simple .loadingProgress { border: 0; background: #e4e7ec; box-shadow: none; }
+      body.style-simple .loadingProgress span { background: #151922; }
+      body.style-simple .toast { border-radius: 999px; background: rgba(21,25,34,.92); }
     </style>
   </head>
-  <body>
+  <body class="style-simple">
     <div class="phone">
+      <div class="styleModeDock">
+        <span class="styleModeText" id="styleModeLabel">简洁</span>
+        <button class="switchBtn off" id="comicToggle" type="button" aria-label="切换整体样式模式" aria-pressed="false" onclick="toggleComicMode()"><span class="knob"></span></button>
+      </div>
       <div class="screens">
         <!-- WELCOME（基于 home 视觉的玩家设定页）-->
         <section class="screen active" data-screen="home">
@@ -197,12 +278,7 @@
           </button>
           <input type="file" id="photo" accept="image/*" hidden />
           <div class="slogan">「犹豫会败北，但你可以赖我」</div>
-          <div class="miniSwitch">
-            <div class="copy"><strong>漫画风图片</strong><span id="comicHint">开启后会多等一会儿</span></div>
-            <button class="switchBtn" id="comicToggle" type="button" aria-pressed="true" onclick="toggleComicMode()"><span class="knob"></span></button>
-          </div>
-          <button class="locBtn" id="locBtn" onclick="grantLoc()">📍 授权定位</button>
-          <button class="btn" id="enterBtn" onclick="enter()" data-locked="1">▶ 插入硬币，开始挑战</button>
+          <button class="btn" id="enterBtn" onclick="enter()">▶ 插入硬币，开始挑战</button>
         </section>
 
         <!-- EAT -->
@@ -255,7 +331,7 @@
           <h2 id="wName">自选麻辣烫</h2>
           <p id="wReason"></p>
           <div class="metaRow" id="wMeta"></div>
-          <div class="links"><button class="btn alt" id="wNav">🗺️ 导航</button><button class="btn red" id="wOrder">🛵 下单</button></div>
+          <div class="links"><button class="btn alt" id="wNav">🗺️ 导航</button></div>
           <button class="btn" onclick="resetAll()">🔁 再来一局</button>
         </div>
       </div>
@@ -283,7 +359,7 @@
       ];
       const ACCENTS = ["var(--red)", "var(--green)", "var(--yellow)", "var(--purple)", "var(--blue)"];
       const $ = (s) => document.querySelector(s);
-      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, totalCards = POOL.length, lastCoords = null, useComicImages = CAN_USE_COMIC_IMAGES && safeStorageGet("choice-over-use-comic") !== "0";
+      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, totalCards = POOL.length, lastCoords = null, comicStyleMode = safeStorageGet("choice-over-style") === "comic", useComicImages = false;
 
       function go(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
       $("#buffs").addEventListener("click",(e)=>{ if(e.target.classList.contains("chip")) e.target.classList.toggle("on"); });
@@ -292,30 +368,24 @@
       syncComicToggle();
 
       function toggleComicMode(){
-        if(!CAN_USE_COMIC_IMAGES){
-          toast("这个静态网址先用真实照片");
-          return;
-        }
-        useComicImages = !useComicImages;
-        safeStorageSet("choice-over-use-comic", useComicImages ? "1" : "0");
+        comicStyleMode = !comicStyleMode;
+        safeStorageSet("choice-over-style", comicStyleMode ? "comic" : "simple");
         syncComicToggle();
-        toast(useComicImages ? "已开启漫画风图片" : "已关闭漫画风，直接用真实照片");
+        if(comicStyleMode && !CAN_USE_COMIC_IMAGES) toast("已切到漫画样式，当前网址仍用真实照片");
+        else toast(comicStyleMode ? "已切到漫画风模式" : "已切回简洁模式");
       }
 
       function syncComicToggle(){
         const btn = $("#comicToggle");
-        const hint = $("#comicHint");
-        if(!btn || !hint) return;
-        if(!CAN_USE_COMIC_IMAGES){
-          btn.classList.add("off");
-          btn.setAttribute("aria-pressed", "false");
-          btn.setAttribute("aria-disabled", "true");
-          hint.textContent = "当前网址先用真实照片";
-          return;
-        }
-        btn.classList.toggle("off", !useComicImages);
-        btn.setAttribute("aria-pressed", useComicImages ? "true" : "false");
-        hint.textContent = useComicImages ? "开启后会多等一会儿" : "关闭后直接用真实照片";
+        const label = $("#styleModeLabel");
+        if(!btn || !label) return;
+        useComicImages = comicStyleMode && CAN_USE_COMIC_IMAGES;
+        document.body.classList.toggle("style-comic", comicStyleMode);
+        document.body.classList.toggle("style-simple", !comicStyleMode);
+        btn.classList.toggle("off", !comicStyleMode);
+        btn.setAttribute("aria-pressed", comicStyleMode ? "true" : "false");
+        btn.setAttribute("title", comicStyleMode && !CAN_USE_COMIC_IMAGES ? "漫画样式已开启，当前网址使用真实照片" : "切换整体样式模式");
+        label.textContent = comicStyleMode ? "漫画" : "简洁";
       }
 
       async function startGame(name,label){
@@ -359,10 +429,11 @@
       function resetDeck(cards = activePool){
         activePool = (cards && cards.length ? cards : POOL).map((c,i)=>({
           ...c,
+          no: c.no || i + 1,
           theme: c.theme || INFO_THEMES[i % INFO_THEMES.length]
         }));
         totalCards = activePool.length;
-        deck = activePool.map((c,i)=>({...c, no:i+1}));
+        deck = activePool.map(c=>({...c}));
         for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
         pending = [];
         renderDeck(); dealRound();
@@ -385,7 +456,7 @@
 
       function faceHTML(c, withStamps){
         const art = c.image
-          ? `<div class="art photo" style="background-image:linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.36)), url('${cssUrl(c.image)}')">${escapeHTML(c.emoji || "🍽️")}</div>`
+          ? `<div class="art photo" style="background-image:linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.22)), url('${cssUrl(c.image)}')"></div>`
           : `<div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${escapeHTML(c.emoji || "🍽️")}</div>`;
         const nav = c.navUrl ? `<button class="navMini" type="button" data-nav="${escapeAttr(c.navUrl)}">📍 去导航</button>` : "";
         return `
@@ -829,7 +900,6 @@
         $("#wReason").textContent=(mode==="霸总模式"?"概率已经替你拍板。":mode==="玄学模式"?"今日星盘站它，命中注定。":"")+c.reason;
         $("#wMeta").innerHTML=(c.meta || []).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("");
         $("#wNav").onclick=()=> c.navUrl ? window.open(c.navUrl,"_blank") : alert("没有拿到导航地址");
-        $("#wOrder").onclick=()=> c.orderUrl ? window.open(c.orderUrl,"_blank") : alert("暂时没有下单链接");
         $("#win").classList.add("show"); confetti();
       }
 
@@ -864,12 +934,13 @@
           `--info-fg:${theme.fg}`,
           `--info-muted:${theme.muted}`,
           `--tag-bg:${theme.tagBg}`,
-          `--tag-fg:${theme.tagFg}`
+          `--tag-fg:${theme.tagFg}`,
+          `--nav-bg:${theme.tagBg}`,
+          `--nav-fg:${theme.tagFg}`
         ].join(";");
       }
 
-      // ---- 欢迎页：照片 → 马里奥 8-bit 像素形象、定位、进入 ----
-      let locOK = false;
+      // ---- 欢迎页：照片 → 马里奥 8-bit 像素形象、进入 ----
       const photo = $("#photo"), slot = $("#avatarSlot"), canv = $("#avatarCanvas");
       slot.addEventListener("click", () => photo.click());
       photo.addEventListener("change", (e) => {
@@ -899,15 +970,7 @@
         img.src = URL.createObjectURL(f);
       });
 
-      function grantLoc() {
-        if (locOK) return;
-        const b = $("#locBtn"); b.textContent = "定位中…";
-        const done = () => { locOK = true; b.classList.add("granted"); b.textContent = "✅ 已授权：朝阳 · 东三环"; $("#enterBtn").removeAttribute("data-locked"); toast("定位已授权，可以开始了"); };
-        // 真机会弹系统授权；原型里无论结果都视为已授权以便演示
-        if (navigator.geolocation) { navigator.geolocation.getCurrentPosition(done, done, { timeout: 3000 }); window.setTimeout(() => { if (!locOK) done(); }, 1000); }
-        else window.setTimeout(done, 500);
-      }
-      function enter() { if (!locOK) { toast("先点上面的 📍 授权定位再开始"); return; } go("eat"); }
+      function enter() { go("eat"); }
 
       if (location.hash === "#deck") startGame("AI 模式", "AI INTEL");
     </script>
