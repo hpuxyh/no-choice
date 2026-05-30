@@ -148,11 +148,20 @@
       .slogan { font-weight: 900; font-size: 14px; padding: 10px 12px; border-radius: 11px; border: 2px dashed var(--ink); background: rgba(255,255,255,.4); flex: none; }
 
       /* MODE */
-      .mode { display: flex; gap: 11px; align-items: center; padding: 12px; border: 3px solid var(--ink); border-radius: 15px; box-shadow: var(--shadow); cursor: pointer; transition: transform .08s; flex: none; }
+      .modeScreen { gap: 14px; }
+      .modeList { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+      .mode { display: flex; gap: 12px; align-items: center; padding: 16px; border: 3px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow); cursor: pointer; transition: transform .08s; flex: none; }
       .mode:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
-      .mode .ic { flex: none; width: 50px; height: 50px; border-radius: 12px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 26px; background: var(--card); }
+      .mode .ic { flex: none; width: 52px; height: 52px; border-radius: 12px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 27px; background: var(--card); }
       .mode.boss { background: var(--red); color: #fff; } .mode.ai { background: var(--purple); color: #fff; } .mode.myst { background: var(--card); }
-      .mode .nm { font-weight: 900; font-size: 17px; } .mode .ds { font-size: 11.5px; font-weight: 700; opacity: .92; line-height: 1.35; margin-top: 2px; } .mode .tagline { font-size: 9px; margin-top: 5px; opacity: .85; }
+      .mode .nm { font-weight: 900; font-size: 18px; }
+      .mode .ds { font-size: 12.5px; font-weight: 700; opacity: 1; line-height: 1.4; margin-top: 3px; }
+      .mode .tagline { font-size: 10px; margin-top: 6px; opacity: 1; }
+      .mode.boss .ds, .mode.ai .ds { color: rgba(255,255,255,.95); }
+      .mode.boss .tagline, .mode.ai .tagline { color: rgba(255,255,255,.78); }
+      .mode.myst .ds { color: #5f574a; } .mode.myst .tagline { color: #8a8170; }
+      .skipRound { align-self: center; flex: none; width: 66px; height: 66px; border-radius: 50%; border: 3px solid var(--ink); background: var(--card); box-shadow: var(--shadow-sm); font-weight: 900; font-size: 15px; color: var(--ink); cursor: pointer; transition: transform .08s; }
+      .skipRound:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
 
       /* ============ DECK ============ */
       .counter { display: flex; align-items: center; gap: 7px; font-weight: 900; font-size: 13px; flex: none; }
@@ -293,14 +302,16 @@
         </section>
 
         <!-- MODE -->
-        <section class="screen" data-screen="mode">
+        <section class="screen modeScreen" data-screen="mode">
           <div class="topbar"><span class="badge yellow pixel">SELECT YOUR CHEAT</span><button class="back" onclick="go('game')">← 返回</button></div>
-          <div class="lead" style="font-size:22px">三大降维抉择</div>
-          <div class="mode boss" onclick="startGame('霸总模式','BOSS MODE')"><div class="ic">🎲</div><div><div class="nm">霸总模式</div><div class="ds">不要你觉得，就要概率定。</div><div class="tagline pixel">[ BOSS MODE ] 纯随机 · 一秒通关</div></div></div>
-          <div class="mode ai" onclick="startGame('AI 模式','AI INTEL')"><div class="ic">🤖</div><div><div class="nm">AI 模式</div><div class="ds">大模型推荐，深度语义契合。</div><div class="tagline pixel">[ AI INTEL ] 大模型 · 极智解忧</div></div></div>
-          <div class="mode myst" onclick="startGame('玄学模式','MYSTIC')"><div class="ic">🔮</div><div><div class="nm">玄学模式</div><div class="ds">“来自今日星盘的天命抉择。”</div><div class="tagline pixel">[ 玄学 ] 运势流 · 命中注定</div></div></div>
-          <div class="spacer"></div>
-          <div class="sub" style="text-align:center;font-size:12px">点一个模式即可发牌 →</div>
+          <div class="lead" style="font-size:22px">游戏模式</div>
+          <div class="modeList">
+            <div class="mode boss" onclick="startGame('霸总模式','BOSS MODE')"><div class="ic">🎲</div><div><div class="nm">霸总模式</div><div class="ds">不要你觉得，我要我觉得。</div><div class="tagline pixel">[ BOSS MODE ] 纯随机 · 一秒通关</div></div></div>
+            <div class="mode ai" onclick="startGame('AI 模式','AI INTEL')"><div class="ic">🤖</div><div><div class="nm">AI 模式</div><div class="ds">大模型推荐，深度语义契合。</div><div class="tagline pixel">[ AI INTEL ] 大模型 · 极智解忧</div></div></div>
+            <div class="mode myst" onclick="startGame('玄学模式','MYSTIC')"><div class="ic">🔮</div><div><div class="nm">玄学模式</div><div class="ds">“来自今日星盘的天命抉择。”</div><div class="tagline pixel">[ 玄学 ] 运势流 · 命中注定</div></div></div>
+          </div>
+          <button class="skipRound" onclick="skipMode()">跳过</button>
+          <div class="sub" style="text-align:center;font-size:12px">点一个模式即可发牌 · 或跳过让我替你定 →</div>
         </section>
 
         <!-- DECK -->
@@ -368,6 +379,14 @@
       function go(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
 
       async function startGame(name,label){ mode=name; $("#deckLabel").textContent=label+" · DECK"; go("deck"); await prepareLocationDeck(); }
+
+      // 跳过选模式：随机替你定一个，直接发牌（不做选择～）
+      function skipMode(){
+        const ms=[["霸总模式","BOSS MODE"],["AI 模式","AI INTEL"],["玄学模式","MYSTIC"]];
+        const m=ms[Math.floor(Math.random()*ms.length)];
+        toast("随机替你选了「"+m[0]+"」");
+        startGame(m[0], m[1]);
+      }
 
       async function prepareLocationDeck(){
         ready=false; clearInterval(revT); pending=[];
