@@ -1,29 +1,31 @@
 :root {
-  color: #171a20;
-  background: #f6f7fb;
+  color: #1a1a1a;
+  background: #f8f6f0;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --line: #dfe4ec;
-  --line-strong: #cad2df;
-  --muted: #697386;
-  --panel: rgba(255, 255, 255, 0.9);
-  --panel-solid: #ffffff;
-  --ink: #171a20;
-  --ink-soft: #2b3443;
-  --green: #16a46a;
-  --red: #ef6654;
-  --blue: #3554dc;
-  --yellow: #f0b734;
-  --surface: #f8fafc;
+  --paper: #f8f6f0;
+  --line: #1a1a1a;
+  --line-strong: #1a1a1a;
+  --muted: #525252;
+  --panel: rgba(248, 246, 240, 0.94);
+  --panel-solid: #f8f6f0;
+  --ink: #1a1a1a;
+  --ink-soft: #343434;
+  --green: #6bcb77;
+  --red: #ff5e5b;
+  --blue: #4d96ff;
+  --yellow: #ffd166;
+  --purple: #8f7bec;
+  --surface: #f4f0ea;
   --module-accent: var(--green);
   --module-soft: #eef8f3;
-  --shadow-sm: 0 8px 24px rgba(23, 26, 32, 0.08);
-  --shadow-md: 0 22px 60px rgba(23, 26, 32, 0.14);
-  --shadow-lg: 0 34px 90px rgba(23, 26, 32, 0.2);
+  --shadow-sm: 0 7px 0 rgba(26, 26, 26, 0.08);
+  --shadow-md: 0 14px 0 rgba(26, 26, 26, 0.1);
+  --shadow-lg: 0 22px 0 rgba(26, 26, 26, 0.12);
 }
 
 * {
@@ -45,8 +47,7 @@ body {
 
 body {
   position: relative;
-  background:
-    linear-gradient(180deg, #fbfcff 0%, #f6f7fb 46%, #edf8f3 100%);
+  background: var(--paper);
 }
 
 body::before {
@@ -55,10 +56,10 @@ body::before {
   z-index: -1;
   content: "";
   background:
-    linear-gradient(rgba(17, 24, 39, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(17, 24, 39, 0.035) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 78%);
+    linear-gradient(rgba(26, 26, 26, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 26, 26, 0.035) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.32), transparent 74%);
   pointer-events: none;
 }
 
@@ -112,12 +113,13 @@ input:focus-visible {
   width: 44px;
   height: 44px;
   place-items: center;
-  color: #ffffff;
-  background: #111827;
-  border-radius: 8px;
+  color: #1a1a1a;
+  background: var(--yellow);
+  border: 3px solid #1a1a1a;
+  border-radius: 7px;
   font-size: 22px;
   font-weight: 900;
-  box-shadow: 0 12px 26px rgba(17, 24, 39, 0.18);
+  box-shadow: 5px 5px 0 #1a1a1a;
 }
 
 .brandMark::after {
@@ -127,7 +129,7 @@ input:focus-visible {
   left: 0;
   height: 4px;
   content: "";
-  background: linear-gradient(90deg, var(--green), var(--yellow), var(--red), var(--blue));
+  background: var(--red);
 }
 
 .brandButton strong,
@@ -185,15 +187,13 @@ input:focus-visible {
 
 .entryScreen::before {
   position: absolute;
-  inset: 78px 0 auto;
-  height: 74%;
+  inset: 154px 0 auto;
+  height: calc(100% - 182px);
   content: "";
-  background:
-    radial-gradient(circle at 18% 32%, rgba(22, 164, 106, 0.14), transparent 30%),
-    radial-gradient(circle at 82% 20%, rgba(221, 102, 155, 0.14), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 247, 228, 0.52));
-  border: 1px solid rgba(224, 230, 239, 0.86);
-  border-radius: 8px;
+  background: #f4f0ea;
+  border: 3px solid #1a1a1a;
+  border-radius: 12px;
+  box-shadow: 8px 8px 0 rgba(26, 26, 26, 0.08);
   pointer-events: none;
 }
 
@@ -208,7 +208,13 @@ input:focus-visible {
 }
 
 .entryIntro span {
-  color: var(--module-accent);
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 14px;
+  color: #ffffff;
+  background: var(--red);
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 880;
 }
@@ -216,7 +222,9 @@ input:focus-visible {
 .entryIntro h1 {
   margin: 0;
   color: #171a20;
+  font-family: Georgia, "Songti SC", "STSong", "Times New Roman", serif;
   font-size: clamp(30px, 5vw, 50px);
+  font-weight: 950;
   line-height: 1.12;
   letter-spacing: 0;
 }
@@ -224,7 +232,7 @@ input:focus-visible {
 .entryIntro p {
   max-width: 520px;
   margin: 0;
-  color: #667085;
+  color: #525252;
   font-size: 15px;
   font-weight: 720;
   line-height: 1.7;
@@ -248,12 +256,10 @@ input:focus-visible {
   width: 100%;
   color: #171a20;
   text-align: left;
-  background: #ffffff;
-  border: 10px solid #ffffff;
-  border-radius: 28px;
-  box-shadow:
-    0 30px 80px rgba(23, 26, 32, 0.16),
-    0 0 0 2px rgba(219, 226, 236, 0.72);
+  background: var(--yellow);
+  border: 4px solid #1a1a1a;
+  border-radius: 14px;
+  box-shadow: 10px 10px 0 #1a1a1a;
   transform-origin: 50% 86%;
   transition:
     transform 520ms cubic-bezier(0.2, 0.72, 0.2, 1),
@@ -271,14 +277,14 @@ input:focus-visible {
 .entryModuleCard.prev {
   z-index: 2;
   opacity: 0.74;
-  filter: saturate(0.9) brightness(0.98);
+  filter: saturate(0.74) brightness(0.78);
   transform: translate3d(-70%, 44px, 0) rotate(-8deg) scale(0.86);
 }
 
 .entryModuleCard.next {
   z-index: 2;
   opacity: 0.74;
-  filter: saturate(0.9) brightness(0.98);
+  filter: saturate(0.74) brightness(0.78);
   transform: translate3d(70%, 44px, 0) rotate(8deg) scale(0.86);
 }
 
@@ -291,8 +297,8 @@ input:focus-visible {
 
 .entryModuleCard:hover:not(:disabled) {
   box-shadow:
-    0 34px 88px rgba(23, 26, 32, 0.2),
-    0 0 0 2px color-mix(in srgb, var(--entry-accent) 36%, #ffffff);
+    12px 12px 0 #1a1a1a,
+    0 0 0 6px color-mix(in srgb, var(--entry-accent) 30%, transparent);
 }
 
 .entryModuleCard:disabled {
@@ -310,7 +316,8 @@ input:focus-visible {
   background-color: var(--entry-accent);
   background-position: center;
   background-size: cover;
-  border-radius: 18px 18px 8px 8px;
+  border-bottom: 4px solid #1a1a1a;
+  border-radius: 9px 9px 0 0;
 }
 
 .entryCardImage::after {
@@ -320,7 +327,7 @@ input:focus-visible {
   width: 62px;
   height: 9px;
   content: "";
-  background: color-mix(in srgb, var(--entry-accent) 82%, #ffffff);
+  background: var(--red);
   border-radius: 8px;
 }
 
@@ -330,9 +337,7 @@ input:focus-visible {
   flex-direction: column;
   gap: 7px;
   padding: 18px;
-  background:
-    linear-gradient(180deg, #ffffff, var(--entry-soft)),
-    #ffffff;
+  background: var(--yellow);
 }
 
 .entryCardBody small,
@@ -342,20 +347,21 @@ input:focus-visible {
 }
 
 .entryCardBody small {
-  color: var(--entry-accent);
+  color: var(--red);
   font-size: 13px;
   font-weight: 880;
 }
 
 .entryCardBody strong {
-  color: #171a20;
+  color: #1a1a1a;
+  font-family: Georgia, "Songti SC", "STSong", "Times New Roman", serif;
   font-size: clamp(30px, 6vw, 42px);
   line-height: 1.08;
   letter-spacing: 0;
 }
 
 .entryCardBody em {
-  color: #5c6678;
+  color: #343434;
   font-size: 15px;
   font-weight: 760;
 }
@@ -370,10 +376,10 @@ input:focus-visible {
 
 .entryCardChips b {
   padding: 7px 10px;
-  color: #243045;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(213, 220, 232, 0.9);
-  border-radius: 7px;
+  color: #ffffff;
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 830;
 }
@@ -401,7 +407,7 @@ input:focus-visible {
 
 .entryDots button.active {
   width: 28px;
-  background: var(--module-accent);
+  background: var(--red);
   border-radius: 8px;
 }
 
@@ -417,10 +423,9 @@ input:focus-visible {
 .resultHero {
   min-width: 0;
   background: var(--panel);
-  border: 1px solid rgba(213, 220, 232, 0.95);
-  border-radius: 8px;
+  border: 3px solid #1a1a1a;
+  border-radius: 10px;
   box-shadow: var(--shadow-md);
-  backdrop-filter: blur(18px);
 }
 
 .controlPanel {
@@ -439,7 +444,7 @@ input:focus-visible {
   left: 0;
   height: 3px;
   content: "";
-  background: linear-gradient(90deg, var(--module-accent), var(--yellow), var(--blue));
+  background: linear-gradient(90deg, var(--red), var(--yellow), var(--purple), var(--blue));
 }
 
 .presetRow {
@@ -455,9 +460,9 @@ input:focus-visible {
   align-content: center;
   gap: 2px;
   padding: 8px 10px;
-  color: #303849;
+  color: #1a1a1a;
   background: #ffffff;
-  border: 1px solid #e3e8f0;
+  border: 2px solid #1a1a1a;
   border-radius: 7px;
   text-align: left;
   box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
@@ -494,29 +499,27 @@ input:focus-visible {
 }
 
 .presetButton.active {
-  background: var(--preset-soft);
-  border-color: var(--preset-accent);
-  box-shadow: 0 10px 24px rgba(23, 26, 32, 0.1);
+  background: var(--yellow);
+  border-color: #1a1a1a;
+  box-shadow: 4px 4px 0 #1a1a1a;
 }
 
 .presetButton.active strong {
-  color: var(--preset-accent);
+  color: #1a1a1a;
 }
 
 .moduleBrief {
   display: grid;
   gap: 6px;
   padding: 14px;
-  background:
-    linear-gradient(135deg, var(--module-soft), rgba(255, 255, 255, 0.78) 68%),
-    #ffffff;
-  border: 1px solid #e3e8f0;
+  background: var(--yellow);
+  border: 3px solid #1a1a1a;
   border-radius: 8px;
-  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+  box-shadow: 5px 5px 0 rgba(26, 26, 26, 0.12);
 }
 
 .moduleBrief span {
-  color: var(--module-accent);
+  color: var(--red);
   font-size: 12px;
   font-weight: 860;
 }
@@ -1301,23 +1304,34 @@ output {
   display: grid;
   justify-items: center;
   min-height: 100dvh;
-  padding: 72px 0 0;
+  padding: 82px 0 0;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 247, 238, 0.98) 0%, rgba(255, 251, 241, 0.9) 46%, rgba(237, 250, 244, 0.96) 100%);
-  border-radius: 8px;
+  background: var(--paper);
+  border: 3px solid #1a1a1a;
+  border-radius: 12px;
 }
 
 .drawScreen::before {
   position: absolute;
-  inset: 0;
+  right: 28px;
+  bottom: 28px;
+  left: 28px;
+  height: 4px;
   content: "";
-  background:
-    linear-gradient(rgba(139, 95, 55, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(139, 95, 55, 0.035) 1px, transparent 1px);
-  background-size: 34px 34px;
-  mask-image: linear-gradient(to bottom, transparent 0, rgba(0, 0, 0, 0.55) 28%, transparent 100%);
+  background: #1a1a1a;
   pointer-events: none;
+}
+
+.drawScreen::after {
+  position: absolute;
+  top: 86px;
+  right: max(22px, 9vw);
+  z-index: 0;
+  content: "♥";
+  color: #1a1a1a;
+  font-size: 58px;
+  font-weight: 950;
+  line-height: 1;
 }
 
 .drawHeader {
@@ -1327,6 +1341,22 @@ output {
   justify-items: center;
   max-width: min(560px, 92vw);
   text-align: center;
+}
+
+.drawHeader::before {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 0 16px;
+  color: #ffffff;
+  background: var(--red);
+  border-radius: 999px;
+  content: "QUEST ACTIVE";
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .miniDeck {
@@ -1342,143 +1372,225 @@ output {
   left: calc(50% - 17px);
   width: 34px;
   height: 46px;
-  background-color: #ffffff;
+  background-color: var(--yellow);
   background-position: center;
   background-size: cover;
-  border: 2px solid rgba(255, 255, 255, 0.92);
+  border: 2px solid #1a1a1a;
   border-radius: 6px;
-  box-shadow: 0 8px 18px rgba(132, 91, 58, 0.14);
+  box-shadow: 4px 4px 0 rgba(26, 26, 26, 0.18);
   transform: translateX(calc((var(--tilt) / 1deg) * 3px)) rotate(var(--tilt));
   transform-origin: 50% 100%;
 }
 
 .drawHeader h1 {
   margin: 0;
-  color: #2d2a27;
-  font-size: clamp(28px, 5vw, 42px);
-  line-height: 1.22;
+  color: #1a1a1a;
+  font-family: Georgia, "Songti SC", "STSong", "Times New Roman", serif;
+  font-size: clamp(32px, 5.8vw, 54px);
+  font-weight: 950;
+  line-height: 1.12;
   letter-spacing: 0;
 }
 
 .drawHeader h1 span {
   display: block;
   margin-top: 6px;
-  color: color-mix(in srgb, var(--module-accent) 74%, #d79056);
+  color: var(--purple);
 }
 
 .drawHeader p {
   max-width: 480px;
   margin: 12px 0 0;
-  color: #7b6b5e;
+  color: #525252;
   font-size: 15px;
-  font-weight: 720;
+  font-weight: 760;
   line-height: 1.6;
 }
 
-.drawCarousel {
+.drawSlotMachine {
   position: relative;
   z-index: 1;
-  width: min(365px, 76vw);
-  height: clamp(440px, 58dvh, 560px);
-  margin-top: 22px;
-  perspective: 1100px;
-}
-
-.drawCarousel .decisionCard {
-  grid-template-rows: 52% 1fr;
+  width: min(780px, calc(100vw - 20px));
+  height: clamp(292px, 45dvh, 414px);
+  margin-top: 26px;
   overflow: hidden;
-  background: #ffffff;
-  border: 10px solid #ffffff;
-  border-radius: 28px;
+  --slot-card-width: clamp(66px, 15.7vw, 142px);
+  --slot-nudge: 0px;
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+
+.slotTrack {
+  position: absolute;
+  inset: 0;
+}
+
+.slotFocusFrame {
+  position: absolute;
+  top: 5px;
+  bottom: 12px;
+  left: 50%;
+  z-index: 55;
+  width: var(--slot-card-width);
+  border: 3px solid #1a1a1a;
+  border-radius: 16px;
   box-shadow:
-    0 28px 72px rgba(112, 79, 50, 0.2),
-    0 0 0 2px rgba(247, 190, 143, 0.18);
+    0 0 0 7px rgba(255, 209, 102, 0.62),
+    9px 9px 0 rgba(26, 26, 26, 0.16);
+  pointer-events: none;
+  transform: translateX(-50%) scale(1.18);
 }
 
-.drawCarousel .decisionCard.active {
-  cursor: grab;
+.slotFocusFrame::before {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  width: 86px;
+  height: 22px;
+  content: "TARGET";
+  color: #ffffff;
+  background: #1a1a1a;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 22px;
+  text-align: center;
+  transform: translateX(-50%);
 }
 
-.drawCarousel .decisionCard.side {
-  z-index: 0;
-  opacity: 0.82;
-  filter: saturate(0.9) brightness(0.98);
-  pointer-events: auto;
-  cursor: pointer;
+.slotCard {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  display: grid;
+  grid-template-rows: 50% 1fr;
+  width: var(--slot-card-width);
+  height: calc(100% - 18px);
+  overflow: hidden;
+  color: #1a1a1a;
+  background: var(--yellow);
+  border: 3px solid #1a1a1a;
+  border-radius: 13px;
+  box-shadow: 7px 7px 0 rgba(26, 26, 26, 0.22);
+  opacity: var(--slot-opacity);
+  filter: saturate(0.82) brightness(var(--slot-brightness));
+  transform: translate3d(calc(-50% + var(--slot-shift) + var(--slot-nudge)), 0, 0) scale(var(--slot-scale));
+  transform-origin: 50% 52%;
+  transition:
+    box-shadow 180ms ease,
+    filter 140ms ease,
+    opacity 140ms ease;
+  will-change: transform, opacity, filter;
 }
 
-.drawScreen.spinning .decisionCard.side,
-.drawScreen.spinning .decisionCard.active {
-  cursor: default;
+.stage-cruising .slotCard {
+  filter: saturate(0.75) brightness(var(--slot-brightness)) blur(2.2px);
 }
 
-.drawScreen.spinning .decisionCard.active {
+.stage-accelerating .slotCard {
+  filter: saturate(0.78) brightness(var(--slot-brightness)) blur(0.7px);
+}
+
+.stage-decelerating .slotCard {
+  filter: saturate(0.86) brightness(var(--slot-brightness)) blur(0.35px);
+}
+
+.drawSlotMachine.hasSettled .slotCard:not(.focus) {
+  opacity: 0.24 !important;
+  filter: saturate(0.5) brightness(0.58);
+}
+
+.slotCard.focus {
+  opacity: 1 !important;
+  filter: saturate(1.1) brightness(1.05);
   box-shadow:
-    0 32px 80px rgba(112, 79, 50, 0.24),
-    0 0 0 2px rgba(247, 190, 143, 0.22);
+    0 0 0 7px rgba(255, 94, 91, 0.18),
+    0 0 34px rgba(255, 209, 102, 0.78),
+    10px 10px 0 #1a1a1a;
+  transform: translate3d(calc(-50% + var(--slot-shift) + var(--slot-nudge)), 0, 0) scale(calc(var(--slot-scale) + 0.1));
 }
 
-.drawCarousel .decisionCard.side.left {
-  transform-origin: 100% 86%;
-}
-
-.drawCarousel .decisionCard.side.right {
-  transform-origin: 0 86%;
-}
-
-.drawCarousel .decisionCard.active {
-  z-index: 2;
-}
-
-.drawCarousel .cardMedia {
+.slotCardMedia {
+  position: relative;
   min-height: 0;
-  border-radius: 18px 18px 8px 8px;
+  background-color: #1a1a1a;
+  background-position: center;
+  background-size: cover;
+  border-bottom: 3px solid #1a1a1a;
 }
 
-.drawCarousel .cardMedia::after {
-  right: 18px;
-  bottom: 14px;
-  width: 60px;
-  height: 9px;
-  background: color-mix(in srgb, var(--accent) 82%, #ffffff);
+.slotCardMedia::after {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  width: 34px;
+  height: 6px;
+  content: "";
+  background: var(--red);
+  border-radius: 999px;
+  box-shadow: -13px 0 0 var(--purple);
 }
 
-.drawCarousel .cardContent {
-  padding: 18px 18px 20px;
-  background: #ffffff;
+.slotCardContent {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px;
+  background: var(--yellow);
 }
 
-.drawCarousel .cardTitleRow {
-  gap: 8px;
+.slotCardTitleRow {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 5px;
+  color: var(--red);
 }
 
-.drawCarousel .cardTitleRow h2 {
+.slotCardTitleRow h2 {
   display: -webkit-box;
   overflow: hidden;
-  color: #1f242d;
-  font-size: clamp(23px, 6vw, 34px);
-  line-height: 1.16;
+  margin: 0;
+  color: #1a1a1a;
+  font-family: Georgia, "Songti SC", "STSong", "Times New Roman", serif;
+  font-size: clamp(12px, 1.7vw, 20px);
+  line-height: 1.14;
+  letter-spacing: 0;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
-.drawCarousel .cardContent p {
+.slotCardContent p {
   display: -webkit-box;
   overflow: hidden;
-  margin-top: 10px;
-  color: #6f7685;
-  font-size: clamp(15px, 3.7vw, 17px);
-  line-height: 1.55;
+  margin: 0;
+  color: #343434;
+  font-size: clamp(10px, 1.15vw, 13px);
+  font-weight: 760;
+  line-height: 1.36;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
 
-.drawCarousel .metaRow {
-  padding-top: 14px;
+.slotMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: auto;
 }
 
-.drawCarousel .metaRow span {
-  font-size: 12px;
+.slotMetaRow span {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 4px 6px;
+  color: #ffffff;
+  background: #1a1a1a;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .drawPointer {
@@ -1486,50 +1598,46 @@ output {
   z-index: 2;
   width: 0;
   height: 0;
-  margin-top: 10px;
+  margin-top: 12px;
   border-right: 18px solid transparent;
-  border-bottom: 28px solid #ffb076;
+  border-bottom: 28px solid var(--red);
   border-left: 18px solid transparent;
-  filter: drop-shadow(0 12px 14px rgba(211, 129, 76, 0.32));
+  filter: drop-shadow(0 7px 0 rgba(26, 26, 26, 0.2));
 }
 
 .goCloud {
   position: relative;
   z-index: 1;
   display: grid;
-  width: min(480px, 108%);
-  height: 138px;
-  margin-top: -2px;
+  width: min(520px, 96vw);
+  height: 118px;
+  margin-top: 2px;
   place-items: center;
 }
 
 .goCloud::before {
   position: absolute;
-  inset: 30px -28px -34px;
+  inset: 44px 16px auto;
+  height: 44px;
   content: "";
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 248, 218, 0.82)),
-    #ffffff;
-  border-radius: 52% 52% 0 0 / 48px 48px 0 0;
-  box-shadow:
-    0 -12px 34px rgba(247, 185, 126, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  background: var(--yellow);
+  border: 4px solid #1a1a1a;
+  border-radius: 10px;
+  box-shadow: 6px 6px 0 rgba(26, 26, 26, 0.12);
 }
 
 .goButton {
   position: relative;
   z-index: 1;
   display: grid;
-  width: 104px;
-  height: 104px;
+  width: 96px;
+  height: 96px;
   place-items: center;
-  color: #ffffff;
-  background: #ffae75;
-  border: 7px solid rgba(255, 255, 255, 0.72);
+  color: #1a1a1a;
+  background: var(--red);
+  border: 4px solid #1a1a1a;
   border-radius: 50%;
-  box-shadow:
-    0 18px 38px rgba(213, 129, 74, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow: 8px 8px 0 #1a1a1a;
   transition:
     transform 160ms ease,
     box-shadow 160ms ease;
@@ -1537,23 +1645,24 @@ output {
 
 .goButton::before {
   position: absolute;
-  inset: -14px;
+  inset: -11px;
   content: "";
-  border: 2px dashed rgba(255, 174, 117, 0.38);
+  border: 3px solid rgba(26, 26, 26, 0.16);
   border-radius: inherit;
 }
 
 .goButton span {
-  font-size: 30px;
+  color: #ffffff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 31px;
   font-weight: 950;
   letter-spacing: 0;
+  text-shadow: 2px 2px 0 #1a1a1a;
 }
 
 .goButton:hover {
   transform: translateY(-2px) scale(1.02);
-  box-shadow:
-    0 24px 48px rgba(213, 129, 74, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow: 10px 10px 0 #1a1a1a;
 }
 
 .goButton:disabled {
@@ -1574,31 +1683,33 @@ output {
   gap: 8px;
   align-items: center;
   justify-content: center;
-  margin-top: -18px;
+  margin-top: -8px;
   padding-bottom: 22px;
-  color: #746b63;
+  color: #1a1a1a;
   font-size: 13px;
-  font-weight: 780;
+  font-weight: 860;
 }
 
 .drawFooter span,
 .drawFooter em {
   padding: 7px 10px;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(228, 214, 202, 0.72);
-  border-radius: 8px;
+  background: #ffffff;
+  border: 2px solid #1a1a1a;
+  border-radius: 7px;
   font-style: normal;
+  box-shadow: 3px 3px 0 rgba(26, 26, 26, 0.1);
 }
 
 .enterSetupButton {
   min-height: 36px;
   padding: 0 13px;
   color: #ffffff;
-  background: #171a20;
-  border-radius: 8px;
+  background: #1a1a1a;
+  border: 2px solid #1a1a1a;
+  border-radius: 7px;
   font-size: 13px;
   font-weight: 850;
-  box-shadow: 0 12px 26px rgba(23, 26, 32, 0.16);
+  box-shadow: 4px 4px 0 var(--red);
   transition:
     transform 160ms ease,
     background 160ms ease;
@@ -2017,8 +2128,8 @@ output {
     min-height: 100dvh;
   }
 
-  .drawCarousel {
-    width: min(350px, 76vw);
+  .drawSlotMachine {
+    width: min(720px, calc(100vw - 18px));
   }
 
   .resultImage {
@@ -2059,8 +2170,8 @@ output {
   }
 
   .entryScreen::before {
-    inset: 66px -4px auto;
-    height: 76%;
+    inset: 226px -4px auto;
+    height: calc(100% - 250px);
   }
 
   .entryIntro {
@@ -2069,7 +2180,9 @@ output {
   }
 
   .entryIntro h1 {
-    font-size: clamp(29px, 9vw, 38px);
+    max-width: 330px;
+    font-size: 30px;
+    line-height: 1.08;
   }
 
   .entryIntro p {
@@ -2086,8 +2199,8 @@ output {
 
   .entryModuleCard {
     grid-template-rows: 54% 1fr;
-    border-width: 8px;
-    border-radius: 24px;
+    border-width: 4px;
+    border-radius: 14px;
   }
 
   .entryModuleCard.prev {
@@ -2099,7 +2212,7 @@ output {
   }
 
   .entryCardImage {
-    border-radius: 16px 16px 8px 8px;
+    border-radius: 9px 9px 0 0;
   }
 
   .entryCardBody {
@@ -2326,29 +2439,57 @@ output {
     transform: scale(0.92);
   }
 
-  .drawCarousel {
-    width: min(318px, 74vw);
-    height: clamp(362px, 49dvh, 440px);
+  .drawSlotMachine {
+    width: calc(100vw - 18px);
+    height: clamp(260px, 43dvh, 340px);
     margin-top: 16px;
+    --slot-card-width: clamp(62px, 16.4vw, 82px);
   }
 
-  .drawCarousel .decisionCard {
-    grid-template-rows: 50% 1fr;
-    border-width: 8px;
-    border-radius: 24px;
+  .slotFocusFrame {
+    top: 9px;
+    bottom: 14px;
+    border-width: 2px;
+    border-radius: 12px;
+    box-shadow:
+      0 0 0 5px rgba(255, 209, 102, 0.62),
+      6px 6px 0 rgba(26, 26, 26, 0.16);
   }
 
-  .drawCarousel .cardContent {
-    padding: 15px;
+  .slotFocusFrame::before {
+    top: -27px;
+    width: 72px;
+    height: 20px;
+    font-size: 10px;
+    line-height: 20px;
   }
 
-  .drawCarousel .cardTitleRow h2 {
-    font-size: clamp(22px, 6.8vw, 28px);
+  .slotCard {
+    border-width: 2px;
+    border-radius: 10px;
+    box-shadow: 5px 5px 0 rgba(26, 26, 26, 0.22);
   }
 
-  .drawCarousel .cardContent p {
-    font-size: 14px;
-    -webkit-line-clamp: 3;
+  .slotCardMedia {
+    border-bottom-width: 2px;
+  }
+
+  .slotCardContent {
+    gap: 5px;
+    padding: 7px;
+  }
+
+  .slotCardTitleRow svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .slotCardContent p {
+    -webkit-line-clamp: 2;
+  }
+
+  .slotMetaRow span {
+    display: none;
   }
 
   .drawPointer {
@@ -2372,7 +2513,7 @@ output {
   }
 
   .drawFooter {
-    margin-top: -16px;
+    margin-top: -8px;
     padding-bottom: 18px;
   }
 

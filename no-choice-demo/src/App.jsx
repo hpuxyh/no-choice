@@ -35,11 +35,14 @@ import {
   searchNearbyPois,
 } from "./geoPoi";
 
-const dragLimit = 96;
-const slideDuration = 320;
-const spinStepDelay = 480;
-const minSpinSteps = 8;
-const spinStepRange = 5;
+const slotAccelerationMs = 300;
+const slotCruiseMs = 1500;
+const slotDecelerationMs = 1300;
+const slotSettleMs = 400;
+const slotLoopCount = 3;
+const slotWindowRadius = 4;
+const slotGapPx = 14;
+const slotOvershootPx = 12;
 const emptyGeoState = {
   status: "idle",
   coords: null,
@@ -59,6 +62,85 @@ const entryVisuals = {
 const getInitialConditions = (preset) => preset.conditionIds ?? [];
 const getInitialCustomConditions = (preset) => preset.customConditions ?? (preset.context ? [preset.context] : []);
 
+function clamp01(value) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function easeInCubic(value) {
+  const t = clamp01(value);
+  return t * t * t;
+}
+
+function easeOutCubic(value) {
+  const t = clamp01(value);
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function easeOutQuint(value) {
+  const t = clamp01(value);
+  return 1 - Math.pow(1 - t, 5);
+}
+
+function easeOutBack(value, intensity = 0.62) {
+  const t = clamp01(value);
+  const c3 = intensity + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + intensity * Math.pow(t - 1, 2);
+}
+
+function positiveModulo(value, length) {
+  if (!length) return 0;
+  return ((value % length) + length) % length;
+}
+
+function normalizeTargetIndex(targetIndex, cards) {
+  if (!cards?.length) return 0;
+  const numericTarget = Number.isFinite(Number(targetIndex)) ? Math.trunc(Number(targetIndex)) : 0;
+  return positiveModulo(numericTarget, cards.length);
+}
+
+function pickTargetIndex(cards) {
+  if (!cards?.length) return 0;
+  return Math.floor(Math.random() * cards.length);
+}
+
+function buildDrawSession(payload) {
+  const cards = payload.cards ?? [];
+  return {
+    ...payload,
+    cards,
+    index: normalizeTargetIndex(payload.index ?? 0, cards),
+    targetIndex:
+      payload.targetIndex === undefined ? pickTargetIndex(cards) : normalizeTargetIndex(payload.targetIndex, cards),
+  };
+}
+
+function buildSlotWindow(cards, offset) {
+  if (!cards?.length) return [];
+
+  const center = Math.round(offset);
+  const windowSize = slotWindowRadius * 2 + 1;
+
+  return Array.from({ length: windowSize }, (_, index) => {
+    const absoluteIndex = center + index - slotWindowRadius;
+    const cardIndex = positiveModulo(absoluteIndex, cards.length);
+    const distance = absoluteIndex - offset;
+    const absDistance = Math.abs(distance);
+    const closeness = Math.max(0, 1 - Math.min(absDistance, 2.7) / 2.7);
+
+    return {
+      absoluteIndex,
+      cardIndex,
+      card: cards[cardIndex],
+      distance,
+      shift: `calc(${(distance * 100).toFixed(4)}% + ${(distance * slotGapPx).toFixed(2)}px)`,
+      scale: (0.74 + closeness * 0.36).toFixed(4),
+      opacity: (0.28 + closeness * 0.72).toFixed(4),
+      brightness: (0.58 + closeness * 0.45).toFixed(4),
+      zIndex: Math.round((1 - Math.min(absDistance, slotWindowRadius) / slotWindowRadius) * 40) + 1,
+    };
+  });
+}
+
 export default function App() {
   const [activeModuleId, setActiveModuleId] = useState(presets[0].id);
   const [question, setQuestion] = useState(presets[0].question);
@@ -74,15 +156,16 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
-  const [drag, setDrag] = useState({ active: false, x: 0, y: 0 });
-  const [fly, setFly] = useState(null);
   const [notice, setNotice] = useState("");
   const [shareStatus, setShareStatus] = useState("");
   const [geoState, setGeoState] = useState(emptyGeoState);
   const [isDeciding, setIsDeciding] = useState(false);
   const [drawStatus, setDrawStatus] = useState("idle");
-  const startPoint = useRef({ x: 0, y: 0 });
-  const spinTimer = useRef(null);
+  const [drawStage, setDrawStage] = useState("idle");
+  const [slotOffset, setSlotOffset] = useState(0);
+  const [slotNudge, setSlotNudge] = useState(0);
+  const slotFrame = useRef(0);
+  const slotOffsetRef = useRef(0);
   const spinRun = useRef(0);
 
   const activeModule = getModuleProfile(activeModuleId);
@@ -106,10 +189,8 @@ export default function App() {
     return preview.ok ? preview.type : "open";
   }, [activeModuleId, cardCount, context, geoState.pois, locationEnabled, manualOptions, mode, question]);
   const typeInfo = getTypeMeta(inferredType, activeModuleId);
-  const activeCard = session?.cards[session.index] ?? null;
-  const previousCard =
-    session && session.cards.length > 1 ? session.cards[(session.index - 1 + session.cards.length) % session.cards.length] : null;
-  const nextCard = session && session.cards.length > 1 ? session.cards[(session.index + 1) % session.cards.length] : null;
+  const activeCard = session?.cards.length ? session.cards[positiveModulo(session.index, session.cards.length)] : null;
+  const slotCards = useMemo(() => buildSlotWindow(session?.cards ?? [], slotOffset), [session?.cards, slotOffset]);
   const progress = session ? `${session.index + 1} / ${session.cards.length}` : "0 / 0";
   const resultModule = result ? getModuleProfile(result.moduleId) : activeModule;
   const activeConditionCount = selectedConditions.length + customConditions.length;
@@ -179,55 +260,135 @@ export default function App() {
     setIntroMode(false);
     setResult(null);
     setSession(null);
-    setDrag({ active: false, x: 0, y: 0 });
-    setFly(null);
     setNotice("");
     setShareStatus("");
     setIsDeciding(false);
     setDrawStatus("idle");
+    resetSlotView(0);
+  }
+
+  function resetSlotView(index = 0) {
+    slotOffsetRef.current = index;
+    setSlotOffset(index);
+    setSlotNudge(0);
+    setDrawStage("idle");
+  }
+
+  function openDrawSession(payload) {
+    const nextSession = buildDrawSession(payload);
+    resetSlotView(nextSession.index);
+    setSession(nextSession);
+    setResult(null);
+    setDrawStatus("idle");
+    setPhase("swipe");
   }
 
   function stopAutoDraw() {
     spinRun.current += 1;
-    if (spinTimer.current) {
-      window.clearTimeout(spinTimer.current);
-      spinTimer.current = null;
+    if (slotFrame.current) {
+      window.cancelAnimationFrame(slotFrame.current);
+      slotFrame.current = 0;
     }
+    setSlotNudge(0);
   }
 
-  function startAutoDraw() {
+  function handleSlotSettle(targetIndex) {
+    setSession((current) =>
+      current
+        ? {
+            ...current,
+            index: targetIndex,
+            targetIndex,
+          }
+        : current,
+    );
+  }
+
+  function restartAutoDraw() {
+    if (!session?.cards?.length) return;
+    startAutoDraw(pickTargetIndex(session.cards));
+  }
+
+  function startAutoDraw(targetIndex = session?.targetIndex ?? 0) {
     if (!session || session.cards.length < 2) return;
 
     stopAutoDraw();
     const runId = spinRun.current;
-    let totalSteps = minSpinSteps + Math.floor(Math.random() * spinStepRange);
-    if (totalSteps % session.cards.length === 0) {
-      totalSteps += 1;
+    const cards = session.cards;
+    const normalizedTarget = normalizeTargetIndex(targetIndex, cards);
+    const from = Math.round(slotOffsetRef.current);
+    const currentIndex = positiveModulo(from, cards.length);
+    let targetDelta = normalizedTarget - currentIndex;
+
+    if (targetDelta <= 0) {
+      targetDelta += cards.length;
     }
-    let step = 0;
+
+    const travel = targetDelta + slotLoopCount * cards.length;
+    const to = from + travel;
+    const accelerationDistance = travel * 0.14;
+    const cruiseDistance = travel * 0.56;
+    const decelerationDistance = travel - accelerationDistance - cruiseDistance;
+    const decelerationStart = from + accelerationDistance + cruiseDistance;
+    const totalMs = slotAccelerationMs + slotCruiseMs + slotDecelerationMs + slotSettleMs;
+    const startedAt = performance.now();
 
     setDrawStatus("spinning");
+    setDrawStage("accelerating");
+    setSession((current) => (current ? { ...current, targetIndex: normalizedTarget } : current));
 
-    const tick = () => {
+    const updateFrame = (now) => {
       if (spinRun.current !== runId) return;
 
-      const isFinalStep = step >= totalSteps - 1;
-      drawNextCard(isFinalStep ? "settle" : "auto");
-      step += 1;
+      const elapsed = now - startedAt;
+      let nextOffset = to;
+      let nextNudge = 0;
+      let nextStage = "settling";
 
-      if (isFinalStep) {
-        spinTimer.current = window.setTimeout(() => {
-          if (spinRun.current === runId) {
-            setDrawStatus("stopped");
-          }
-        }, slideDuration + 90);
+      if (elapsed < slotAccelerationMs) {
+        const progress = elapsed / slotAccelerationMs;
+        nextStage = "accelerating";
+        nextOffset = from + accelerationDistance * easeInCubic(progress);
+      } else if (elapsed < slotAccelerationMs + slotCruiseMs) {
+        const progress = (elapsed - slotAccelerationMs) / slotCruiseMs;
+        nextStage = "cruising";
+        nextOffset = from + accelerationDistance + cruiseDistance * clamp01(progress);
+      } else if (elapsed < slotAccelerationMs + slotCruiseMs + slotDecelerationMs) {
+        const progress = (elapsed - slotAccelerationMs - slotCruiseMs) / slotDecelerationMs;
+        nextStage = "decelerating";
+        nextOffset = decelerationStart + decelerationDistance * easeOutQuint(progress);
+      } else if (elapsed < totalMs) {
+        const progress = (elapsed - slotAccelerationMs - slotCruiseMs - slotDecelerationMs) / slotSettleMs;
+        nextStage = "settling";
+        nextOffset = to;
+
+        if (progress < 0.32) {
+          nextNudge = -slotOvershootPx * easeOutCubic(progress / 0.32);
+        } else {
+          nextNudge = -slotOvershootPx * (1 - easeOutBack((progress - 0.32) / 0.68));
+        }
+      }
+
+      slotOffsetRef.current = nextOffset;
+      setSlotOffset(nextOffset);
+      setSlotNudge(nextNudge);
+      setDrawStage(nextStage);
+
+      if (elapsed >= totalMs) {
+        slotOffsetRef.current = to;
+        setSlotOffset(to);
+        setSlotNudge(0);
+        setDrawStage("settled");
+        setDrawStatus("stopped");
+        slotFrame.current = 0;
+        handleSlotSettle(normalizedTarget);
         return;
       }
 
-      spinTimer.current = window.setTimeout(tick, spinStepDelay);
+      slotFrame.current = window.requestAnimationFrame(updateFrame);
     };
 
-    spinTimer.current = window.setTimeout(tick, 260);
+    slotFrame.current = window.requestAnimationFrame(updateFrame);
   }
 
   function getConditionLabelsFor(moduleId, conditionIds) {
@@ -369,7 +530,7 @@ export default function App() {
         outputCount: 3,
       });
 
-      setSession({
+      openDrawSession({
         question: question.trim(),
         type: mode === "manual" ? "custom" : detectQuestionType(question, false, activeModuleId),
         persona: "gentle",
@@ -377,8 +538,6 @@ export default function App() {
         cards: aiDecision.cards,
         index: 0,
       });
-      setResult(null);
-      setPhase("swipe");
       return;
     } catch {
       const decisionContext = getContextFromGeo(effectiveGeoState);
@@ -413,7 +572,7 @@ export default function App() {
         return;
       }
 
-      setSession({
+      openDrawSession({
         question: question.trim(),
         type: next.type,
         persona: next.persona,
@@ -421,7 +580,6 @@ export default function App() {
         cards: next.cards,
         index: 0,
       });
-      setPhase("swipe");
     } finally {
       setIsDeciding(false);
     }
@@ -441,8 +599,7 @@ export default function App() {
     setResult(null);
     setSession(null);
     setDrawStatus("idle");
-    setDrag({ active: false, x: 0, y: 0 });
-    setFly(null);
+    resetSlotView(0);
     setIsDeciding(true);
 
     try {
@@ -464,7 +621,7 @@ export default function App() {
         throw new Error("AI 推荐结果不足");
       }
 
-      setSession({
+      openDrawSession({
         question: preset.question.trim(),
         type: preset.mode === "manual" ? "custom" : detectQuestionType(preset.question, false, preset.id),
         persona: "gentle",
@@ -472,7 +629,6 @@ export default function App() {
         cards: aiDecision.cards,
         index: 0,
       });
-      setPhase("swipe");
     } catch {
       const next = buildDecision({
         moduleId: preset.id,
@@ -491,7 +647,7 @@ export default function App() {
         return;
       }
 
-      setSession({
+      openDrawSession({
         question: preset.question.trim(),
         type: next.type,
         persona: next.persona,
@@ -499,7 +655,6 @@ export default function App() {
         cards: next.cards,
         index: 0,
       });
-      setPhase("swipe");
     } finally {
       setIsDeciding(false);
     }
@@ -511,12 +666,11 @@ export default function App() {
     setIntroMode(false);
     setResult(null);
     setSession(null);
-    setDrag({ active: false, x: 0, y: 0 });
-    setFly(null);
     setNotice("");
     setShareStatus("");
     setIsDeciding(false);
     setDrawStatus("idle");
+    resetSlotView(0);
   }
 
   function enterSetupFromDemo() {
@@ -528,53 +682,6 @@ export default function App() {
     resetToSetup();
     setQuestion(currentQuestion);
     window.setTimeout(startDecision, 0);
-  }
-
-  function handlePointerDown(event) {
-    if (!activeCard || fly || drawStatus === "spinning") return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    startPoint.current = { x: event.clientX, y: event.clientY };
-    setDrag({ active: true, x: 0, y: 0 });
-  }
-
-  function handlePointerMove(event) {
-    if (!drag.active || fly || drawStatus === "spinning") return;
-    const x = event.clientX - startPoint.current.x;
-    const y = event.clientY - startPoint.current.y;
-    setDrag({ active: true, x, y });
-  }
-
-  function handlePointerUp() {
-    if (!drag.active || fly || drawStatus === "spinning") return;
-    const x = drag.x;
-    setDrag({ active: false, x: 0, y: 0 });
-
-    if (x > dragLimit) {
-      drawNextCard();
-      return;
-    }
-
-    if (x < -dragLimit) {
-      drawNextCard();
-    }
-  }
-
-  function drawNextCard(source = "manual") {
-    if (!session || fly) return;
-    if (source === "manual" && drawStatus === "spinning") return;
-
-    setFly(source === "auto" ? "auto-left" : source === "settle" ? "settle-left" : "left");
-    window.setTimeout(() => {
-      setSession((current) =>
-        current
-          ? {
-              ...current,
-              index: (current.index + 1) % current.cards.length,
-            }
-          : current,
-      );
-      setFly(null);
-    }, slideDuration);
   }
 
   function getEntryCardPosition(index) {
@@ -912,7 +1019,10 @@ export default function App() {
       )}
 
       {phase === "swipe" && session && activeCard && (
-        <section className={`drawScreen ${drawStatus === "spinning" ? "spinning" : "settled"}`} aria-label="抽卡">
+        <section
+          className={`drawScreen ${drawStatus === "spinning" ? "spinning" : "settled"} stage-${drawStage}`}
+          aria-label="抽卡"
+        >
           <div className="drawHeader">
             <div className="miniDeck" aria-hidden="true">
               {session.cards.slice(0, 3).map((card, index) => (
@@ -933,21 +1043,21 @@ export default function App() {
             <p>{session.question}</p>
           </div>
 
-          <div className="drawCarousel" aria-live="polite">
-            {previousCard && <DecisionCard card={previousCard} side="left" onPointerDown={() => drawNextCard()} />}
-
-            <DecisionCard
-              card={activeCard}
-              active
-              drag={drag}
-              fly={fly}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-            />
-
-            {nextCard && <DecisionCard card={nextCard} side="right" onPointerDown={() => drawNextCard()} />}
+          <div
+            className={`drawSlotMachine stage-${drawStage} ${drawStatus === "stopped" ? "hasSettled" : ""}`}
+            style={{ "--slot-nudge": `${slotNudge}px` }}
+            aria-live="polite"
+          >
+            <div className="slotTrack">
+              {slotCards.map((item) => (
+                <SlotDecisionCard
+                  key={`${item.card.id}-${item.absoluteIndex}`}
+                  item={item}
+                  settled={drawStatus === "stopped" || drawStage === "settled"}
+                />
+              ))}
+            </div>
+            <div className="slotFocusFrame" aria-hidden="true" />
           </div>
 
           <div className="drawPointer" aria-hidden="true" />
@@ -956,7 +1066,7 @@ export default function App() {
             <button
               className="goButton"
               type="button"
-              onClick={startAutoDraw}
+              onClick={restartAutoDraw}
               disabled={drawStatus === "spinning"}
               aria-label="重新抽取答案卡"
             >
@@ -1020,75 +1130,38 @@ export default function App() {
   );
 }
 
-function DecisionCard({
-  card,
-  active = false,
-  side,
-  drag = { x: 0, y: 0 },
-  fly,
-  stackIndex = 0,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-}) {
-  const rotation = active ? drag.x / 18 : 0;
-  const flyTransform =
-    fly === "right"
-      ? "translate3d(135%, -8%, 0) rotate(18deg)"
-      : fly === "left" || fly === "auto-left" || fly === "settle-left"
-        ? `translate3d(${fly === "left" ? "-135%" : "-112%"}, -6%, 0) rotate(${fly === "left" ? "-18deg" : "-12deg"})`
-        : "";
-  const activeTransform = `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${rotation}deg)`;
-  const stackTransform = `translateY(${stackIndex * 13}px) scale(${1 - stackIndex * 0.045})`;
-  const sideTransform =
-    side === "left"
-      ? "translate3d(-72%, 18px, 0) rotate(-8deg) scale(.9)"
-      : side === "right"
-        ? "translate3d(72%, 18px, 0) rotate(8deg) scale(.9)"
-        : stackTransform;
-  const chooseOpacity = Math.min(1, Math.max(0, drag.x / dragLimit));
-  const rejectOpacity = Math.min(1, Math.max(0, -drag.x / dragLimit));
+function SlotDecisionCard({ item, settled }) {
+  const { card, distance } = item;
+  const isFocus = settled && Math.abs(distance) < 0.04;
 
   return (
     <article
-      className={`decisionCard ${active ? "active" : side ? `side ${side}` : "stacked"}`}
+      className={`slotCard ${isFocus ? "focus" : ""}`}
       style={{
         "--accent": card.accent,
-        transform: active ? flyTransform || activeTransform : sideTransform,
-        transition: active && drag.active && !fly ? "none" : undefined,
+        "--slot-shift": item.shift,
+        "--slot-scale": item.scale,
+        "--slot-opacity": item.opacity,
+        "--slot-brightness": item.brightness,
+        zIndex: item.zIndex,
       }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
+      aria-hidden={!isFocus}
     >
       <div
-        className="cardMedia"
+        className="slotCardMedia"
         style={{
           backgroundImage: `linear-gradient(150deg, rgba(9, 14, 24, .05), rgba(9, 14, 24, .55)), url(${card.image})`,
         }}
-      >
-        {active && (
-          <>
-            <span className="stamp acceptStamp" style={{ opacity: chooseOpacity }}>
-              就它了
-            </span>
-            <span className="stamp rejectStamp" style={{ opacity: rejectOpacity }}>
-              先不要
-            </span>
-          </>
-        )}
-      </div>
-      <div className="cardContent">
-        <div className="cardTitleRow">
-          <Flame size={18} />
+      />
+      <div className="slotCardContent">
+        <div className="slotCardTitleRow">
+          <Flame size={15} />
           <h2>{card.title}</h2>
         </div>
         <p>{card.reason}</p>
-        <div className="metaRow">
-          {card.meta.map((item) => (
-            <span key={item}>{item}</span>
+        <div className="slotMetaRow">
+          {card.meta.slice(0, 2).map((meta) => (
+            <span key={meta}>{meta}</span>
           ))}
         </div>
       </div>
