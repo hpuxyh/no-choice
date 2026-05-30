@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>CHOICE OVER · 抽卡预览</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --paper: #f3ecdd; --ink: #1a1714; --red: #ff5a4d; --purple: #6c5ce7;
+        --yellow: #f6c518; --green: #28c76f; --blue: #3d6bff; --card: #fffdf6;
+        --pipe: #3bb24a; --pipe-d: #1f8a2e; --pipe-l: #7fe08a;
+        --shadow: 5px 5px 0 var(--ink); --shadow-sm: 3px 3px 0 var(--ink);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+      html, body { height: 100%; overflow: hidden; }
+      body {
+        background: #e7ddc8;
+        background-image: radial-gradient(circle at 1px 1px, rgba(26,23,20,.06) 1px, transparent 0);
+        background-size: 22px 22px;
+        font-family: "Noto Sans SC", system-ui, sans-serif; color: var(--ink);
+        display: grid; place-items: center;
+      }
+      .pixel { font-family: "Silkscreen", monospace; letter-spacing: .5px; }
+      .phone { position: relative; width: min(412px, 100vw); height: 100dvh; background: var(--paper); overflow: hidden; display: flex; flex-direction: column; }
+      @media (min-width: 460px) { .phone { width: 400px; height: min(840px, 100dvh - 16px); border: 3px solid var(--ink); border-radius: 30px; box-shadow: var(--shadow); } }
+
+      .screens { position: relative; flex: 1; min-height: 0; }
+      /* 每屏一屏装下：overflow hidden，用 flex 自适应 */
+      .screen { position: absolute; inset: 0; padding: 14px 16px; display: none; flex-direction: column; gap: 9px; overflow: hidden; }
+      .screen.active { display: flex; animation: pop .26s ease; }
+      @keyframes pop { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+
+      .topbar { display: flex; align-items: center; justify-content: space-between; flex: none; }
+      .badge { font-size: 9px; padding: 5px 8px 4px; border: 2px solid var(--ink); border-radius: 7px; background: var(--card); box-shadow: var(--shadow-sm); }
+      .badge.red { background: var(--red); color: #fff; } .badge.purple { background: var(--purple); color: #fff; } .badge.yellow { background: var(--yellow); }
+      .dots { font-size: 9px; opacity: .6; }
+      .back { font-size: 12px; font-weight: 800; background: none; border: none; cursor: pointer; color: var(--ink); }
+      .lead { font-weight: 900; line-height: 1.08; }
+      .sub { font-size: 13px; font-weight: 700; color: #6b6253; line-height: 1.5; }
+      .spacer { flex: 1 1 auto; min-height: 0; }
+      .card { background: var(--card); border: 3px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow); padding: 14px; }
+      .card.flat { box-shadow: var(--shadow-sm); }
+      .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; padding: 7px 11px; border: 2px solid var(--ink); border-radius: 10px; background: var(--card); cursor: pointer; user-select: none; }
+      .chip.on { background: var(--ink); color: var(--paper); }
+      .chipwrap { display: flex; flex-wrap: wrap; gap: 7px; }
+      .btn { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 900; font-size: 15px; padding: 13px; width: 100%; border: 3px solid var(--ink); border-radius: 13px; background: var(--ink); color: var(--paper); box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .08s; flex: none; }
+      .btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+      .btn.alt { background: var(--yellow); color: var(--ink); } .btn.red { background: var(--red); color: #fff; } .btn.ghost { background: var(--card); color: var(--ink); }
+
+      /* WELCOME / SETUP */
+      .setupCard { background: var(--card); border: 3px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow); padding: 12px; display: flex; flex-direction: column; gap: 9px; flex: none; }
+      .avatarRow { display: flex; gap: 12px; align-items: center; }
+      .avatarSlot { position: relative; flex: none; width: 74px; height: 74px; border: 3px solid var(--ink); border-radius: 14px; background: var(--paper); display: grid; place-items: center; cursor: pointer; overflow: hidden; box-shadow: var(--shadow-sm); }
+      .avatarSlot canvas { width: 100%; height: 100%; image-rendering: pixelated; display: none; }
+      .avatarSlot.set canvas { display: block; }
+      .avatarSlot.set .avatarPlus { display: none; }
+      .avatarPlus { font-size: 30px; font-weight: 900; color: #b3a98f; }
+      .infoCol { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+      .field { width: 100%; border: 2px solid var(--ink); border-radius: 10px; padding: 9px 11px; font-size: 14px; font-weight: 700; background: var(--paper); font-family: inherit; color: var(--ink); }
+      .field::placeholder { color: #a59c86; font-weight: 600; }
+      .field:focus { outline: none; background: #fff; box-shadow: var(--shadow-sm); }
+      textarea.field { resize: none; height: 60px; line-height: 1.45; flex: none; }
+      .chipwrap.small .chip { font-size: 11.5px; padding: 5px 9px; }
+      .hintRow { font-size: 9.5px; color: #8a8170; }
+      .locBtn { width: 100%; font-weight: 900; font-size: 15px; padding: 13px; border: 3px solid var(--ink); border-radius: 13px; background: var(--yellow); color: var(--ink); box-shadow: var(--shadow-sm); cursor: pointer; flex: none; transition: transform .08s; }
+      .locBtn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+      .locBtn.granted { background: var(--green); color: #fff; }
+      .btn[data-locked] { opacity: .42; }
+      .btn.big { font-size: 18px; padding: 16px; }
+
+      /* GAME / VOICE */
+      .voiceRow { display: flex; gap: 8px; align-items: stretch; flex: none; }
+      .voiceRow .field { flex: 1; }
+      .micBtn { flex: none; width: 50px; border: 3px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: var(--shadow-sm); font-size: 20px; cursor: pointer; }
+      .micBtn.rec, .micBig.rec { background: var(--red); color: #fff; animation: pulse .8s infinite; }
+      @keyframes pulse { 50% { opacity: .55; } }
+      .gameHero { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding-top: 6px; }
+      .voiceBox { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+      .bigInput { flex: 1 1 auto; min-height: 42dvh; font-size: 16px; line-height: 1.5; resize: none; }
+      .micBig { flex: none; font-weight: 900; font-size: 14px; padding: 13px; border: 3px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: var(--shadow-sm); cursor: pointer; }
+      .playerPill { width: 38px; height: 38px; border: 2px solid var(--ink); border-radius: 9px; display: grid; place-items: center; font-size: 20px; background: var(--card); box-shadow: var(--shadow-sm); overflow: hidden; background-size: cover; background-position: center; }
+      .playerPill.img { image-rendering: pixelated; }
+
+      /* HOME */
+      .titleMark { font-size: 20px; color: var(--red); }
+      .coin { position: relative; flex: 1 1 auto; min-height: 96px; border-radius: 14px; border: 3px solid var(--ink); background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 8px, transparent 8px 16px), var(--yellow); box-shadow: var(--shadow); display: grid; place-items: center; overflow: hidden; }
+      .coin .emoji { font-size: 56px; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.25)); animation: float 2.4s ease-in-out infinite; }
+      .coin { width: 100%; font: inherit; cursor: pointer; }
+      .coin:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
+      .coin canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; object-fit: cover; display: none; }
+      .coin.set canvas { display: block; }
+      .coin.set .coinPlus, .coin.set .coinHint { display: none; }
+      .coinPlus { font-size: 60px; line-height: 1; color: var(--ink); filter: drop-shadow(3px 3px 0 rgba(0,0,0,.18)); animation: float 2.4s ease-in-out infinite; }
+      .coinHint { position: absolute; bottom: 14px; font-size: 11px; color: #7a6a1e; }
+      @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+      .slogan { font-weight: 900; font-size: 14px; padding: 10px 12px; border-radius: 11px; border: 2px dashed var(--ink); background: rgba(255,255,255,.4); flex: none; }
+
+      /* MODE */
+      .mode { display: flex; gap: 11px; align-items: center; padding: 12px; border: 3px solid var(--ink); border-radius: 15px; box-shadow: var(--shadow); cursor: pointer; transition: transform .08s; flex: none; }
+      .mode:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
+      .mode .ic { flex: none; width: 50px; height: 50px; border-radius: 12px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 26px; background: var(--card); }
+      .mode.boss { background: var(--red); color: #fff; } .mode.ai { background: var(--purple); color: #fff; } .mode.myst { background: var(--card); }
+      .mode .nm { font-weight: 900; font-size: 17px; } .mode .ds { font-size: 11.5px; font-weight: 700; opacity: .92; line-height: 1.35; margin-top: 2px; } .mode .tagline { font-size: 9px; margin-top: 5px; opacity: .85; }
+
+      /* ============ DECK ============ */
+      .counter { display: flex; align-items: center; gap: 7px; font-weight: 900; font-size: 13px; flex: none; }
+      .pips { display: flex; gap: 4px; }
+      .pip { width: 11px; height: 15px; border: 2px solid var(--ink); border-radius: 3px; background: var(--card); }
+      .pip.spent { background: var(--ink); opacity: .25; }
+
+      .deckWrap { position: relative; flex: 1 1 auto; min-height: 0; }
+      .deck { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(290px, 76vw); height: calc(100% - 96px); }
+      .gcard { position: absolute; inset: 0; border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; background: var(--card); will-change: transform; display: flex; flex-direction: column; }
+      .gcard .art { height: 52%; display: grid; place-items: center; font-size: 64px; border-bottom: 3px solid var(--ink); transition: background .15s; }
+      .gcard .info { padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
+      .gcard .cnum { font-size: 9px; color: #8a8170; }
+      .gcard h3 { font-size: 21px; font-weight: 900; line-height: 1.1; }
+      .gcard p { font-size: 12px; font-weight: 600; color: #5f574a; line-height: 1.45; overflow: hidden; }
+      .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
+      .mtag { font-size: 10px; font-weight: 800; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--paper); }
+
+      .gcard.flyR { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(135%,-10%) rotate(20deg) !important; opacity: 0; }
+      .gcard.flyL { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(-135%,-10%) rotate(-20deg) !important; opacity: 0; }
+      .gcard.intoPipe { transition: transform .52s cubic-bezier(.5,0,.7,.6), opacity .52s ease-in; opacity: 0; }
+      .gcard.dealing { animation: deal .42s cubic-bezier(.2,.9,.3,1) backwards; }
+      @keyframes deal { from { transform: translateY(-50px) rotate(-16deg) scale(.78); opacity: 0; } }
+      .gcard.revealing { animation: wobble .9s ease-in-out; }
+      @keyframes wobble { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-2.5deg); } 75% { transform: rotate(2.5deg); } }
+
+      .stamp { position: absolute; top: 18px; padding: 6px 11px; border: 4px solid; border-radius: 9px; font-size: 19px; font-weight: 950; opacity: 0; z-index: 6; }
+      .stamp.s-r { right: 14px; color: var(--green); transform: rotate(12deg); }
+      .stamp.s-l { left: 14px; color: #c79100; transform: rotate(-12deg); }
+      .stamp.s-d { left: 50%; bottom: 16px; top: auto; transform: translateX(-50%); color: var(--red); }
+
+      /* Super-Mario warp pipe */
+      .pipe { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); width: 168px; z-index: 2; pointer-events: none; }
+      .pipe .rim { height: 30px; width: 168px; margin: 0 auto; border: 4px solid var(--ink); border-radius: 8px;
+        background: linear-gradient(90deg, var(--pipe-d) 0 12%, var(--pipe-l) 12% 26%, var(--pipe) 26% 100%); box-shadow: var(--shadow-sm); }
+      .pipe .body { height: 60px; width: 138px; margin: -4px auto 0; border: 4px solid var(--ink); border-top: none;
+        background: linear-gradient(90deg, var(--pipe-d) 0 14%, var(--pipe-l) 14% 30%, var(--pipe) 30% 100%); }
+      .pipe .mouth { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 138px; height: 14px; background: rgba(0,0,0,.55); border-radius: 50%; }
+
+      .gestureHint { display: flex; justify-content: space-around; font-size: 10.5px; font-weight: 800; flex: none; text-align: center; }
+      .gestureHint .r { color: var(--green); } .gestureHint .l { color: #b8860b; } .gestureHint .d { color: var(--red); }
+
+      /* WIN overlay */
+      .win { position: absolute; inset: 0; z-index: 40; display: none; place-items: center; padding: 18px; background: rgba(26,23,20,.55); backdrop-filter: blur(3px); }
+      .win.show { display: grid; }
+      .winCard { width: min(320px, 86vw); background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: var(--shadow); padding: 16px; text-align: center; animation: drop .6s cubic-bezier(.2,1.3,.4,1); }
+      @keyframes drop { 0% { transform: translateY(-120vh) rotate(-12deg); } 70% { transform: translateY(10px) rotate(3deg); } 100% { transform: none; } }
+      .winCard .tag { font-size: 12px; color: var(--red); }
+      .winCard .cg { font-weight: 900; font-size: 23px; margin: 2px 0 10px; }
+      .winCard .face { height: 122px; border-radius: 13px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 58px; margin-bottom: 10px; }
+      .winCard h2 { font-size: 22px; font-weight: 900; }
+      .winCard p { font-size: 12.5px; font-weight: 600; color: #5f574a; line-height: 1.5; margin: 7px 0 10px; }
+      .winCard .metaRow { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 12px; }
+      .links { display: flex; gap: 8px; margin-bottom: 8px; } .links .btn { font-size: 13px; padding: 11px; }
+
+      .confetti { position: absolute; inset: 0; z-index: 39; pointer-events: none; overflow: hidden; }
+      .conf { position: absolute; width: 9px; height: 14px; will-change: transform; }
+      @keyframes fall { to { transform: translateY(115vh) rotate(720deg); opacity: .9; } }
+      .toast { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 30; background: var(--ink); color: var(--paper); font-weight: 800; font-size: 12.5px; padding: 9px 15px; border-radius: 10px; opacity: 0; transition: opacity .25s; }
+      .toast.show { opacity: 1; }
+    </style>
+  </head>
+  <body>
+    <div class="phone">
+      <div class="screens">
+        <!-- 1) WELCOME -->
+        <section class="screen active" data-screen="welcome">
+          <div class="topbar"><span class="badge red pixel">CHALLENGE ACTIVE</span><span class="dots pixel">PLAYLIST 01/08</span></div>
+          <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead" style="font-size:28px">选择困难症外挂</div></div>
+          <div class="coin"><span class="emoji">🎮</span></div>
+          <div class="sub">把“你定 / 我随便”变成一键通关。<br />属于年轻人的游戏化抉择 NPC。</div>
+          <div class="slogan">「犹豫会败北，但你可以赖我」</div>
+          <button class="btn alt" onclick="go('config')">🪙 投掷硬币开始游戏</button>
+        </section>
+
+        <!-- 2) CONFIG -->
+        <section class="screen" data-screen="config">
+          <div class="topbar"><span class="badge purple pixel">PLAYER SETUP</span><button class="back" onclick="skipConfig()">一键跳过 ⏭</button></div>
+          <div class="lead" style="font-size:21px">设置你的角色（可跳过）</div>
+          <div class="setupCard">
+            <div class="avatarRow">
+              <button class="avatarSlot" id="avatarSlot" type="button"><canvas id="avatarCanvas" width="64" height="64"></canvas><span class="avatarPlus" id="avatarPlus">＋</span></button>
+              <div class="infoCol">
+                <div class="hintRow pixel">UPLOAD PHOTO →<br />生成游戏像素小头像（可跳过）</div>
+                <button class="locBtn" id="locBtn" onclick="grantLoc()">📍 授权定位 · 显示当前位置</button>
+              </div>
+            </div>
+          </div>
+          <div class="voiceRow">
+            <textarea class="field" id="custom" placeholder="自定义（可选）：性别 / 出生日期 / MBTI / 星座…"></textarea>
+            <button class="micBtn" id="micCustom" type="button" onclick="startVoice('custom', this)">🎤</button>
+          </div>
+          <input type="file" id="photo" accept="image/*" hidden />
+          <div class="spacer"></div>
+          <button class="btn" onclick="finishConfig()">完成，进入游戏 →</button>
+        </section>
+
+        <!-- 3) GAME -->
+        <section class="screen" data-screen="game">
+          <div class="topbar"><span class="badge yellow pixel">CHOICE OVER</span><span class="playerPill" id="playerPill">🍄</span></div>
+          <div class="gameHero">
+            <div class="lead" style="font-size:23px; text-align:center; line-height:1.25">选择难？<br />开一局就有答案！</div>
+            <div class="voiceBox">
+              <textarea class="field bigInput" id="choiceInput" placeholder="说出或打出你的纠结…&#10;例如：今晚到底吃什么？"></textarea>
+              <button class="micBig" id="micChoice" type="button" onclick="startVoice('choiceInput', this)">🎤 点击语音说出你的选择</button>
+            </div>
+          </div>
+          <button class="btn alt big" onclick="go('mode')">🎮 游戏模式 →</button>
+        </section>
+
+        <!-- MODE -->
+        <section class="screen" data-screen="mode">
+          <div class="topbar"><span class="badge yellow pixel">SELECT YOUR CHEAT</span><button class="back" onclick="go('game')">← 返回</button></div>
+          <div class="lead" style="font-size:22px">三大降维抉择</div>
+          <div class="mode boss" onclick="startGame('霸总模式','BOSS MODE')"><div class="ic">🎲</div><div><div class="nm">霸总模式</div><div class="ds">不要你觉得，就要概率定。</div><div class="tagline pixel">[ BOSS MODE ] 纯随机 · 一秒通关</div></div></div>
+          <div class="mode ai" onclick="startGame('AI 模式','AI INTEL')"><div class="ic">🤖</div><div><div class="nm">AI 模式</div><div class="ds">大模型推荐，深度语义契合。</div><div class="tagline pixel">[ AI INTEL ] 大模型 · 极智解忧</div></div></div>
+          <div class="mode myst" onclick="startGame('玄学模式','MYSTIC')"><div class="ic">🔮</div><div><div class="nm">玄学模式</div><div class="ds">“来自今日星盘的天命抉择。”</div><div class="tagline pixel">[ 玄学 ] 运势流 · 命中注定</div></div></div>
+          <div class="spacer"></div>
+          <div class="sub" style="text-align:center;font-size:12px">点一个模式即可发牌 →</div>
+        </section>
+
+        <!-- DECK -->
+        <section class="screen" data-screen="deck">
+          <div class="topbar"><span class="badge purple pixel" id="deckLabel">AI INTEL</span><button class="back" onclick="go('mode')">← 返回</button></div>
+          <div class="counter"><span>这局只有</span><span class="pips" id="pips"></span><span id="leftN">5</span><span>张 · 看清楚再滑</span></div>
+          <div class="deckWrap">
+            <div class="deck" id="deck"></div>
+            <div class="pipe" id="pipe"><div class="rim"></div><div class="body"><div class="mouth"></div></div></div>
+          </div>
+          <div class="gestureHint"><span class="l">◀ 左滑<br/>待定</span><span class="d">▼ 下滑<br/>钻水管</span><span class="r">右滑 ▶<br/>就它了</span></div>
+          <div class="toast" id="toast"></div>
+        </section>
+      </div>
+
+      <div class="confetti" id="confetti"></div>
+      <div class="win" id="win">
+        <div class="winCard">
+          <div class="tag pixel">CHOICE OVER</div>
+          <div class="cg pixel">Congratulations!</div>
+          <div class="face" id="wFace">🍲</div>
+          <h2 id="wName">自选麻辣烫</h2>
+          <p id="wReason"></p>
+          <div class="metaRow" id="wMeta"></div>
+          <div class="links"><button class="btn alt" onclick="alert('打开高德导航（示例）')">🗺️ 导航</button><button class="btn red" onclick="alert('跳转美团下单（示例）')">🛵 下单</button></div>
+          <button class="btn" onclick="resetAll()">🔁 再来一局</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const POOL = [
+        { emoji: "🍲", name: "自选麻辣烫", art: "var(--red)", reason: "各种菜随便选，避开主食零负担，东边折中、出餐快不排队。", meta: ["位置折中","低负担","不排队"] },
+        { emoji: "🍜", name: "越南粉轻食", art: "var(--green)", reason: "出餐快、清爽不油腻，工作日晚上收尾刚好。", meta: ["出餐快","清爽","低压力"] },
+        { emoji: "🍢", name: "小份烧鸟", art: "var(--yellow)", reason: "小份点单试错成本低，边吃边聊还能续摊。", meta: ["小份多样","可续摊","轻松"] },
+        { emoji: "🥗", name: "自选沙拉", art: "var(--purple)", reason: "清淡健康、分量自控，不吃主食也没负担。", meta: ["清淡","自由配","无负担"] },
+        { emoji: "🍶", name: "安静居酒屋", art: "var(--blue)", reason: "重点是聊天，座位灯光比菜更重要，变成小聚。", meta: ["聊天优先","氛围好","建议预约"] },
+      ];
+      const TOTAL = POOL.length;
+      const $ = (s) => document.querySelector(s);
+      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null;
+
+      function go(name){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
+
+      function startGame(name,label){ mode=name; $("#deckLabel").textContent=label+" · DECK"; resetDeck(); go("deck"); }
+
+      function resetDeck(){
+        deck = POOL.map((c,i)=>({...c, no:i+1}));
+        for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
+        pending = [];
+        renderDeck(); dealRound();
+      }
+
+      function faceHTML(c, withStamps){
+        return `
+          <div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${c.emoji}</div>
+          <div class="info">
+            <div class="cnum pixel">NO.${c.no} / ${TOTAL}</div>
+            <h3>${c.name}</h3>
+            <p>${c.reason}</p>
+            <div class="metaRow">${c.meta.map(m=>`<span class="mtag">${m}</span>`).join("")}</div>
+          </div>` + (withStamps ? `
+          <div class="stamp s-r pixel">就它了</div>
+          <div class="stamp s-l pixel">待定</div>
+          <div class="stamp s-d pixel">丢掉</div>` : "");
+      }
+
+      function renderDeck(){
+        const el = $("#deck"); el.innerHTML="";
+        const n = Math.min(3, deck.length);
+        // behind cards (depth, 显示牌堆有限)
+        for(let i=n-1;i>=1;i--){
+          const back=document.createElement("div"); back.className="gcard";
+          back.style.transform=`translateY(${i*9}px) scale(${1-i*0.04}) rotate(${i%2?2.5:-2.5}deg)`;
+          back.style.zIndex=5-i; back.style.background="var(--card)";
+          el.appendChild(back);
+        }
+        // top card (face up)
+        topEl=document.createElement("div"); topEl.className="gcard dealing"; topEl.style.zIndex=10;
+        topEl.innerHTML=faceHTML(deck[0], true);
+        el.appendChild(topEl);
+        updateCounter();
+      }
+
+      function setTopFace(c){ if(topEl) topEl.innerHTML=faceHTML(c, true); }
+
+      // 先轮转抽出顶端卡牌，settle 后才允许滑动
+      function dealRound(){
+        ready=false; clearInterval(revT);
+        let k=0; const total=9+Math.floor(Math.random()*5);
+        topEl.classList.add("revealing");
+        revT=setInterval(()=>{
+          setTopFace(POOL[k%POOL.length]); k++;
+          if(k>=total){ clearInterval(revT); setTopFace(deck[0]); topEl.classList.remove("revealing"); ready=true; attachDrag(topEl); toast("看清楚了 · 左滑待定 / 右滑就它 / 下滑钻管"); }
+        }, 65);
+      }
+
+      function updateCounter(){
+        $("#leftN").textContent = deck.length;
+        const pips = $("#pips"); pips.innerHTML="";
+        for(let i=0;i<TOTAL;i++){ const p=document.createElement("span"); p.className="pip"+(i>=deck.length?" spent":""); pips.appendChild(p); }
+      }
+
+      function attachDrag(card){
+        const sr=card.querySelector(".s-r"), sl=card.querySelector(".s-l"), sd=card.querySelector(".s-d");
+        const onDown=(e)=>{ if(!ready) return; card.setPointerCapture(e.pointerId); drag={sx:e.clientX,sy:e.clientY,x:0,y:0}; card.style.transition="none"; };
+        const onMove=(e)=>{ if(!drag) return; drag.x=e.clientX-drag.sx; drag.y=e.clientY-drag.sy;
+          const down = drag.y>0 && drag.y>Math.abs(drag.x);
+          // 下滑更顺：纵向为主时只走 Y，并轻微缩小，像被水管吸入
+          if(down){ const s=Math.max(.82,1-drag.y/900); card.style.transform=`translate(${drag.x*0.3}px,${drag.y}px) scale(${s})`; }
+          else { card.style.transform=`translate(${drag.x}px,${drag.y}px) rotate(${drag.x/16}deg)`; }
+          sr.style.opacity = down?0:Math.max(0,Math.min(1,drag.x/85));
+          sl.style.opacity = down?0:Math.max(0,Math.min(1,-drag.x/85));
+          sd.style.opacity = Math.max(0,Math.min(1,(drag.y-15)/85)) * (down?1:0);
+        };
+        const onUp=()=>{ if(!drag) return; const {x,y}=drag; drag=null; card.style.transition="";
+          const TH=82;
+          if(y>TH && y>Math.abs(x)) decide(card,"down");
+          else if(x>TH) decide(card,"right");
+          else if(x<-TH) decide(card,"left");
+          else { card.style.transform=""; [sr,sl,sd].forEach(s=>s.style.opacity=0); }
+        };
+        card.addEventListener("pointerdown",onDown); card.addEventListener("pointermove",onMove);
+        card.addEventListener("pointerup",onUp); card.addEventListener("pointercancel",onUp);
+      }
+
+      function decide(card,dir){
+        ready=false; const top=deck[0];
+        if(dir==="right"){ card.classList.add("flyR"); setTimeout(()=>win(top),250); return; }
+        if(dir==="left"){ card.classList.add("flyL"); setTimeout(()=>{ pending.push(deck.shift()); afterRemove("待定 +1"); },280); return; }
+        if(dir==="down"){
+          // 钻进水管：先把卡平移到水管口正上方，再缩小吸入
+          const pipeRect=$("#pipe").getBoundingClientRect(), cardRect=card.getBoundingClientRect();
+          const dx=(pipeRect.left+pipeRect.width/2)-(cardRect.left+cardRect.width/2);
+          const dy=(pipeRect.top+6)-(cardRect.top+cardRect.height/2);
+          card.classList.add("intoPipe");
+          requestAnimationFrame(()=>{ card.style.transform=`translate(${dx}px,${dy}px) scale(.18)`; });
+          gulp();
+          setTimeout(()=>{ deck.shift(); afterRemove("钻进水管，再也不见"); },520);
+        }
+      }
+
+      function gulp(){ const p=$("#pipe"); p.style.transition="transform .14s"; p.style.transform="translateX(-50%) translateY(6px)"; setTimeout(()=>{ p.style.transform="translateX(-50%)"; },160); }
+
+      function afterRemove(msg){
+        toast(msg);
+        if(deck.length===0){
+          if(pending.length){ deck=pending; pending=[]; renderDeck(); dealRound(); toast("待定的卡又转回来了"); }
+          else { renderDeck(); toast("卡都被你丢光了，重开一局"); setTimeout(resetDeck,800); }
+        } else { renderDeck(); dealRound(); }
+      }
+
+      function win(c){
+        $("#wFace").textContent=c.emoji; $("#wFace").style.background=`repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}`;
+        $("#wName").textContent="就吃它 — "+c.name;
+        $("#wReason").textContent=(mode==="霸总模式"?"概率已经替你拍板。":mode==="玄学模式"?"今日星盘站它，命中注定。":"")+c.reason;
+        $("#wMeta").innerHTML=c.meta.map(m=>`<span class="mtag">${m}</span>`).join("");
+        $("#win").classList.add("show"); confetti();
+      }
+
+      function confetti(){
+        const layer=$("#confetti"); const colors=["#ff5a4d","#6c5ce7","#f6c518","#28c76f","#3d6bff","#1a1714"];
+        for(let i=0;i<90;i++){ const d=document.createElement("div"); d.className="conf";
+          d.style.background=colors[i%colors.length]; d.style.left=Math.random()*100+"%"; d.style.top="-20px";
+          d.style.borderRadius=Math.random()>.5?"2px":"50%";
+          const dur=1.6+Math.random()*1.6, delay=Math.random()*.5;
+          d.style.animation=`fall ${dur}s ${delay}s cubic-bezier(.3,.6,.5,1) forwards`;
+          d.style.transform=`rotate(${Math.random()*360}deg)`;
+          layer.appendChild(d); setTimeout(()=>d.remove(),(dur+delay)*1000+200);
+        }
+      }
+
+      let toastT=null;
+      function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1200); }
+      function resetAll(){ $("#win").classList.remove("show"); $("#confetti").innerHTML=""; go("welcome"); }
+
+      // ---- 配置页：照片→游戏像素小头像、定位、自定义语音输入 ----
+      const CUTE = ["🍄","👾","🐸","🦖","🐤","👻","🤖","🐱","🐙","⭐","🎈","🍙"];
+      let playerEmoji = CUTE[Math.floor(Math.random() * CUTE.length)];
+      let photoData = "";
+      const photo = $("#photo"), slot = $("#avatarSlot"), canv = $("#avatarCanvas");
+      slot.addEventListener("click", () => photo.click());
+      photo.addEventListener("change", (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const img = new Image();
+        img.onload = () => {
+          const px = 18; // 大色块 → 游戏动画感 8-bit 像素
+          const tmp = document.createElement("canvas"); tmp.width = px; tmp.height = px;
+          const tctx = tmp.getContext("2d");
+          const side = Math.min(img.width, img.height);
+          tctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, px, px);
+          try {
+            const id = tctx.getImageData(0, 0, px, px), d = id.data;
+            for (let i = 0; i < d.length; i += 4) { d[i] = Math.round(d[i] / 85) * 85; d[i + 1] = Math.round(d[i + 1] / 85) * 85; d[i + 2] = Math.round(d[i + 2] / 85) * 85; }
+            tctx.putImageData(id, 0, 0);
+          } catch (err) { /* 取像素失败则退回普通像素化 */ }
+          const ctx = canv.getContext("2d");
+          ctx.imageSmoothingEnabled = false;
+          ctx.clearRect(0, 0, canv.width, canv.height);
+          ctx.drawImage(tmp, 0, 0, px, px, 0, 0, canv.width, canv.height);
+          slot.classList.add("set");
+          try { photoData = canv.toDataURL(); } catch (err) { photoData = ""; }
+          toast("游戏像素小头像已生成");
+          URL.revokeObjectURL(img.src);
+        };
+        img.src = URL.createObjectURL(f);
+      });
+
+      // 定位默认已授权，点按钮显示当前位置
+      function grantLoc() { const b = $("#locBtn"); b.classList.add("granted"); b.textContent = "✅ 当前位置：朝阳 · 东三环"; toast("已显示当前位置"); }
+
+      function updatePill() {
+        const p = $("#playerPill");
+        if (photoData) { p.textContent = ""; p.style.backgroundImage = `url(${photoData})`; p.classList.add("img"); }
+        else { p.style.backgroundImage = ""; p.classList.remove("img"); p.textContent = playerEmoji; }
+      }
+      function skipConfig() { if (!photoData) playerEmoji = CUTE[Math.floor(Math.random() * CUTE.length)]; updatePill(); toast("已用随机像素形象 " + (photoData ? "" : playerEmoji)); go("game"); }
+      function finishConfig() { updatePill(); go("game"); }
+
+      // 语音输入（Web Speech API；不支持则提示打字）
+      let recog = null, recBtn = null;
+      function startVoice(targetId, btn) {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) { toast("此浏览器不支持语音，可直接打字"); return; }
+        if (recog) { recog.stop(); return; }
+        const t = document.getElementById(targetId); const base = t.value;
+        recog = new SR(); recBtn = btn; recog.lang = "zh-CN"; recog.interimResults = true; recog.continuous = false;
+        btn.classList.add("rec"); toast("请说话…");
+        recog.onresult = (e) => { let s = ""; for (const r of e.results) s += r[0].transcript; t.value = (base ? base + " " : "") + s; };
+        recog.onend = () => { if (recBtn) recBtn.classList.remove("rec"); recog = null; };
+        recog.onerror = () => { if (recBtn) recBtn.classList.remove("rec"); recog = null; toast("没听清，再试一次"); };
+        recog.start();
+      }
+
+      updatePill();
+      if (location.hash === "#deck") startGame("AI 模式", "AI INTEL");
+      else if (location.hash === "#config") go("config");
+      else if (location.hash === "#game") { updatePill(); go("game"); }
+    </script>
+  </body>
+</html>
