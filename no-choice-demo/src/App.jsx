@@ -486,9 +486,26 @@ export default function App() {
                     <div className="poiGrid">
                       {geoState.pois.slice(0, 4).map((poi) => (
                         <button key={poi.id} type="button" onClick={() => addPoiCandidate(poi)}>
-                          <MapPin size={15} />
-                          <strong>{poi.name}</strong>
-                          <small>{[formatDistance(poi.distance), poi.type].filter(Boolean).join(" · ")}</small>
+                          {poi.image ? (
+                            <span
+                              className="poiThumb"
+                              style={{ backgroundImage: `url(${poi.image})` }}
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <span className="poiThumb placeholder" aria-hidden="true">
+                              <MapPin size={17} />
+                            </span>
+                          )}
+                          <span className="poiText">
+                            <strong>{poi.name}</strong>
+                            <small>
+                              {[formatDistance(poi.distance), poi.rating ? `${poi.rating}分` : "", poi.type]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </small>
+                            {poi.address && <em>{poi.address}</em>}
+                          </span>
                         </button>
                       ))}
                     </div>

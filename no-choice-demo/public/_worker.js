@@ -135,6 +135,8 @@ function normalizeAmapPoi(poi) {
     area: [poi.cityname, poi.adname].filter(Boolean).join(" "),
     type: typeParts[typeParts.length - 1] || typeParts[0] || "",
     distance: Number(poi.distance) || 0,
+    rating: poi.business?.rating || "",
+    cost: poi.business?.cost || "",
     image,
     location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
   };

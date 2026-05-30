@@ -158,6 +158,8 @@ function normalizePois(pois = []) {
       area: poi.area ? String(poi.area) : "",
       type: poi.type ? String(poi.type) : "",
       distance: Number(poi.distance) || 0,
+      rating: poi.rating ? String(poi.rating) : "",
+      cost: poi.cost ? String(poi.cost) : "",
       image: poi.image ? String(poi.image) : "",
       location: poi.location || null,
     }))

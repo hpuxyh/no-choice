@@ -588,9 +588,9 @@ textarea::placeholder {
 .poiGrid button {
   min-width: 0;
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  gap: 2px 7px;
-  align-items: center;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 9px;
+  align-items: stretch;
   padding: 9px;
   color: #273245;
   text-align: left;
@@ -599,28 +599,54 @@ textarea::placeholder {
   border-radius: 8px;
 }
 
-.poiGrid svg {
-  grid-row: 1 / span 2;
-  color: var(--module-accent);
+.poiThumb {
+  overflow: hidden;
+  display: grid;
+  min-height: 66px;
+  place-items: center;
+  color: #ffffff;
+  background-color: var(--module-accent);
+  background-position: center;
+  background-size: cover;
+  border-radius: 7px;
 }
 
-.poiGrid strong,
-.poiGrid small {
+.poiThumb.placeholder {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent),
+    var(--module-accent);
+}
+
+.poiText {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+}
+
+.poiText strong,
+.poiText small,
+.poiText em {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.poiGrid strong {
+.poiText strong {
   font-size: 13px;
   font-weight: 840;
 }
 
-.poiGrid small {
+.poiText small,
+.poiText em {
   color: var(--muted);
   font-size: 11px;
   font-weight: 720;
+}
+
+.poiText em {
+  font-style: normal;
 }
 
 .segmented {
