@@ -50,6 +50,26 @@
       .btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
       .btn.alt { background: var(--yellow); color: var(--ink); } .btn.red { background: var(--red); color: #fff; } .btn.ghost { background: var(--card); color: var(--ink); }
 
+      /* WELCOME / SETUP */
+      .setupCard { background: var(--card); border: 3px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow); padding: 12px; display: flex; flex-direction: column; gap: 9px; flex: none; }
+      .avatarRow { display: flex; gap: 12px; align-items: center; }
+      .avatarSlot { position: relative; flex: none; width: 74px; height: 74px; border: 3px solid var(--ink); border-radius: 14px; background: var(--paper); display: grid; place-items: center; cursor: pointer; overflow: hidden; box-shadow: var(--shadow-sm); }
+      .avatarSlot canvas { width: 100%; height: 100%; image-rendering: pixelated; display: none; }
+      .avatarSlot.set canvas { display: block; }
+      .avatarSlot.set .avatarPlus { display: none; }
+      .avatarPlus { font-size: 30px; font-weight: 900; color: #b3a98f; }
+      .infoCol { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+      .field { width: 100%; border: 2px solid var(--ink); border-radius: 10px; padding: 9px 11px; font-size: 14px; font-weight: 700; background: var(--paper); font-family: inherit; color: var(--ink); }
+      .field::placeholder { color: #a59c86; font-weight: 600; }
+      .field:focus { outline: none; background: #fff; box-shadow: var(--shadow-sm); }
+      textarea.field { resize: none; height: 60px; line-height: 1.45; flex: none; }
+      .chipwrap.small .chip { font-size: 11.5px; padding: 5px 9px; }
+      .hintRow { font-size: 9.5px; color: #8a8170; }
+      .locBtn { width: 100%; font-weight: 900; font-size: 15px; padding: 13px; border: 3px solid var(--ink); border-radius: 13px; background: var(--yellow); color: var(--ink); box-shadow: var(--shadow-sm); cursor: pointer; flex: none; transition: transform .08s; }
+      .locBtn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+      .locBtn.granted { background: var(--green); color: #fff; }
+      .btn[data-locked] { opacity: .42; }
+
       /* HOME */
       .titleMark { font-size: 20px; color: var(--red); }
       .coin { position: relative; flex: 1 1 auto; min-height: 96px; border-radius: 14px; border: 3px solid var(--ink); background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 8px, transparent 8px 16px), var(--yellow); box-shadow: var(--shadow); display: grid; place-items: center; overflow: hidden; }
@@ -128,8 +148,33 @@
   <body>
     <div class="phone">
       <div class="screens">
+        <!-- WELCOME / PLAYER SETUP -->
+        <section class="screen active" data-screen="welcome">
+          <div class="topbar"><span class="badge red pixel">PLAYER SETUP</span><span class="dots pixel">STEP 0 / 1</span></div>
+          <div><div class="titleMark pixel">CHOICE OVER</div><div class="lead" style="font-size:23px">一键设置你的选择 NPC</div></div>
+
+          <div class="setupCard">
+            <div class="avatarRow">
+              <button class="avatarSlot" id="avatarSlot" type="button"><canvas id="avatarCanvas" width="64" height="64"></canvas><span class="avatarPlus">＋</span></button>
+              <div class="infoCol">
+                <input class="field" id="nick" placeholder="给 NPC 起个名（可选）" />
+                <div class="chipwrap small" id="vibe"><span class="chip on">随性</span><span class="chip">挑剔</span><span class="chip">怕踩雷</span></div>
+              </div>
+            </div>
+            <div class="hintRow pixel">UPLOAD PHOTO → 自动生成你的像素形象（可选）</div>
+          </div>
+          <input type="file" id="photo" accept="image/*" hidden />
+
+          <textarea class="field" id="custom" placeholder="想让 NPC 知道的（可选）：口味、忌口、预算、常去的区…"></textarea>
+
+          <button class="locBtn" id="locBtn" onclick="grantLoc()">📍 授权定位 · 必选</button>
+
+          <div class="spacer"></div>
+          <button class="btn" id="enterBtn" onclick="enter()" data-locked="1">进入 CHOICE OVER →</button>
+        </section>
+
         <!-- HOME -->
-        <section class="screen active" data-screen="home">
+        <section class="screen" data-screen="home">
           <div class="topbar"><span class="badge red pixel">CHALLENGE ACTIVE</span><span class="dots pixel">PLAYLIST 01/08</span></div>
           <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead" style="font-size:29px">选择困难症外挂</div></div>
           <div class="coin"><span class="emoji">🎮</span></div>
@@ -337,6 +382,42 @@
       let toastT=null;
       function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1200); }
       function resetAll(){ $("#win").classList.remove("show"); $("#confetti").innerHTML=""; go("home"); }
+
+      // ---- 欢迎页：照片→像素形象、定位（必选）、进入 ----
+      let locOK = false;
+      const photo = $("#photo"), slot = $("#avatarSlot"), canv = $("#avatarCanvas");
+      slot.addEventListener("click", () => photo.click());
+      photo.addEventListener("change", (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const img = new Image();
+        img.onload = () => {
+          const px = 22; // 低分辨率取样 → 放大 → 像素风
+          const tmp = document.createElement("canvas"); tmp.width = px; tmp.height = px;
+          const tctx = tmp.getContext("2d");
+          const side = Math.min(img.width, img.height);
+          tctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, px, px);
+          const ctx = canv.getContext("2d");
+          ctx.imageSmoothingEnabled = false;
+          ctx.clearRect(0, 0, canv.width, canv.height);
+          ctx.drawImage(tmp, 0, 0, px, px, 0, 0, canv.width, canv.height);
+          slot.classList.add("set");
+          toast("像素形象已生成");
+          URL.revokeObjectURL(img.src);
+        };
+        img.src = URL.createObjectURL(f);
+      });
+      $("#vibe").addEventListener("click", (e) => { if (e.target.classList.contains("chip")) e.target.classList.toggle("on"); });
+
+      function grantLoc() {
+        if (locOK) return;
+        const b = $("#locBtn"); b.textContent = "定位中…";
+        const done = () => { locOK = true; b.classList.add("granted"); b.textContent = "✅ 已授权：朝阳 · 东三环"; $("#enterBtn").removeAttribute("data-locked"); toast("定位已授权，可以进入了"); };
+        // 真机会弹系统授权；原型里无论结果都视为已授权以便演示
+        if (navigator.geolocation) { navigator.geolocation.getCurrentPosition(done, done, { timeout: 3000 }); window.setTimeout(() => { if (!locOK) done(); }, 1000); }
+        else window.setTimeout(done, 500);
+      }
+      function enter() { if (!locOK) { toast("位置授权是必选项哦"); return; } go("home"); }
 
       if (location.hash === "#deck") startGame("AI 模式", "AI INTEL");
     </script>
