@@ -466,6 +466,7 @@
       // 真实餐厅管线（与 preview.html 同源）：高德 POI(JSONP) + AI 漫画图(worker)
       const AMAP_WEB_SERVICE_KEY = "7f40078338209e23255e8f8e0ca8cc37";
       const DEFAULT_AMAP_CENTER = { lat: 31.230416, lng: 121.473701, amap: true, label: "上海人民广场" };
+      const MIN_RESTAURANT_COST = 150;
       const ACCENTS = ["var(--red)", "var(--green)", "var(--yellow)", "var(--purple)", "var(--blue)"];
       const CAN_USE_COMIC_IMAGES = location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".pages.dev");
       const COMIC_IMAGE_ENDPOINT = location.protocol === "file:" ? "http://127.0.0.1:8788/api/comic-image" : "/api/comic-image";
@@ -920,7 +921,7 @@
         const center = coords.amap ? coords : await convertToAmap(coords);
         const data = await amapJsonp("https://restapi.amap.com/v5/place/around", { key: AMAP_WEB_SERVICE_KEY, location: `${center.lng.toFixed(6)},${center.lat.toFixed(6)}`, radius: String(radius), types: "050000", keywords: "餐厅", sortrule: "distance", page_size: "20", show_fields: "business,photos", output: "json" });
         if(data.status !== "1") throw new Error(data.info || "高德附近餐厅查询失败");
-        return (data.pois || []).map(normalizeAmapPoi).filter(Boolean).slice(0,20);
+        return (data.pois || []).map(normalizeAmapPoi).filter(isTargetCostPoi).slice(0,20);
       }
       async function getApproxPosition(){
         try{
@@ -966,6 +967,10 @@
         const [lng,lat] = String(poi.location || "").split(",").map(Number);
         const typeParts = String(poi.type || "").split(";");
         return { id: poi.id || poi.name, name: poi.name, address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""), type: typeParts[typeParts.length-1] || typeParts[0] || "餐厅", distance: Number(poi.distance) || 0, rating: business.rating || "", cost: business.cost || "", image, location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null };
+      }
+      function isTargetCostPoi(poi){
+        const cost = Number(poi?.cost);
+        return Number.isFinite(cost) && cost >= MIN_RESTAURANT_COST;
       }
       function poisToCards(pois){
         const named = pois.filter(p=>p.name);

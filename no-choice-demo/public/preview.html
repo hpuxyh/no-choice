@@ -340,6 +340,7 @@
     <script>
       const AMAP_WEB_SERVICE_KEY = "7f40078338209e23255e8f8e0ca8cc37";
       const DEFAULT_AMAP_CENTER = { lat: 31.230416, lng: 121.473701, amap: true, label: "上海人民广场" };
+      const MIN_RESTAURANT_COST = 150;
       const INFO_THEMES = [
         { bg: "#ff554f", fg: "#fffaf2", muted: "#fff1e9", tagBg: "#fffaf2", tagFg: "#1a1714" },
         { bg: "#6d58e8", fg: "#fffaf2", muted: "#ede8ff", tagBg: "#fffaf2", tagFg: "#1a1714" },
@@ -758,7 +759,7 @@
         if(data.status !== "1"){
           throw new Error(data.info || "高德附近餐厅查询失败");
         }
-        return (data.pois || []).map(normalizeAmapPoi).filter(Boolean).slice(0,20);
+        return (data.pois || []).map(normalizeAmapPoi).filter(isTargetCostPoi).slice(0,20);
       }
 
       async function getApproxPosition(){
@@ -844,6 +845,11 @@
           image,
           location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
         };
+      }
+
+      function isTargetCostPoi(poi){
+        const cost = Number(poi?.cost);
+        return Number.isFinite(cost) && cost >= MIN_RESTAURANT_COST;
       }
 
       function poisToCards(pois){
