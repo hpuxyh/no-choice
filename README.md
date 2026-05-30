@@ -6,8 +6,9 @@
 
 ## Demo
 
-- 在线演示：https://hpuxyh.github.io/no-choice/
-- 本地预览：http://127.0.0.1:5173/
+- 本地 demo 网站：http://127.0.0.1:5173/
+
+GitHub Pages 暂未开启：当前仓库是私有仓库，GitHub 返回的计划限制是不支持为这个仓库发布 Pages。后续如果仓库改成公开，或切到支持私有 Pages 的计划，可以再发布成公开在线演示。
 
 ## 核心体验
 
@@ -36,7 +37,6 @@
 - `no-choice-demo/`：React + Vite 网页版原型
 - `NoChoiceMobile/`：SwiftUI 原生 iOS 原型
 - `screenshots/`：演示截图
-- `.github/workflows/deploy-demo.yml`：GitHub Pages 自动部署流程
 
 ## Web Demo
 
