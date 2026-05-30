@@ -146,17 +146,26 @@
       .coinHint { position: absolute; bottom: 14px; font-size: 11px; color: #7a6a1e; }
       @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
       .slogan { font-weight: 900; font-size: 14px; padding: 10px 12px; border-radius: 11px; border: 2px dashed var(--ink); background: rgba(255,255,255,.4); flex: none; }
+      /* 首页：黄框稍短一点，整体均匀分布 */
+      .homeScreen { justify-content: space-between; }
+      .homeScreen .coin { max-height: 40dvh; }
 
       /* MODE */
       .modeScreen { gap: 14px; }
       .modeList { flex: none; display: flex; flex-direction: column; gap: 16px; }
-      /* 底部街机摇杆动效，填充空白 */
-      .stickZone { flex: 1 1 auto; min-height: 0; display: grid; place-items: center; }
+      /* 底部街机摇杆控制：左确定 / 右跳过，拨摇杆触碰按钮触发 */
+      .stickZone { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 8px; touch-action: none; }
+      .ctrlBtn { flex: none; width: 66px; height: 66px; border-radius: 50%; border: 3px solid var(--ink); box-shadow: var(--shadow-sm); font-weight: 900; font-size: 15px; color: var(--ink); cursor: pointer; transition: transform .12s, box-shadow .12s; }
+      .ctrlBtn.confirm { background: var(--green); color: #fff; }
+      .ctrlBtn.skip { background: #ff7ab8; }
+      .ctrlBtn.lit { transform: scale(1.16); box-shadow: 0 0 16px 4px currentColor; }
+      .ctrlBtn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
       .joystick { position: relative; width: 132px; height: 128px; }
       .jBase { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 118px; height: 38px; border-radius: 50%; background: radial-gradient(ellipse at 50% 32%, #4a4458, #201c2e); border: 3px solid var(--ink); box-shadow: var(--shadow-sm); }
       .jBase::after { content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 30px; height: 12px; border-radius: 50%; background: rgba(0,0,0,.55); }
-      .jStick { position: absolute; bottom: 20px; left: 50%; transform-origin: 50% 100%; animation: jWob 1.9s ease-in-out infinite; }
-      @keyframes jWob { 0%,100% { transform: translateX(-50%) rotate(-17deg); } 50% { transform: translateX(-50%) rotate(17deg); } }
+      .jStick { position: absolute; bottom: 20px; left: 50%; transform-origin: 50% 100%; animation: jWob 2.4s ease-in-out infinite; }
+      .joystick.grab .jStick { animation: none; }
+      @keyframes jWob { 0%,100% { transform: translateX(-50%) rotate(-9deg); } 50% { transform: translateX(-50%) rotate(9deg); } }
       .jRod { width: 15px; height: 50px; margin: 0 auto; background: linear-gradient(90deg, #8e94a3, #eef1f6 42%, #8e94a3); border: 3px solid var(--ink); border-radius: 7px; }
       .jBall { width: 42px; height: 42px; margin: 0 auto -8px; border-radius: 50%; background: radial-gradient(circle at 34% 30%, #ff968d, var(--red) 56%, #bf362c); border: 3px solid var(--ink); box-shadow: inset -3px -5px 0 rgba(0,0,0,.18); }
       .jArrow { position: absolute; bottom: 6px; font-size: 13px; font-weight: 900; color: var(--purple); animation: jBlink 1.9s steps(1) infinite; }
@@ -172,8 +181,14 @@
       .mode.boss .ds, .mode.ai .ds { color: rgba(255,255,255,.95); }
       .mode.boss .tagline, .mode.ai .tagline { color: rgba(255,255,255,.78); }
       .mode.myst .ds { color: #4a4226; } .mode.myst .tagline { color: #7a6a1e; }
-      .skipRound { align-self: center; flex: none; width: 66px; height: 66px; border-radius: 50%; border: 3px solid var(--ink); background: #ff7ab8; box-shadow: var(--shadow-sm); font-weight: 900; font-size: 15px; color: var(--ink); cursor: pointer; transition: transform .08s; }
-      .skipRound:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+      /* 选中模式的特效：弹一下 + 发光 + ✓ 已选 + 扩散光环 */
+      .modeList.haspick .mode:not(.sel) { opacity: .5; }
+      .mode.sel { animation: modePick .45s ease; box-shadow: 0 0 0 3px var(--paper), 5px 5px 0 var(--ink), 0 0 20px 5px rgba(108,92,231,.6); }
+      .mode.sel::after { content: "✓ 已选"; position: absolute; top: 8px; right: 10px; font-size: 11px; font-weight: 900; background: var(--ink); color: var(--paper); padding: 3px 8px; border-radius: 8px; z-index: 2; }
+      .mode.sel::before { content: ""; position: absolute; inset: -3px; border: 3px solid var(--yellow); border-radius: 17px; animation: ringFlash .6s ease-out; pointer-events: none; }
+      .mode { position: relative; }
+      @keyframes modePick { 0% { transform: scale(1); } 45% { transform: scale(1.05) rotate(-1deg); } 100% { transform: scale(1); } }
+      @keyframes ringFlash { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.13); } }
 
       /* ============ DECK ============ */
       .counter { display: flex; align-items: center; gap: 7px; font-weight: 900; font-size: 13px; flex: none; }
@@ -253,14 +268,14 @@
     <div class="phone">
       <div class="screens">
         <!-- 1) WELCOME -->
-        <section class="screen active" data-screen="welcome">
+        <section class="screen active homeScreen" data-screen="welcome">
           <div class="topbar"><span class="badge red pixel">CHALLENGE ACTIVE</span><span class="dots pixel">PLAYLIST 01/08</span></div>
           <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead" style="font-size:28px">选择困难症外挂</div></div>
           <div class="coin"><span class="emoji">🎮</span></div>
           <div class="sub">把“你定 / 我随便”变成一键通关。<br />你的专属游戏化抉择 NPC。</div>
           <div class="slogan">「让日常选择像通关一样痛快！」</div>
           <div class="chipwrap homeChips"><span class="chip on">🍜 今晚吃什么</span><span class="chip">🗺️ 周末去哪</span><span class="chip">🎁 送礼物</span></div>
-          <button class="btn alt" onclick="go('config')">▶ 插入硬币，开始挑战</button>
+          <button class="btn red" onclick="go('config')">🪙 插入硬币，开始挑战</button>
         </section>
 
         <!-- 2) CONFIG -->
@@ -317,20 +332,21 @@
         <section class="screen modeScreen" data-screen="mode">
           <div class="topbar"><span class="badge yellow pixel">SELECT YOUR CHEAT</span><button class="back" onclick="go('game')">← 返回</button></div>
           <div class="lead" style="font-size:22px">游戏模式</div>
-          <div class="modeList">
-            <div class="mode boss" onclick="startGame('霸总模式','BOSS MODE')"><div class="ic">🎲</div><div><div class="nm">霸总模式</div><div class="ds">不要你觉得，我要我觉得。</div><div class="tagline pixel">[ BOSS MODE ] 纯随机 · 一秒通关</div></div></div>
-            <div class="mode ai" onclick="startGame('AI 模式','AI INTEL')"><div class="ic">🤖</div><div><div class="nm">AI 模式</div><div class="ds">大模型推荐，深度语义契合。</div><div class="tagline pixel">[ AI INTEL ] 大模型 · 极智解忧</div></div></div>
-            <div class="mode myst" onclick="startGame('玄学模式','MYSTIC')"><div class="ic">🔮</div><div><div class="nm">玄学模式</div><div class="ds">“来自今日星盘的天命抉择。”</div><div class="tagline pixel">[ 玄学 ] 运势流 · 命中注定</div></div></div>
+          <div class="modeList" id="modeList">
+            <div class="mode boss" onclick="selectMode('霸总模式','BOSS MODE',this)"><div class="ic">🎲</div><div><div class="nm">霸总模式</div><div class="ds">不要你觉得，我要我觉得。</div><div class="tagline pixel">[ BOSS MODE ] 纯随机 · 一秒通关</div></div></div>
+            <div class="mode ai" onclick="selectMode('AI 模式','AI INTEL',this)"><div class="ic">🤖</div><div><div class="nm">AI 模式</div><div class="ds">大模型推荐，深度语义契合。</div><div class="tagline pixel">[ AI INTEL ] 大模型 · 极智解忧</div></div></div>
+            <div class="mode myst" onclick="selectMode('玄学模式','MYSTIC',this)"><div class="ic">🔮</div><div><div class="nm">玄学模式</div><div class="ds">“来自今日星盘的天命抉择。”</div><div class="tagline pixel">[ 玄学 ] 运势流 · 命中注定</div></div></div>
           </div>
           <div class="stickZone">
-            <div class="joystick" aria-hidden="true">
+            <button class="ctrlBtn confirm" id="confirmBtn" onclick="confirmMode()">确定</button>
+            <div class="joystick" id="joystick">
               <span class="jArrow l pixel">◀</span><span class="jArrow r pixel">▶</span>
               <div class="jStick"><div class="jBall"></div><div class="jRod"></div></div>
               <div class="jBase"></div>
             </div>
+            <button class="ctrlBtn skip" id="skipBtn" onclick="skipMode()">跳过</button>
           </div>
-          <button class="skipRound" onclick="skipMode()">跳过</button>
-          <div class="sub" style="text-align:center;font-size:12px">点一个模式即可发牌 · 或跳过让我替你定 →</div>
+          <div class="sub" style="text-align:center;font-size:12px">选模式后 · 摇杆左滑确定 / 右滑随机跳过</div>
         </section>
 
         <!-- DECK -->
@@ -399,13 +415,43 @@
 
       async function startGame(name,label){ mode=name; $("#deckLabel").textContent=label+" · DECK"; go("deck"); await prepareLocationDeck(); }
 
-      // 跳过选模式：随机替你定一个，直接发牌（不做选择～）
+      // 选模式：先选中（带特效），再用摇杆左滑确定
+      let selectedMode = null;
+      function selectMode(name, label, el){
+        selectedMode = { name, label };
+        $("#modeList").classList.add("haspick");
+        document.querySelectorAll(".mode").forEach(m=>m.classList.remove("sel"));
+        el.classList.remove("sel"); void el.offsetWidth; el.classList.add("sel"); // 重放动画
+        toast("已选「"+name+"」· 摇杆左滑确定");
+      }
+      function confirmMode(){
+        if(!selectedMode){ toast("先选一个模式吧"); return; }
+        const m = selectedMode;
+        startGame(m.name, m.label);
+      }
+      // 跳过：随机替你定一个，直接发牌（不做选择～）
       function skipMode(){
         const ms=[["霸总模式","BOSS MODE"],["AI 模式","AI INTEL"],["玄学模式","MYSTIC"]];
         const m=ms[Math.floor(Math.random()*ms.length)];
         toast("随机替你选了「"+m[0]+"」");
         startGame(m[0], m[1]);
       }
+      // 摇杆拖动：左滑触碰「确定」/ 右滑触碰「跳过」
+      (function initJoystick(){
+        const js=$("#joystick"), stick=js&&js.querySelector(".jStick"), cb=$("#confirmBtn"), sb=$("#skipBtn");
+        if(!js||!stick) return;
+        let d=null;
+        const tilt=(deg)=>{ stick.style.transform=`translateX(-50%) rotate(${deg}deg)`; };
+        const clear=()=>{ js.classList.remove("grab"); stick.style.transform=""; cb.classList.remove("lit"); sb.classList.remove("lit"); };
+        js.addEventListener("pointerdown",(e)=>{ d={sx:e.clientX}; js.classList.add("grab"); try{js.setPointerCapture(e.pointerId);}catch(_){}});
+        js.addEventListener("pointermove",(e)=>{ if(!d) return; const dx=e.clientX-d.sx;
+          tilt(Math.max(-32,Math.min(32,dx/2.4)));
+          cb.classList.toggle("lit", dx<-26); sb.classList.toggle("lit", dx>26); });
+        const up=(e)=>{ if(!d) return; const dx=(e.clientX||0)-d.sx; d=null;
+          const goConfirm=dx<-44, goSkip=dx>44; clear();
+          if(goConfirm) confirmMode(); else if(goSkip) skipMode(); };
+        js.addEventListener("pointerup",up); js.addEventListener("pointercancel",()=>{ d=null; clear(); });
+      })();
 
       async function prepareLocationDeck(){
         ready=false; clearInterval(revT); pending=[];
