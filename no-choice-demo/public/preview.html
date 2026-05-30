@@ -74,6 +74,13 @@
       .titleMark { font-size: 20px; color: var(--red); }
       .coin { position: relative; flex: 1 1 auto; min-height: 96px; border-radius: 14px; border: 3px solid var(--ink); background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 8px, transparent 8px 16px), var(--yellow); box-shadow: var(--shadow); display: grid; place-items: center; overflow: hidden; }
       .coin .emoji { font-size: 56px; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.25)); animation: float 2.4s ease-in-out infinite; }
+      .coin { width: 100%; font: inherit; cursor: pointer; }
+      .coin:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
+      .coin canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; object-fit: cover; display: none; }
+      .coin.set canvas { display: block; }
+      .coin.set .coinPlus, .coin.set .coinHint { display: none; }
+      .coinPlus { font-size: 60px; line-height: 1; color: var(--ink); filter: drop-shadow(3px 3px 0 rgba(0,0,0,.18)); animation: float 2.4s ease-in-out infinite; }
+      .coinHint { position: absolute; bottom: 14px; font-size: 11px; color: #7a6a1e; }
       @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
       .slogan { font-weight: 900; font-size: 14px; padding: 10px 12px; border-radius: 11px; border: 2px dashed var(--ink); background: rgba(255,255,255,.4); flex: none; }
 
@@ -148,40 +155,20 @@
   <body>
     <div class="phone">
       <div class="screens">
-        <!-- WELCOME / PLAYER SETUP -->
-        <section class="screen active" data-screen="welcome">
-          <div class="topbar"><span class="badge red pixel">PLAYER SETUP</span><span class="dots pixel">STEP 0 / 1</span></div>
-          <div><div class="titleMark pixel">CHOICE OVER</div><div class="lead" style="font-size:23px">一键设置你的选择 NPC</div></div>
-
-          <div class="setupCard">
-            <div class="avatarRow">
-              <button class="avatarSlot" id="avatarSlot" type="button"><canvas id="avatarCanvas" width="64" height="64"></canvas><span class="avatarPlus">＋</span></button>
-              <div class="infoCol">
-                <input class="field" id="nick" placeholder="给 NPC 起个名（可选）" />
-                <div class="chipwrap small" id="vibe"><span class="chip on">随性</span><span class="chip">挑剔</span><span class="chip">怕踩雷</span></div>
-              </div>
-            </div>
-            <div class="hintRow pixel">UPLOAD PHOTO → 自动生成你的像素形象（可选）</div>
-          </div>
-          <input type="file" id="photo" accept="image/*" hidden />
-
-          <textarea class="field" id="custom" placeholder="想让 NPC 知道的（可选）：口味、忌口、预算、常去的区…"></textarea>
-
-          <button class="locBtn" id="locBtn" onclick="grantLoc()">📍 授权定位 · 必选</button>
-
-          <div class="spacer"></div>
-          <button class="btn" id="enterBtn" onclick="enter()" data-locked="1">进入 CHOICE OVER →</button>
-        </section>
-
-        <!-- HOME -->
-        <section class="screen" data-screen="home">
+        <!-- WELCOME（基于 home 视觉的玩家设定页）-->
+        <section class="screen active" data-screen="home">
           <div class="topbar"><span class="badge red pixel">CHALLENGE ACTIVE</span><span class="dots pixel">PLAYLIST 01/08</span></div>
-          <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead" style="font-size:29px">选择困难症外挂</div></div>
-          <div class="coin"><span class="emoji">🎮</span></div>
-          <div class="sub">把“你定 / 我随便”变成一键通关。<br />属于年轻人的游戏化抉择 NPC。</div>
+          <div><div class="titleMark pixel">CHOICE OVER v1.0</div><div class="lead" style="font-size:27px">选择困难症外挂</div></div>
+          <div class="sub" style="font-size:13.5px">欢迎来到没有选择困难的世界，<br />请设置你的初始形象 👾</div>
+          <button class="coin" id="avatarSlot" type="button" aria-label="上传头像生成像素形象">
+            <canvas id="avatarCanvas" width="320" height="320"></canvas>
+            <span class="coinPlus pixel">+</span>
+            <span class="coinHint pixel">UPLOAD · 上传头像</span>
+          </button>
+          <input type="file" id="photo" accept="image/*" hidden />
           <div class="slogan">「犹豫会败北，但你可以赖我」</div>
-          <div class="chipwrap"><span class="chip on">🍜 今晚吃什么</span><span class="chip">🗺️ 周末去哪</span><span class="chip">🎁 送礼物</span></div>
-          <button class="btn alt" onclick="go('eat')">▶ 插入硬币，开始挑战</button>
+          <button class="locBtn" id="locBtn" onclick="grantLoc()">📍 授权定位</button>
+          <button class="btn" id="enterBtn" onclick="enter()" data-locked="1">▶ 插入硬币，开始挑战</button>
         </section>
 
         <!-- EAT -->
@@ -383,7 +370,7 @@
       function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1200); }
       function resetAll(){ $("#win").classList.remove("show"); $("#confetti").innerHTML=""; go("home"); }
 
-      // ---- 欢迎页：照片→像素形象、定位（必选）、进入 ----
+      // ---- 欢迎页：照片 → 马里奥 8-bit 像素形象、定位、进入 ----
       let locOK = false;
       const photo = $("#photo"), slot = $("#avatarSlot"), canv = $("#avatarCanvas");
       slot.addEventListener("click", () => photo.click());
@@ -392,32 +379,37 @@
         if (!f) return;
         const img = new Image();
         img.onload = () => {
-          const px = 22; // 低分辨率取样 → 放大 → 像素风
+          const px = 18; // 大色块 → 8-bit 马里奥风
           const tmp = document.createElement("canvas"); tmp.width = px; tmp.height = px;
           const tctx = tmp.getContext("2d");
           const side = Math.min(img.width, img.height);
           tctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, px, px);
+          // 量化到复古调色板（每通道 4 阶），更像红白机小图案
+          try {
+            const id = tctx.getImageData(0, 0, px, px), d = id.data;
+            for (let i = 0; i < d.length; i += 4) { d[i] = Math.round(d[i] / 85) * 85; d[i + 1] = Math.round(d[i + 1] / 85) * 85; d[i + 2] = Math.round(d[i + 2] / 85) * 85; }
+            tctx.putImageData(id, 0, 0);
+          } catch (err) { /* 极少数情况下取像素失败，退回普通像素化 */ }
           const ctx = canv.getContext("2d");
           ctx.imageSmoothingEnabled = false;
           ctx.clearRect(0, 0, canv.width, canv.height);
           ctx.drawImage(tmp, 0, 0, px, px, 0, 0, canv.width, canv.height);
           slot.classList.add("set");
-          toast("像素形象已生成");
+          toast("像素形象已生成（8-bit 风）");
           URL.revokeObjectURL(img.src);
         };
         img.src = URL.createObjectURL(f);
       });
-      $("#vibe").addEventListener("click", (e) => { if (e.target.classList.contains("chip")) e.target.classList.toggle("on"); });
 
       function grantLoc() {
         if (locOK) return;
         const b = $("#locBtn"); b.textContent = "定位中…";
-        const done = () => { locOK = true; b.classList.add("granted"); b.textContent = "✅ 已授权：朝阳 · 东三环"; $("#enterBtn").removeAttribute("data-locked"); toast("定位已授权，可以进入了"); };
+        const done = () => { locOK = true; b.classList.add("granted"); b.textContent = "✅ 已授权：朝阳 · 东三环"; $("#enterBtn").removeAttribute("data-locked"); toast("定位已授权，可以开始了"); };
         // 真机会弹系统授权；原型里无论结果都视为已授权以便演示
         if (navigator.geolocation) { navigator.geolocation.getCurrentPosition(done, done, { timeout: 3000 }); window.setTimeout(() => { if (!locOK) done(); }, 1000); }
         else window.setTimeout(done, 500);
       }
-      function enter() { if (!locOK) { toast("位置授权是必选项哦"); return; } go("home"); }
+      function enter() { if (!locOK) { toast("先点上面的 📍 授权定位再开始"); return; } go("eat"); }
 
       if (location.hash === "#deck") startGame("AI 模式", "AI INTEL");
     </script>
