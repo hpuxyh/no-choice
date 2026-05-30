@@ -18,6 +18,7 @@
 - 滑卡拍板：用户可以滑动比较，但滑到底会兜底给出最终选择。
 - 直接结论：是否题会直接给出“做/不做”判断和理由。
 - 解释口吻：支持不同风格的推荐理由，降低“被算法命令”的生硬感。
+- 手机定位：吃饭和周末模块支持点击获取当前位置，并在 Cloudflare 版通过 `/api/poi` 拉取附近 POI。
 
 ## Modules
 
@@ -38,6 +39,7 @@
   <img src="screenshots/no-choice-mobile-home.png" width="260" alt="不做选择 iOS 首页" />
   <img src="screenshots/no-choice-mobile-fixed-start.png" width="260" alt="不做选择 iOS 开局" />
   <img src="screenshots/no-choice-modules-mobile.png" width="260" alt="不做选择四模块移动端" />
+  <img src="screenshots/no-choice-location-mobile.png" width="260" alt="不做选择手机定位" />
 </p>
 
 ## Project Structure
@@ -71,7 +73,7 @@ xcodebuild -project NoChoiceMobile/NoChoiceMobile.xcodeproj -scheme NoChoiceMobi
 ## Current Scope
 
 - 大模型推荐暂时用本地规则和候选池模拟。
-- 餐厅和地点候选仍是策略/类别示例，尚未接入真实 POI、营业时间和距离。
+- 餐厅和地点候选在未配置地图 Key 时仍使用策略/类别示例；配置 `AMAP_WEB_SERVICE_KEY` 后可返回真实附近 POI。
 - 当前重点是验证“少比较、快拍板”的交互节奏。
 
 ## API Plan
@@ -84,3 +86,15 @@ xcodebuild -project NoChoiceMobile/NoChoiceMobile.xcodeproj -scheme NoChoiceMobi
 4. 大模型：适合生成候选、解释推荐理由、把用户自然语言条件转成结构化筛选项。API key 不应该放在前端，需要后端或 Serverless 代理。
 5. 图片：不是第一优先级。真实地点优先用 POI 返回的店铺图，礼物优先用商品图；没有真实数据时，用固定素材或图片 API 做氛围图即可。
 6. 用户输入兜底：必须保留。位置权限可能被拒绝，POI/商品也可能无结果，所以始终允许用户手动输入城市、商圈、候选项和限制。
+
+## POI Setup
+
+手机端定位使用浏览器 Geolocation，只在用户点击定位按钮后触发。真实 POI 查询走 Cloudflare Pages 的 `/api/poi` 代理，避免把地图 Web 服务密钥暴露在前端。
+
+需要提供并配置：
+
+1. 高德开放平台 Web 服务 API Key。
+2. 在 Cloudflare Pages 项目环境变量里设置 `AMAP_WEB_SERVICE_KEY`。
+3. 重新部署 Cloudflare Pages。
+
+GitHub Pages 镜像没有后端代理，因此可以获取手机定位，但不会返回真实 POI。

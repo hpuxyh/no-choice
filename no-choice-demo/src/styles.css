@@ -488,6 +488,141 @@ textarea::placeholder {
   border-color: #e1e7f0;
 }
 
+.locationPanel {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  background:
+    linear-gradient(135deg, var(--module-soft), rgba(255, 255, 255, 0.72) 62%),
+    #ffffff;
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+}
+
+.locationActionRow {
+  display: grid;
+  grid-template-columns: minmax(138px, auto) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.locationButton {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 13px;
+  color: #ffffff;
+  background: var(--module-accent);
+  border-radius: 8px;
+  font-weight: 850;
+}
+
+.locationButton:disabled {
+  cursor: wait;
+  opacity: 0.76;
+}
+
+.locationReadout {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  color: #303849;
+}
+
+.locationReadout strong,
+.locationReadout small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.locationReadout strong {
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.locationReadout small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.locationNotice {
+  margin: 0;
+  color: #4f5b70;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.5;
+}
+
+.locationNotice.pending {
+  color: #8a5b06;
+}
+
+.locationNotice.error {
+  color: #b42318;
+}
+
+.poiPanel {
+  display: grid;
+  gap: 8px;
+}
+
+.poiPanel > span {
+  color: #303849;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.poiGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.poiGrid button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 2px 7px;
+  align-items: center;
+  padding: 9px;
+  color: #273245;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid #d9e2ee;
+  border-radius: 8px;
+}
+
+.poiGrid svg {
+  grid-row: 1 / span 2;
+  color: var(--module-accent);
+}
+
+.poiGrid strong,
+.poiGrid small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poiGrid strong {
+  font-size: 13px;
+  font-weight: 840;
+}
+
+.poiGrid small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 720;
+}
+
 .segmented {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1174,6 +1309,22 @@ output {
 
   .conditionPanel {
     padding: 11px;
+  }
+
+  .locationPanel {
+    padding: 11px;
+  }
+
+  .locationActionRow {
+    grid-template-columns: 1fr;
+  }
+
+  .locationButton {
+    width: 100%;
+  }
+
+  .poiGrid {
+    grid-template-columns: 1fr;
   }
 
   .conditionGrid {

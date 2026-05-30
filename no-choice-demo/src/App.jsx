@@ -6,6 +6,8 @@ import {
   Dices,
   Flame,
   Heart,
+  LocateFixed,
+  MapPin,
   Plus,
   RefreshCcw,
   SendHorizontal,
@@ -24,8 +26,27 @@ import {
   personaMeta,
   presets,
 } from "./decisionEngine";
+import {
+  buildLocationContext,
+  canUseLocation,
+  formatAccuracy,
+  formatCoords,
+  formatDistance,
+  getCurrentPosition,
+  getLocationStatusLabel,
+  getPoiKeyword,
+  searchNearbyPois,
+} from "./geoPoi";
 
 const dragLimit = 96;
+const emptyGeoState = {
+  status: "idle",
+  coords: null,
+  error: "",
+  pois: [],
+  poiStatus: "idle",
+  poiMessage: "",
+};
 
 const getInitialConditions = (preset) => preset.conditionIds ?? [];
 const getInitialCustomConditions = (preset) => preset.customConditions ?? (preset.context ? [preset.context] : []);
@@ -47,18 +68,24 @@ export default function App() {
   const [fly, setFly] = useState(null);
   const [notice, setNotice] = useState("");
   const [shareStatus, setShareStatus] = useState("");
+  const [geoState, setGeoState] = useState(emptyGeoState);
   const startPoint = useRef({ x: 0, y: 0 });
 
   const activeModule = getModuleProfile(activeModuleId);
   const conditionOptions = activeModule.conditions;
+  const locationEnabled = canUseLocation(activeModuleId);
   const manualList = useMemo(() => normalizeOptions(manualOptions), [manualOptions]);
+  const locationContext = useMemo(
+    () => buildLocationContext(activeModuleId, geoState.coords, geoState.pois),
+    [activeModuleId, geoState.coords, geoState.pois],
+  );
   const context = useMemo(() => {
     const selectedLabels = conditionOptions
       .filter((option) => selectedConditions.includes(option.id))
       .map((option) => option.label);
 
-    return [...selectedLabels, ...customConditions].join("，");
-  }, [conditionOptions, customConditions, selectedConditions]);
+    return [...selectedLabels, ...customConditions, locationContext].filter(Boolean).join("，");
+  }, [conditionOptions, customConditions, locationContext, selectedConditions]);
   const inferredType = useMemo(() => {
     const preview = buildDecision({
       moduleId: activeModuleId,
@@ -67,9 +94,10 @@ export default function App() {
       mode,
       manualOptions,
       cardCount,
+      poiCandidates: locationEnabled ? geoState.pois : [],
     });
     return preview.ok ? preview.type : "open";
-  }, [activeModuleId, cardCount, context, manualOptions, mode, question]);
+  }, [activeModuleId, cardCount, context, geoState.pois, locationEnabled, manualOptions, mode, question]);
   const typeInfo = getTypeMeta(inferredType, activeModuleId);
   const activeCard = session?.cards[session.index] ?? null;
   const progress = session ? `${session.index + 1} / ${session.cards.length}` : "0 / 0";
@@ -91,6 +119,11 @@ export default function App() {
     setError("");
     setNotice("");
     setShareStatus("");
+    setGeoState((current) =>
+      canUseLocation(preset.id)
+        ? { ...current, error: "", pois: [], poiStatus: "idle", poiMessage: "" }
+        : emptyGeoState,
+    );
     setPhase("setup");
   }
 
@@ -111,8 +144,74 @@ export default function App() {
     setCustomConditions((current) => current.filter((item) => item !== value));
   }
 
+  async function useCurrentLocation() {
+    if (!locationEnabled) return;
+
+    setError("");
+    setGeoState((current) => ({
+      ...current,
+      status: "locating",
+      error: "",
+      pois: [],
+      poiStatus: "idle",
+      poiMessage: "",
+    }));
+
+    try {
+      const coords = await getCurrentPosition();
+      setGeoState((current) => ({
+        ...current,
+        status: "located",
+        coords,
+        error: "",
+        pois: [],
+        poiStatus: "loading",
+        poiMessage: "正在查附近点位",
+      }));
+
+      const poiResult = await searchNearbyPois({
+        coords,
+        moduleId: activeModuleId,
+        keyword: getPoiKeyword(activeModuleId, question),
+      });
+
+      setGeoState((current) => ({
+        ...current,
+        status: "located",
+        coords,
+        pois: poiResult.pois || [],
+        poiStatus: poiResult.ok ? "ready" : poiResult.needsKey ? "needsKey" : "empty",
+        poiMessage: poiResult.message,
+      }));
+    } catch (locationError) {
+      setGeoState((current) => ({
+        ...current,
+        status: current.coords ? "located" : "error",
+        error: locationError.message,
+        poiStatus: "idle",
+        poiMessage: "",
+      }));
+    }
+  }
+
+  function addPoiCandidate(poi) {
+    setMode("manual");
+    setManualOptions((current) => {
+      const options = normalizeOptions(`${current}\n${poi.name}`);
+      return options.join("\n");
+    });
+  }
+
   function startDecision() {
-    const next = buildDecision({ moduleId: activeModuleId, question, context, mode, manualOptions, cardCount });
+    const next = buildDecision({
+      moduleId: activeModuleId,
+      question,
+      context,
+      mode,
+      manualOptions,
+      cardCount,
+      poiCandidates: locationEnabled ? geoState.pois : [],
+    });
     setError("");
     setNotice("");
     setShareStatus("");
@@ -347,6 +446,56 @@ export default function App() {
                 </div>
               )}
             </div>
+
+            {locationEnabled && (
+              <div className="locationPanel">
+                <div className="sectionLabel">
+                  <span>{activeModule.location.label}</span>
+                  <em>{getLocationStatusLabel(geoState)}</em>
+                </div>
+                <div className="locationActionRow">
+                  <button
+                    className="locationButton"
+                    type="button"
+                    onClick={useCurrentLocation}
+                    disabled={geoState.status === "locating"}
+                  >
+                    <LocateFixed size={18} />
+                    {geoState.status === "locating"
+                      ? "定位中"
+                      : geoState.coords
+                        ? "重新定位"
+                        : activeModule.location.buttonLabel}
+                  </button>
+                  {geoState.coords && (
+                    <div className="locationReadout">
+                      <strong>{formatCoords(geoState.coords)}</strong>
+                      <small>精度约 {formatAccuracy(geoState.coords.accuracy)}</small>
+                    </div>
+                  )}
+                </div>
+                {geoState.error && <p className="locationNotice error">{geoState.error}</p>}
+                {geoState.poiMessage && (
+                  <p className={`locationNotice ${geoState.poiStatus === "needsKey" ? "pending" : ""}`}>
+                    {geoState.poiMessage}
+                  </p>
+                )}
+                {geoState.pois.length > 0 && (
+                  <div className="poiPanel">
+                    <span>{activeModule.location.poiLabel}</span>
+                    <div className="poiGrid">
+                      {geoState.pois.slice(0, 4).map((poi) => (
+                        <button key={poi.id} type="button" onClick={() => addPoiCandidate(poi)}>
+                          <MapPin size={15} />
+                          <strong>{poi.name}</strong>
+                          <small>{[formatDistance(poi.distance), poi.type].filter(Boolean).join(" · ")}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="segmented" role="tablist" aria-label="候选来源">
               <button className={mode === "auto" ? "active" : ""} type="button" onClick={() => setMode("auto")}>

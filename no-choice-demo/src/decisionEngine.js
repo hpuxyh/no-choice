@@ -50,6 +50,12 @@ export const moduleProfiles = {
     previewDescription: "优先考虑位置、预算、排队和聊天氛围。接入 POI 后会变成真实店铺推荐。",
     resultPrefix: "今晚就吃",
     resultKicker: "吃喝结论",
+    location: {
+      enabled: true,
+      label: "附近位置",
+      poiLabel: "附近可参考的店",
+      buttonLabel: "用手机定位",
+    },
     typeMeta: {
       label: "吃喝推荐",
       tone: "位置/口味/氛围",
@@ -91,6 +97,12 @@ export const moduleProfiles = {
     previewDescription: "按时长、天气、精力和同行关系收口。接入天气和活动票务后会更准。",
     resultPrefix: "周末就去",
     resultKicker: "周末结论",
+    location: {
+      enabled: true,
+      label: "周边位置",
+      poiLabel: "附近可参考的点",
+      buttonLabel: "用手机定位",
+    },
     typeMeta: {
       label: "玩乐行程",
       tone: "时长/天气/同行",
@@ -312,7 +324,15 @@ export function detectQuestionType(question, hasManualOptions, moduleId = "gener
   return "general";
 }
 
-export function buildDecision({ moduleId = "general", question, context, mode, manualOptions, cardCount }) {
+export function buildDecision({
+  moduleId = "general",
+  question,
+  context,
+  mode,
+  manualOptions,
+  cardCount,
+  poiCandidates = [],
+}) {
   const cleanQuestion = question.trim();
   const options = normalizeOptions(manualOptions);
 
@@ -350,7 +370,7 @@ export function buildDecision({ moduleId = "general", question, context, mode, m
   const cards =
     mode === "manual"
       ? makeManualCards(options, cleanQuestion, count, moduleId)
-      : makeGeneratedCards(cleanQuestion, context, count, moduleId);
+      : makeGeneratedCards(cleanQuestion, context, count, moduleId, poiCandidates);
 
   return {
     ok: true,
@@ -389,7 +409,7 @@ export function makeFallbackResult(session) {
   });
 }
 
-function makeGeneratedCards(question, context, count, moduleId) {
+function makeGeneratedCards(question, context, count, moduleId, poiCandidates = []) {
   const pools = {
     dinner: [dinnerPool, dinnerImages],
     weekend: [weekendPool, weekendImages],
@@ -397,7 +417,8 @@ function makeGeneratedCards(question, context, count, moduleId) {
     general: [generalPool, generalImages],
   };
   const [pool, images] = pools[moduleId] ?? pools.general;
-  return take(pool, count).map((card, index) => ({
+  const poiCards = makePoiCards(poiCandidates, question, moduleId);
+  const baseCards = take(pool, count).map((card, index) => ({
     ...card,
     id: `${moduleId}-${index}-${card.title}`,
     image: images[index % images.length],
@@ -405,6 +426,35 @@ function makeGeneratedCards(question, context, count, moduleId) {
     question,
     context,
   }));
+  return [...poiCards, ...baseCards].slice(0, count);
+}
+
+function makePoiCards(pois, question, moduleId) {
+  if (!Array.isArray(pois) || (moduleId !== "dinner" && moduleId !== "weekend")) {
+    return [];
+  }
+
+  const images = moduleId === "dinner" ? dinnerImages : weekendImages;
+  return pois.slice(0, 5).map((poi, index) => {
+    const distance = formatDistance(poi.distance);
+    const type = poi.type || (moduleId === "dinner" ? "餐饮 POI" : "周边 POI");
+    const address = poi.address || poi.area || "附近";
+
+    return {
+      id: `poi-${moduleId}-${poi.id || index}`,
+      title: poi.name,
+      reason:
+        moduleId === "dinner"
+          ? `${poi.name} 是定位附近的真实 POI，${distance ? `距离约 ${distance}，` : ""}适合先把今晚这顿落到可导航的位置。`
+          : `${poi.name} 是定位附近的真实 POI，${distance ? `距离约 ${distance}，` : ""}适合作为周末轻量安排的起点。`,
+      meta: [distance || "附近", type, address].filter(Boolean).slice(0, 3),
+      image: poi.image || images[index % images.length],
+      accent: moduleId === "dinner" ? "#17a673" : "#4147d5",
+      moduleId,
+      question,
+      poi,
+    };
+  });
 }
 
 function makeManualCards(options, question, count, moduleId) {
@@ -730,4 +780,15 @@ function stableNumber(value, modulo) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function formatDistance(value) {
+  const distance = Number(value);
+  if (!Number.isFinite(distance) || distance <= 0) {
+    return "";
+  }
+  if (distance >= 1000) {
+    return `${(distance / 1000).toFixed(distance >= 3000 ? 0 : 1)}km`;
+  }
+  return `${Math.round(distance)}m`;
 }
