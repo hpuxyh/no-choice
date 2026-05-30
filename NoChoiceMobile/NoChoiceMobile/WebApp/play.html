@@ -206,7 +206,7 @@
       .pip { width: 11px; height: 15px; border: 2px solid var(--ink); border-radius: 3px; background: var(--card); }
       .pip.spent { background: var(--ink); opacity: .25; }
       /* 游戏化 slogan：移到卡片图片上方（计数行下方） */
-      .roundSlogan { flex: none; font-size: 12.5px; font-weight: 900; line-height: 1.35; color: var(--ink); padding: 8px 11px; border: 2px dashed var(--ink); border-radius: 11px; background: rgba(255,255,255,.5); }
+      .roundSlogan { flex: none; font-size: 14px; font-weight: 950; line-height: 1.35; color: var(--info-fg, var(--ink)); padding: 9px 12px; border: 0; border-radius: 10px; background: var(--info-bg, var(--card)); box-shadow: 3px 3px 0 var(--ink); }
       .roundSlogan:empty { display: none; }
 
       .deckWrap { position: relative; flex: 1 1 auto; min-height: 0; }
@@ -231,7 +231,7 @@
       .loadingProgress span { display: block; height: 100%; width: var(--progress, 0%); background: var(--yellow); transition: width .25s ease; }
       .loadingCount { font-size: 10px; font-weight: 900; letter-spacing: 1px; }
       @keyframes spin { to { transform: rotate(360deg); } }
-      .navMini { flex: none; width: 100%; min-height: 40px; border: 3px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm); font: inherit; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; }
+      .navMini { flex: none; width: 100%; min-height: 40px; border: 3px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm); font: inherit; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; text-decoration: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       .navMini:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
 
       .gcard.flyR { transition: transform .4s cubic-bezier(.3,.8,.4,1), opacity .4s; transform: translate(135%,-10%) rotate(20deg) !important; opacity: 0; }
@@ -245,7 +245,7 @@
       .gcard.flip { animation: flipReveal .52s cubic-bezier(.3,.7,.4,1); transform-origin: center; backface-visibility: hidden; }
       @keyframes flipReveal { 0% { transform: rotateY(-88deg) scale(.9); } 55% { transform: rotateY(10deg) scale(1.03); } 100% { transform: rotateY(0) scale(1); } }
 
-      .stamp { position: absolute; top: 18px; padding: 6px 11px; border: 4px solid; border-radius: 9px; font-size: 19px; font-weight: 950; opacity: 0; z-index: 6; }
+      .stamp { position: absolute; top: 18px; padding: 6px 11px; border: 4px solid; border-radius: 9px; font-size: 19px; font-weight: 950; opacity: 0; z-index: 6; pointer-events: none; }
       .stamp.s-r { right: 14px; color: var(--green); transform: rotate(12deg); }
       .stamp.s-l { left: 14px; color: #c79100; transform: rotate(-12deg); }
       .stamp.s-d { left: 50%; bottom: 16px; top: auto; transform: translateX(-50%); color: var(--red); }
@@ -623,7 +623,7 @@
           ? `<div class="art photo" style="background-image:linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.26)), url('${cssUrl(c.image)}')"></div>`
           : `<div class="art" style="background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 14px), ${c.art}">${escapeHTML(c.emoji || "🍽️")}</div>`;
         const navUrl = cardNavigationUrl(c);
-        const nav = navUrl ? `<button class="navMini" type="button" data-nav="${escapeAttr(navUrl)}">📍 去导航</button>` : "";
+        const nav = navUrl ? `<a class="navMini" href="${escapeAttr(navUrl)}" data-nav="${escapeAttr(navUrl)}" onclick="event.stopPropagation()">📍 去导航</a>` : "";
         return `
           ${art}
           <div class="info" style="${cardThemeStyle(c)}">
@@ -652,11 +652,17 @@
         topEl=document.createElement("div"); topEl.className="gcard dealing"; topEl.style.zIndex=10;
         topEl.innerHTML=faceHTML(deck[0], true);
         el.appendChild(topEl);
-        const rs=$("#roundSlogan"); if(rs) rs.textContent = (deck[0] && deck[0].slogan) || "";
+        updateRoundSlogan(deck[0]);
         updateCounter();
       }
 
       function setTopFace(c){ if(topEl) topEl.innerHTML=faceHTML(c, true); }
+      function updateRoundSlogan(c){
+        const rs=$("#roundSlogan");
+        if(!rs) return;
+        rs.textContent = (c && c.slogan) || "";
+        rs.setAttribute("style", c ? cardThemeStyle(c) : "");
+      }
 
       // 先轮转抽出顶端卡牌，settle 后才允许滑动
       // 翻牌动效：卡牌 3D 翻入 + 牌面快速轮转，落到本张后才可滑
@@ -679,7 +685,10 @@
 
       function attachDrag(card){
         const sr=card.querySelector(".s-r"), sl=card.querySelector(".s-l"), sd=card.querySelector(".s-d");
-        const onDown=(e)=>{ if(!ready) return; card.setPointerCapture(e.pointerId); drag={sx:e.clientX,sy:e.clientY,x:0,y:0}; card.style.transition="none"; };
+        const onDown=(e)=>{
+          if(!ready || e.target.closest(".navMini,button,a,input,textarea,select,label")) return;
+          card.setPointerCapture(e.pointerId); drag={sx:e.clientX,sy:e.clientY,x:0,y:0}; card.style.transition="none";
+        };
         const onMove=(e)=>{ if(!drag) return; drag.x=e.clientX-drag.sx; drag.y=e.clientY-drag.sy;
           const down = drag.y>0 && drag.y>Math.abs(drag.x);
           // 下滑更顺：纵向为主时只走 Y，并轻微缩小，像被水管吸入
@@ -757,7 +766,7 @@
         $("#wReason").textContent=(c.slogan ? c.slogan+"。 " : "")+c.reason;
         $("#wMeta").innerHTML=(c.meta||[]).map(m=>`<span class="mtag">${escapeHTML(m)}</span>`).join("");
         const nav=$("#wNav");
-        if(nav) nav.onclick=()=>{ const url = cardNavigationUrl(c); if(url) location.href = url; else alert("原型示例：暂无导航地址"); };
+        if(nav) nav.onclick=()=>{ const url = cardNavigationUrl(c); if(url) openNavigationUrl(url); else alert("原型示例：暂无导航地址"); };
         $("#win").classList.add("show"); confetti();
       }
 
@@ -1236,7 +1245,7 @@
       }
       function amapSearchUrl(name){
         const keyword = String(name || "").trim();
-        return keyword ? `https://www.amap.com/search?query=${encodeURIComponent(keyword)}` : "";
+        return keyword ? `https://uri.amap.com/search?keyword=${encodeURIComponent(keyword)}&src=choiceover&coordinate=gaode&callnative=1` : "";
       }
       function poiReason(p){
         const distance = formatDistance(p.distance);
@@ -1249,9 +1258,12 @@
       function escapeHTML(value){ return String(value ?? "").replace(/[&<>"']/g, (ch)=>({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch])); }
       function escapeAttr(value){ return escapeHTML(value); }
       function cssUrl(value){ return String(value || "").replace(/['"\\\n\r]/g, (ch)=>encodeURIComponent(ch)); }
+      function openNavigationUrl(url){
+        const target = String(url || "").trim();
+        if(target) window.location.assign(target);
+      }
       // 卡面“去导航”按钮：事件委托，避免与滑动冲突
       $("#deck").addEventListener("pointerdown",(e)=>{ if(e.target.closest(".navMini")) e.stopPropagation(); });
-      $("#deck").addEventListener("click",(e)=>{ const b=e.target.closest(".navMini"); if(b){ e.preventDefault(); e.stopPropagation(); const u=b.dataset.nav; if(u) location.href = u; } });
 
       primeRestaurantRecommendation();
 
