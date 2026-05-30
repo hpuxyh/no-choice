@@ -112,6 +112,12 @@
       .micBig { flex: none; font-weight: 900; font-size: 14px; padding: 13px; border: 3px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: var(--shadow-sm); cursor: pointer; }
       .playerPill { width: 38px; height: 38px; border: 2px solid var(--ink); border-radius: 9px; display: grid; place-items: center; font-size: 20px; background: var(--card); box-shadow: var(--shadow-sm); overflow: hidden; background-size: cover; background-position: center; }
       .playerPill.img { image-rendering: pixelated; }
+      .playerWrap { display: flex; align-items: center; gap: 7px; }
+      .playerName { font-weight: 900; font-size: 13px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .playerName:empty { display: none; }
+      .nameRow { display: flex; align-items: center; gap: 9px; margin-top: 2px; }
+      .nameRow .nameLabel { flex: none; font-size: 13px; font-weight: 850; }
+      .nameRow .field { flex: 1; min-width: 0; }
 
       /* HOME */
       .titleMark { font-size: 20px; color: var(--red); }
@@ -160,7 +166,8 @@
       .ctrlBtn.skip { background: #ff7ab8; }
       .ctrlBtn.lit { transform: scale(1.16); box-shadow: 0 0 16px 4px currentColor; }
       .ctrlBtn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
-      .joystick { position: relative; width: 132px; height: 128px; }
+      .joystick { position: relative; width: 132px; height: 128px; touch-action: none; cursor: grab; }
+      .joystick.grab { cursor: grabbing; }
       .jBase { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 118px; height: 38px; border-radius: 50%; background: radial-gradient(ellipse at 50% 32%, #4a4458, #201c2e); border: 3px solid var(--ink); box-shadow: var(--shadow-sm); }
       .jBase::after { content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 30px; height: 12px; border-radius: 50%; background: rgba(0,0,0,.55); }
       .jStick { position: absolute; bottom: 20px; left: 50%; transform-origin: 50% 100%; animation: jWob 2.4s ease-in-out infinite; }
@@ -292,8 +299,9 @@
               </div>
             </div>
             <div class="avatarGallery" id="avatarGallery"></div>
+            <div class="nameRow"><label class="nameLabel">姓名</label><input class="field" id="playerNameInput" maxlength="12" placeholder="给角色起个名（可跳过，写了会显示在头像旁）" /></div>
           </div>
-          <div class="hintCard">📊 填得越多，NPC 越懂你的口味（都可不填）</div>
+          <div class="hintCard">📊 写的越多，NPC 越懂你</div>
           <div class="card profileCard">
             <div class="pRow"><label>性别</label><div class="segChips" id="genderChips"><span class="chip">♀ 女</span><span class="chip">♂ 男</span><span class="chip">🤖 不说</span></div></div>
             <div class="pRow"><label>星座</label>
@@ -307,12 +315,12 @@
             </div>
           </div>
           <input type="file" id="photo" accept="image/*" hidden />
-          <button class="btn huge red" onclick="finishConfig()">完成，进入游戏 →</button>
+          <button class="btn huge red" onclick="finishConfig()">NPC 配置完成，进入游戏 →</button>
         </section>
 
         <!-- 3) GAME -->
         <section class="screen" data-screen="game">
-          <div class="topbar"><span class="badge yellow pixel">CHOICE OVER</span><span class="playerPill" id="playerPill">🍄</span></div>
+          <div class="topbar"><span class="badge yellow pixel">CHOICE OVER</span><span class="playerWrap"><span class="playerName" id="playerName"></span><span class="playerPill" id="playerPill">🍄</span></span></div>
           <div class="gameHero">
             <div class="lead" style="font-size:23px; text-align:center; line-height:1.25">选择难？<br />开一局就有答案！</div>
             <div class="voiceBox">
@@ -338,15 +346,15 @@
             <div class="mode myst" onclick="selectMode('玄学模式','MYSTIC',this)"><div class="ic">🔮</div><div><div class="nm">玄学模式</div><div class="ds">“来自今日星盘的天命抉择。”</div><div class="tagline pixel">[ 玄学 ] 运势流 · 命中注定</div></div></div>
           </div>
           <div class="stickZone">
-            <button class="ctrlBtn confirm" id="confirmBtn" onclick="confirmMode()">确定</button>
+            <button class="ctrlBtn skip" id="skipBtn" onclick="skipMode()">跳过</button>
             <div class="joystick" id="joystick">
               <span class="jArrow l pixel">◀</span><span class="jArrow r pixel">▶</span>
               <div class="jStick"><div class="jBall"></div><div class="jRod"></div></div>
               <div class="jBase"></div>
             </div>
-            <button class="ctrlBtn skip" id="skipBtn" onclick="skipMode()">跳过</button>
+            <button class="ctrlBtn confirm" id="confirmBtn" onclick="confirmMode()">确定</button>
           </div>
-          <div class="sub" style="text-align:center;font-size:12px">选模式后 · 摇杆左滑确定 / 右滑随机跳过</div>
+          <div class="sub" style="text-align:center;font-size:12px">选模式后 · 摇杆右滑确定 / 左滑随机跳过</div>
         </section>
 
         <!-- DECK -->
@@ -436,21 +444,21 @@
         toast("随机替你选了「"+m[0]+"」");
         startGame(m[0], m[1]);
       }
-      // 摇杆拖动：左滑触碰「确定」/ 右滑触碰「跳过」
+      // 摇杆拖动：左扳触碰「跳过」/ 右扳触碰「确定」
       (function initJoystick(){
         const js=$("#joystick"), stick=js&&js.querySelector(".jStick"), cb=$("#confirmBtn"), sb=$("#skipBtn");
         if(!js||!stick) return;
         let d=null;
         const tilt=(deg)=>{ stick.style.transform=`translateX(-50%) rotate(${deg}deg)`; };
         const clear=()=>{ js.classList.remove("grab"); stick.style.transform=""; cb.classList.remove("lit"); sb.classList.remove("lit"); };
-        js.addEventListener("pointerdown",(e)=>{ d={sx:e.clientX}; js.classList.add("grab"); try{js.setPointerCapture(e.pointerId);}catch(_){}});
-        js.addEventListener("pointermove",(e)=>{ if(!d) return; const dx=e.clientX-d.sx;
+        js.addEventListener("pointerdown",(e)=>{ e.preventDefault(); d={sx:e.clientX}; js.classList.add("grab"); });
+        window.addEventListener("pointermove",(e)=>{ if(!d) return; const dx=e.clientX-d.sx;
           tilt(Math.max(-32,Math.min(32,dx/2.4)));
-          cb.classList.toggle("lit", dx<-26); sb.classList.toggle("lit", dx>26); });
-        const up=(e)=>{ if(!d) return; const dx=(e.clientX||0)-d.sx; d=null;
-          const goConfirm=dx<-44, goSkip=dx>44; clear();
-          if(goConfirm) confirmMode(); else if(goSkip) skipMode(); };
-        js.addEventListener("pointerup",up); js.addEventListener("pointercancel",()=>{ d=null; clear(); });
+          sb.classList.toggle("lit", dx<-24);   // 左 → 跳过
+          cb.classList.toggle("lit", dx>24); }); // 右 → 确定
+        window.addEventListener("pointerup",(e)=>{ if(!d) return; const dx=(e.clientX||0)-d.sx; d=null; clear();
+          if(dx<-40) skipMode(); else if(dx>40) confirmMode(); });
+        window.addEventListener("pointercancel",()=>{ if(d){ d=null; clear(); } });
       })();
 
       async function prepareLocationDeck(){
@@ -620,6 +628,7 @@
       let playerEmoji = CUTE[Math.floor(Math.random() * CUTE.length)];
       let photoData = "";
       let avatarSrc = "";   // 从图库选中的像素角色图
+      let playerName = "";  // 角色姓名（可空；写了则显示在头像旁）
       const photo = $("#photo"), slot = $("#avatarSlot"), canv = $("#avatarCanvas"), avatarPic = $("#avatarPic");
       slot.addEventListener("click", () => photo.click());
       // 上传原图 → 展示预生成的像素头像（演示版，短暂"生成中"后揭晓）
@@ -670,7 +679,7 @@
       });
 
       // 定位默认已授权，点按钮显示当前位置
-      function grantLoc() { const b = $("#locBtn"); b.classList.add("granted"); b.textContent = "✅ 当前位置：朝阳 · 东三环"; toast("已显示当前位置"); }
+      function grantLoc() { const b = $("#locBtn"); b.classList.add("granted"); b.textContent = "✅ 当前位置：朝阳 · 酒仙桥"; toast("已显示当前位置"); }
 
       function updatePill() {
         const p = $("#playerPill");
@@ -678,8 +687,13 @@
         if (src) { p.textContent = ""; p.style.backgroundImage = `url("${src}")`; p.classList.add("img"); }
         else { p.style.backgroundImage = ""; p.classList.remove("img"); p.textContent = playerEmoji; }
       }
-      function skipConfig() { if (!photoData && !avatarSrc) playerEmoji = CUTE[Math.floor(Math.random() * CUTE.length)]; updatePill(); toast("已用随机像素形象"); go("game"); }
-      function finishConfig() { updatePill(); go("game"); }
+      function applyName() {
+        const v = (($("#playerNameInput") || {}).value || "").trim().slice(0, 12);
+        playerName = v;
+        const el = $("#playerName"); if (el) el.textContent = v;
+      }
+      function skipConfig() { if (!photoData && !avatarSrc) playerEmoji = CUTE[Math.floor(Math.random() * CUTE.length)]; applyName(); updatePill(); toast("已用随机像素形象"); go("game"); }
+      function finishConfig() { applyName(); updatePill(); go("game"); }
 
       // 语音输入（Web Speech API；不支持则提示打字）
       let recog = null, recBtn = null;
