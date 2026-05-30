@@ -629,6 +629,17 @@ export default function App() {
         </div>
       </header>
 
+      {isDeciding && (
+        <div className="decideOverlay" role="status" aria-live="polite">
+          <div className="decideCard">
+            <div className="decideSpinner" aria-hidden="true" />
+            <span className="decideKicker">{activeModule.label}</span>
+            <strong>正在为你收口…</strong>
+            <p>让 AI 根据你的条件抽出 3 张答案卡，马上就好。</p>
+          </div>
+        </div>
+      )}
+
       {phase === "entry" && (
         <section className="entryScreen" aria-label="入口">
           <div className="entryIntro">

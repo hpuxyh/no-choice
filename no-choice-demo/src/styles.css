@@ -2413,3 +2413,91 @@ output {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* AI 决策加载动画（移植自 Gemini 前端线，themed 到当前模块色）。
+   在 DeepSeek 生成候选时以浮层形式覆盖，结束后进入抽卡。 */
+.decideOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(12, 16, 24, 0.42);
+  backdrop-filter: blur(6px);
+  animation: decideFade 200ms ease;
+}
+
+@keyframes decideFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.decideCard {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(360px, 100%);
+  padding: 34px 26px;
+  text-align: center;
+  background: var(--panel-solid);
+  border: 1px solid rgba(213, 220, 232, 0.95);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  animation: decidePop 240ms ease;
+}
+
+@keyframes decidePop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.decideSpinner {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 4px solid rgba(23, 26, 32, 0.12);
+  border-top-color: var(--module-accent);
+  animation: decideSpin 760ms linear infinite;
+}
+
+@keyframes decideSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.decideKicker {
+  color: var(--module-accent);
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.decideCard strong {
+  color: var(--ink);
+  font-size: 22px;
+}
+
+.decideCard p {
+  margin: 0;
+  max-width: 280px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .decideSpinner {
+    animation-duration: 1500ms;
+  }
+}
