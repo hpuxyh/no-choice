@@ -49,6 +49,13 @@ const emptyGeoState = {
   poiMessage: "",
 };
 
+const entryVisuals = {
+  dinner: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=80",
+  weekend: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=900&q=80",
+  gift: "https://images.unsplash.com/photo-1511988617509-a57c8a288659?auto=format&fit=crop&w=900&q=80",
+  general: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&q=80",
+};
+
 const getInitialConditions = (preset) => preset.conditionIds ?? [];
 const getInitialCustomConditions = (preset) => preset.customConditions ?? (preset.context ? [preset.context] : []);
 
@@ -61,7 +68,9 @@ export default function App() {
   const [mode, setMode] = useState(presets[0].mode);
   const [manualOptions, setManualOptions] = useState(presets[0].options);
   const [cardCount, setCardCount] = useState(presets[0].count);
-  const [phase, setPhase] = useState("setup");
+  const [phase, setPhase] = useState("entry");
+  const [entryIndex, setEntryIndex] = useState(0);
+  const [introMode, setIntroMode] = useState(false);
   const [session, setSession] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -109,6 +118,20 @@ export default function App() {
   }, [phase]);
 
   useEffect(() => {
+    if (phase !== "entry" || isDeciding) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setEntryIndex((current) => (current + 1) % presets.length);
+    }, 2600);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [isDeciding, phase]);
+
+  useEffect(() => {
     if (phase !== "swipe" || !session || session.cards.length < 2) {
       return undefined;
     }
@@ -120,7 +143,7 @@ export default function App() {
     };
   }, [phase, session?.cards]);
 
-  function applyPreset(preset) {
+  function applyPresetValues(preset, nextPhase = "setup") {
     setActiveModuleId(preset.id);
     setQuestion(preset.question);
     setSelectedConditions(getInitialConditions(preset));
@@ -137,7 +160,29 @@ export default function App() {
         ? { ...current, error: "", pois: [], poiStatus: "idle", poiMessage: "" }
         : emptyGeoState,
     );
-    setPhase("setup");
+    if (nextPhase) {
+      setPhase(nextPhase);
+    }
+  }
+
+  function applyPreset(preset) {
+    stopAutoDraw();
+    setIntroMode(false);
+    applyPresetValues(preset);
+  }
+
+  function goToEntry() {
+    stopAutoDraw();
+    setPhase("entry");
+    setIntroMode(false);
+    setResult(null);
+    setSession(null);
+    setDrag({ active: false, x: 0, y: 0 });
+    setFly(null);
+    setNotice("");
+    setShareStatus("");
+    setIsDeciding(false);
+    setDrawStatus("idle");
   }
 
   function stopAutoDraw() {
@@ -183,13 +228,23 @@ export default function App() {
     spinTimer.current = window.setTimeout(tick, 260);
   }
 
+  function getConditionLabelsFor(moduleId, conditionIds) {
+    return getModuleProfile(moduleId)
+      .conditions.filter((option) => conditionIds.includes(option.id))
+      .map((option) => option.label);
+  }
+
+  function buildDecisionContext(moduleId, conditionIds, extraConditions, sourceGeoState = emptyGeoState) {
+    const locationText = buildLocationContext(moduleId, sourceGeoState.coords, sourceGeoState.pois);
+    return [...getConditionLabelsFor(moduleId, conditionIds), ...extraConditions, locationText].filter(Boolean).join("，");
+  }
+
   function getSelectedConditionLabels() {
-    return conditionOptions.filter((option) => selectedConditions.includes(option.id)).map((option) => option.label);
+    return getConditionLabelsFor(activeModuleId, selectedConditions);
   }
 
   function getContextFromGeo(sourceGeoState = geoState) {
-    const locationText = buildLocationContext(activeModuleId, sourceGeoState.coords, sourceGeoState.pois);
-    return [...getSelectedConditionLabels(), ...customConditions, locationText].filter(Boolean).join("，");
+    return buildDecisionContext(activeModuleId, selectedConditions, customConditions, sourceGeoState);
   }
 
   function toggleCondition(id) {
@@ -272,6 +327,7 @@ export default function App() {
   async function startDecision() {
     if (isDeciding) return;
 
+    setIntroMode(false);
     setError("");
     setNotice("");
     setShareStatus("");
@@ -364,9 +420,88 @@ export default function App() {
     }
   }
 
+  async function startPresetDemo(preset) {
+    if (isDeciding) return;
+
+    const presetProfile = getModuleProfile(preset.id);
+    const presetConditions = getInitialConditions(preset);
+    const presetCustomConditions = getInitialCustomConditions(preset);
+    const presetContext = buildDecisionContext(preset.id, presetConditions, presetCustomConditions, emptyGeoState);
+
+    stopAutoDraw();
+    setIntroMode(true);
+    applyPresetValues(preset, null);
+    setResult(null);
+    setSession(null);
+    setDrawStatus("idle");
+    setDrag({ active: false, x: 0, y: 0 });
+    setFly(null);
+    setIsDeciding(true);
+
+    try {
+      const aiDecision = await requestAiDecision({
+        moduleId: preset.id,
+        moduleLabel: presetProfile.label,
+        question: preset.question.trim(),
+        context: presetContext,
+        selectedConditions: getConditionLabelsFor(preset.id, presetConditions),
+        customConditions: presetCustomConditions,
+        mode: preset.mode,
+        manualCandidates: normalizeOptions(preset.options),
+        location: null,
+        pois: [],
+        outputCount: 3,
+      });
+
+      if (!aiDecision.cards || aiDecision.cards.length < 2) {
+        throw new Error("AI 推荐结果不足");
+      }
+
+      setSession({
+        question: preset.question.trim(),
+        type: preset.mode === "manual" ? "custom" : detectQuestionType(preset.question, false, preset.id),
+        persona: "gentle",
+        moduleId: preset.id,
+        cards: aiDecision.cards,
+        index: 0,
+      });
+      setPhase("swipe");
+    } catch {
+      const next = buildDecision({
+        moduleId: preset.id,
+        question: preset.question,
+        context: presetContext,
+        mode: preset.mode,
+        manualOptions: preset.options,
+        cardCount: preset.count,
+        poiCandidates: [],
+      });
+
+      if (!next.ok) {
+        setError(next.error);
+        setIntroMode(false);
+        setPhase("setup");
+        return;
+      }
+
+      setSession({
+        question: preset.question.trim(),
+        type: next.type,
+        persona: next.persona,
+        moduleId: next.moduleId,
+        cards: next.cards,
+        index: 0,
+      });
+      setPhase("swipe");
+    } finally {
+      setIsDeciding(false);
+    }
+  }
+
   function resetToSetup() {
     stopAutoDraw();
     setPhase("setup");
+    setIntroMode(false);
     setResult(null);
     setSession(null);
     setDrag({ active: false, x: 0, y: 0 });
@@ -375,6 +510,10 @@ export default function App() {
     setShareStatus("");
     setIsDeciding(false);
     setDrawStatus("idle");
+  }
+
+  function enterSetupFromDemo() {
+    resetToSetup();
   }
 
   function restartSame() {
@@ -431,6 +570,14 @@ export default function App() {
     }, slideDuration);
   }
 
+  function getEntryCardPosition(index) {
+    const offset = (index - entryIndex + presets.length) % presets.length;
+    if (offset === 0) return "active";
+    if (offset === 1) return "next";
+    if (offset === presets.length - 1) return "prev";
+    return "far";
+  }
+
   async function shareResult() {
     if (!result) return;
     const text = `不做选择给出的结论：${result.card.title}\n${result.reason}`;
@@ -454,7 +601,7 @@ export default function App() {
       style={{ "--module-accent": activeModule.accent, "--module-soft": activeModule.soft }}
     >
       <header className="topBar">
-        <button className="brandButton" type="button" onClick={resetToSetup} aria-label="回到开局">
+        <button className="brandButton" type="button" onClick={goToEntry} aria-label="回到入口">
           <span className="brandMark">不</span>
           <span>
             <strong>不做选择</strong>
@@ -462,13 +609,78 @@ export default function App() {
           </span>
         </button>
         <div className="topActions">
-          {phase !== "setup" && (
-            <button className="iconButton ghost" type="button" onClick={resetToSetup} aria-label="返回开局">
+          {phase !== "setup" && phase !== "entry" && (
+            <button
+              className="iconButton ghost"
+              type="button"
+              onClick={introMode ? goToEntry : resetToSetup}
+              aria-label="返回开局"
+            >
               <ArrowLeft size={19} />
             </button>
           )}
         </div>
       </header>
+
+      {phase === "entry" && (
+        <section className="entryScreen" aria-label="入口">
+          <div className="entryIntro">
+            <span>先体验一轮</span>
+            <h1>把今天的纠结抽成 3 张卡</h1>
+            <p>选一个场景，先看完整抽取过程；停住后再进入选择页改条件。</p>
+          </div>
+
+          <div className="entryCarousel" aria-live="polite">
+            {presets.map((preset, index) => {
+              const presetProfile = getModuleProfile(preset.id);
+              const position = getEntryCardPosition(index);
+              return (
+                <button
+                  key={preset.id}
+                  className={`entryModuleCard ${position} ${isDeciding && activeModuleId === preset.id ? "loading" : ""}`}
+                  type="button"
+                  style={{
+                    "--entry-accent": presetProfile.accent,
+                    "--entry-soft": presetProfile.soft,
+                  }}
+                  onClick={() => startPresetDemo(preset)}
+                  disabled={isDeciding}
+                  aria-label={`体验${preset.label}`}
+                >
+                  <span
+                    className="entryCardImage"
+                    style={{
+                      backgroundImage: `linear-gradient(150deg, rgba(12,16,24,.02), rgba(12,16,24,.48)), url(${entryVisuals[preset.id]})`,
+                    }}
+                  />
+                  <span className="entryCardBody">
+                    <small>{presetProfile.kicker}</small>
+                    <strong>{preset.label}</strong>
+                    <em>{presetProfile.short}</em>
+                    <span className="entryCardChips">
+                      {presetProfile.typeMeta.tone.split("/").map((item) => (
+                        <b key={item}>{item}</b>
+                      ))}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="entryDots" aria-label="场景轮播">
+            {presets.map((preset, index) => (
+              <button
+                key={preset.id}
+                className={index === entryIndex ? "active" : ""}
+                type="button"
+                onClick={() => setEntryIndex(index)}
+                aria-label={`查看${preset.label}`}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {phase === "setup" && (
         <section className="setupGrid" aria-label="开局">
@@ -713,8 +925,13 @@ export default function App() {
           </div>
 
           <div className="drawFooter">
-            <span>{drawStatus === "spinning" ? "抽取中" : progress}</span>
+            <span>{drawStatus === "spinning" ? "抽取中" : introMode ? "体验完成" : progress}</span>
             <em>{getTypeMeta(session.type, session.moduleId).tone}</em>
+            {introMode && drawStatus === "stopped" && (
+              <button className="enterSetupButton" type="button" onClick={enterSetupFromDemo}>
+                进入选择页
+              </button>
+            )}
           </div>
 
           {notice && <div className="toast">{notice}</div>}
