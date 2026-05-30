@@ -1136,7 +1136,7 @@ function SlotDecisionCard({ item, settled }) {
 
   return (
     <article
-      className={`slotCard ${isFocus ? "focus" : ""}`}
+      className={`slotCard ${isFocus ? "focus frontSide" : "backSide"}`}
       style={{
         "--accent": card.accent,
         "--slot-shift": item.shift,
@@ -1147,24 +1147,36 @@ function SlotDecisionCard({ item, settled }) {
       }}
       aria-hidden={!isFocus}
     >
-      <div
-        className="slotCardMedia"
-        style={{
-          backgroundImage: `linear-gradient(150deg, rgba(9, 14, 24, .05), rgba(9, 14, 24, .55)), url(${card.image})`,
-        }}
-      />
-      <div className="slotCardContent">
-        <div className="slotCardTitleRow">
-          <Flame size={15} />
-          <h2>{card.title}</h2>
+      {isFocus ? (
+        <>
+          <div
+            className="slotCardMedia"
+            style={{
+              backgroundImage: `linear-gradient(150deg, rgba(9, 14, 24, .05), rgba(9, 14, 24, .55)), url(${card.image})`,
+            }}
+          />
+          <div className="slotCardContent">
+            <div className="slotCardTitleRow">
+              <Flame size={15} />
+              <h2>{card.title}</h2>
+            </div>
+            <p>{card.reason}</p>
+            <div className="slotMetaRow">
+              {card.meta.slice(0, 2).map((meta) => (
+                <span key={meta}>{meta}</span>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="slotCardBack" aria-hidden="true">
+          <span className="slotBackKicker">QUEST ACTIVE</span>
+          <span className="slotBackLine" />
+          <strong>CHOICE<br />OVER</strong>
+          <em>NO MORE<br />HESITATION!</em>
+          <small>HP 99/99</small>
         </div>
-        <p>{card.reason}</p>
-        <div className="slotMetaRow">
-          {card.meta.slice(0, 2).map((meta) => (
-            <span key={meta}>{meta}</span>
-          ))}
-        </div>
-      </div>
+      )}
     </article>
   );
 }

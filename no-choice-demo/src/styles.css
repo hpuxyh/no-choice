@@ -1509,6 +1509,89 @@ output {
   transform: translate3d(calc(-50% + var(--slot-shift) + var(--slot-nudge)), 0, 0) scale(calc(var(--slot-scale) + 0.1));
 }
 
+.slotCard.backSide {
+  display: block;
+  background: var(--yellow);
+}
+
+.slotCardBack {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto;
+  gap: 8px;
+  padding: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 34%),
+    var(--yellow);
+}
+
+.slotCardBack::before {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin: 8px auto 0;
+  place-items: center;
+  color: #1a1a1a;
+  background: #f8f6f0;
+  border: 3px solid #1a1a1a;
+  border-radius: 10px;
+  box-shadow: 4px 4px 0 rgba(26, 26, 26, 0.16);
+  content: "不";
+  font-size: 23px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.slotBackKicker,
+.slotCardBack em,
+.slotCardBack small {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: normal;
+  letter-spacing: 0;
+}
+
+.slotBackKicker {
+  color: #1a1a1a;
+  font-size: clamp(9px, 1vw, 12px);
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.slotBackLine {
+  display: block;
+  height: 3px;
+  background: #1a1a1a;
+  border-radius: 999px;
+}
+
+.slotCardBack strong {
+  align-self: center;
+  justify-self: center;
+  color: #1a1a1a;
+  font-family: Georgia, "Songti SC", "STSong", "Times New Roman", serif;
+  font-size: clamp(15px, 1.8vw, 24px);
+  font-weight: 950;
+  line-height: 1.05;
+  text-align: center;
+}
+
+.slotCardBack em {
+  justify-self: center;
+  color: #1a1a1a;
+  font-size: clamp(9px, 1vw, 12px);
+  font-weight: 850;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.slotCardBack small {
+  justify-self: end;
+  color: #1a1a1a;
+  font-size: clamp(8px, 0.9vw, 10px);
+  font-weight: 850;
+}
+
 .slotCardMedia {
   position: relative;
   min-height: 0;
