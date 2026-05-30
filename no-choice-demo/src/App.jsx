@@ -6,7 +6,6 @@ import {
   Dices,
   Flame,
   LocateFixed,
-  MapPin,
   Plus,
   RefreshCcw,
   SendHorizontal,
@@ -20,8 +19,6 @@ import {
   detectQuestionType,
   getModuleProfile,
   getTypeMeta,
-  makeFallbackResult,
-  makeResult,
   normalizeOptions,
   personaMeta,
   presets,
@@ -32,7 +29,6 @@ import {
   canUseLocation,
   formatAccuracy,
   formatCoords,
-  formatDistance,
   getCurrentPosition,
   getLocationStatusLabel,
   getPoiKeyword,
@@ -40,8 +36,10 @@ import {
 } from "./geoPoi";
 
 const dragLimit = 96;
-const autoSlideDelay = 3200;
 const slideDuration = 320;
+const spinStepDelay = 480;
+const minSpinSteps = 8;
+const spinStepRange = 5;
 const emptyGeoState = {
   status: "idle",
   coords: null,
@@ -73,7 +71,10 @@ export default function App() {
   const [shareStatus, setShareStatus] = useState("");
   const [geoState, setGeoState] = useState(emptyGeoState);
   const [isDeciding, setIsDeciding] = useState(false);
+  const [drawStatus, setDrawStatus] = useState("idle");
   const startPoint = useRef({ x: 0, y: 0 });
+  const spinTimer = useRef(null);
+  const spinRun = useRef(0);
 
   const activeModule = getModuleProfile(activeModuleId);
   const conditionOptions = activeModule.conditions;
@@ -108,16 +109,16 @@ export default function App() {
   }, [phase]);
 
   useEffect(() => {
-    if (phase !== "swipe" || !session || session.cards.length < 2 || fly || drag.active) {
+    if (phase !== "swipe" || !session || session.cards.length < 2) {
       return undefined;
     }
 
-    const timer = window.setTimeout(() => {
-      drawNextCard("auto");
-    }, autoSlideDelay);
+    startAutoDraw();
 
-    return () => window.clearTimeout(timer);
-  }, [drag.active, fly, phase, session?.cards.length, session?.index]);
+    return () => {
+      stopAutoDraw();
+    };
+  }, [phase, session?.cards]);
 
   function applyPreset(preset) {
     setActiveModuleId(preset.id);
@@ -137,6 +138,49 @@ export default function App() {
         : emptyGeoState,
     );
     setPhase("setup");
+  }
+
+  function stopAutoDraw() {
+    spinRun.current += 1;
+    if (spinTimer.current) {
+      window.clearTimeout(spinTimer.current);
+      spinTimer.current = null;
+    }
+  }
+
+  function startAutoDraw() {
+    if (!session || session.cards.length < 2) return;
+
+    stopAutoDraw();
+    const runId = spinRun.current;
+    let totalSteps = minSpinSteps + Math.floor(Math.random() * spinStepRange);
+    if (totalSteps % session.cards.length === 0) {
+      totalSteps += 1;
+    }
+    let step = 0;
+
+    setDrawStatus("spinning");
+
+    const tick = () => {
+      if (spinRun.current !== runId) return;
+
+      const isFinalStep = step >= totalSteps - 1;
+      drawNextCard(isFinalStep ? "settle" : "auto");
+      step += 1;
+
+      if (isFinalStep) {
+        spinTimer.current = window.setTimeout(() => {
+          if (spinRun.current === runId) {
+            setDrawStatus("stopped");
+          }
+        }, slideDuration + 90);
+        return;
+      }
+
+      spinTimer.current = window.setTimeout(tick, spinStepDelay);
+    };
+
+    spinTimer.current = window.setTimeout(tick, 260);
   }
 
   function getSelectedConditionLabels() {
@@ -223,14 +267,6 @@ export default function App() {
       setGeoState(nextState);
       return nextState;
     }
-  }
-
-  function addPoiCandidate(poi) {
-    setMode("manual");
-    setManualOptions((current) => {
-      const options = normalizeOptions(`${current}\n${poi.name}`);
-      return options.join("\n");
-    });
   }
 
   async function startDecision() {
@@ -329,6 +365,7 @@ export default function App() {
   }
 
   function resetToSetup() {
+    stopAutoDraw();
     setPhase("setup");
     setResult(null);
     setSession(null);
@@ -337,6 +374,7 @@ export default function App() {
     setNotice("");
     setShareStatus("");
     setIsDeciding(false);
+    setDrawStatus("idle");
   }
 
   function restartSame() {
@@ -347,26 +385,26 @@ export default function App() {
   }
 
   function handlePointerDown(event) {
-    if (!activeCard || fly) return;
+    if (!activeCard || fly || drawStatus === "spinning") return;
     event.currentTarget.setPointerCapture(event.pointerId);
     startPoint.current = { x: event.clientX, y: event.clientY };
     setDrag({ active: true, x: 0, y: 0 });
   }
 
   function handlePointerMove(event) {
-    if (!drag.active || fly) return;
+    if (!drag.active || fly || drawStatus === "spinning") return;
     const x = event.clientX - startPoint.current.x;
     const y = event.clientY - startPoint.current.y;
     setDrag({ active: true, x, y });
   }
 
   function handlePointerUp() {
-    if (!drag.active || fly) return;
+    if (!drag.active || fly || drawStatus === "spinning") return;
     const x = drag.x;
     setDrag({ active: false, x: 0, y: 0 });
 
     if (x > dragLimit) {
-      commitSwipe("right");
+      drawNextCard();
       return;
     }
 
@@ -377,8 +415,9 @@ export default function App() {
 
   function drawNextCard(source = "manual") {
     if (!session || fly) return;
+    if (source === "manual" && drawStatus === "spinning") return;
 
-    setFly(source === "auto" ? "auto-left" : "left");
+    setFly(source === "auto" ? "auto-left" : source === "settle" ? "settle-left" : "left");
     window.setTimeout(() => {
       setSession((current) =>
         current
@@ -388,39 +427,6 @@ export default function App() {
             }
           : current,
       );
-      setFly(null);
-    }, slideDuration);
-  }
-
-  function commitSwipe(direction) {
-    if (!session || !activeCard || fly) return;
-
-    setFly(direction);
-    window.setTimeout(() => {
-      if (direction === "right") {
-        setResult(
-          makeResult({
-            card: activeCard,
-            question: session.question,
-            persona: session.persona,
-            source: "locked",
-            type: session.type,
-            moduleId: session.moduleId,
-          }),
-        );
-        setPhase("result");
-      } else if (session.index < session.cards.length - 1) {
-        setSession((current) => ({ ...current, index: current.index + 1 }));
-      } else {
-        const fallback = makeFallbackResult(session);
-        setNotice(fallback.fallbackLine);
-        window.setTimeout(() => {
-          setResult(fallback);
-          setPhase("result");
-          setNotice("");
-        }, 560);
-      }
-
       setFly(null);
     }, slideDuration);
   }
@@ -580,37 +586,6 @@ export default function App() {
                     {geoState.poiMessage}
                   </p>
                 )}
-                {geoState.pois.length > 0 && (
-                  <div className="poiPanel">
-                    <span>{activeModule.location.poiLabel}</span>
-                    <div className="poiGrid">
-                      {geoState.pois.slice(0, 4).map((poi) => (
-                        <button key={poi.id} type="button" onClick={() => addPoiCandidate(poi)}>
-                          {poi.image ? (
-                            <span
-                              className="poiThumb"
-                              style={{ backgroundImage: `url(${poi.image})` }}
-                              aria-hidden="true"
-                            />
-                          ) : (
-                            <span className="poiThumb placeholder" aria-hidden="true">
-                              <MapPin size={17} />
-                            </span>
-                          )}
-                          <span className="poiText">
-                            <strong>{poi.name}</strong>
-                            <small>
-                              {[formatDistance(poi.distance), poi.rating ? `${poi.rating}分` : "", poi.type]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </small>
-                            {poi.address && <em>{poi.address}</em>}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
@@ -685,7 +660,7 @@ export default function App() {
       )}
 
       {phase === "swipe" && session && activeCard && (
-        <section className="drawScreen" aria-label="抽卡">
+        <section className={`drawScreen ${drawStatus === "spinning" ? "spinning" : "settled"}`} aria-label="抽卡">
           <div className="drawHeader">
             <div className="miniDeck" aria-hidden="true">
               {session.cards.slice(0, 3).map((card, index) => (
@@ -707,7 +682,7 @@ export default function App() {
           </div>
 
           <div className="drawCarousel" aria-live="polite">
-            {previousCard && <DecisionCard card={previousCard} side="left" onPointerDown={drawNextCard} />}
+            {previousCard && <DecisionCard card={previousCard} side="left" onPointerDown={() => drawNextCard()} />}
 
             <DecisionCard
               card={activeCard}
@@ -720,23 +695,25 @@ export default function App() {
               onPointerCancel={handlePointerUp}
             />
 
-            {nextCard && <DecisionCard card={nextCard} side="right" onPointerDown={drawNextCard} />}
+            {nextCard && <DecisionCard card={nextCard} side="right" onPointerDown={() => drawNextCard()} />}
           </div>
 
           <div className="drawPointer" aria-hidden="true" />
 
           <div className="goCloud">
-            <button className="goButton" type="button" onClick={() => commitSwipe("right")} aria-label="抽取当前答案卡">
+            <button
+              className="goButton"
+              type="button"
+              onClick={startAutoDraw}
+              disabled={drawStatus === "spinning"}
+              aria-label="重新抽取答案卡"
+            >
               <span>GO</span>
             </button>
           </div>
 
           <div className="drawFooter">
-            <button className="drawNextButton" type="button" onClick={drawNextCard}>
-              <RefreshCcw size={16} />
-              换一张
-            </button>
-            <span>{progress}</span>
+            <span>{drawStatus === "spinning" ? "抽取中" : progress}</span>
             <em>{getTypeMeta(session.type, session.moduleId).tone}</em>
           </div>
 
@@ -802,8 +779,8 @@ function DecisionCard({
   const flyTransform =
     fly === "right"
       ? "translate3d(135%, -8%, 0) rotate(18deg)"
-      : fly === "left" || fly === "auto-left"
-        ? `translate3d(${fly === "auto-left" ? "-112%" : "-135%"}, -6%, 0) rotate(${fly === "auto-left" ? "-12deg" : "-18deg"})`
+      : fly === "left" || fly === "auto-left" || fly === "settle-left"
+        ? `translate3d(${fly === "left" ? "-135%" : "-112%"}, -6%, 0) rotate(${fly === "left" ? "-18deg" : "-12deg"})`
         : "";
   const activeTransform = `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${rotation}deg)`;
   const stackTransform = `translateY(${stackIndex * 13}px) scale(${1 - stackIndex * 0.045})`;

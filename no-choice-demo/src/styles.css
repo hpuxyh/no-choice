@@ -1078,6 +1078,17 @@ output {
   cursor: pointer;
 }
 
+.drawScreen.spinning .decisionCard.side,
+.drawScreen.spinning .decisionCard.active {
+  cursor: default;
+}
+
+.drawScreen.spinning .decisionCard.active {
+  box-shadow:
+    0 32px 80px rgba(112, 79, 50, 0.24),
+    0 0 0 2px rgba(247, 190, 143, 0.22);
+}
+
 .drawCarousel .decisionCard.side.left {
   transform-origin: 100% 86%;
 }
@@ -1216,6 +1227,16 @@ output {
     inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
+.goButton:disabled {
+  cursor: wait;
+  opacity: 0.68;
+  transform: none;
+}
+
+.drawScreen.spinning .drawPointer {
+  animation: pointerPulse 480ms ease-in-out infinite alternate;
+}
+
 .drawFooter {
   position: relative;
   z-index: 2;
@@ -1231,19 +1252,6 @@ output {
   font-weight: 780;
 }
 
-.drawNextButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 0 11px;
-  color: #2f3440;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(228, 214, 202, 0.95);
-  border-radius: 8px;
-  box-shadow: 0 8px 20px rgba(132, 91, 58, 0.1);
-}
-
 .drawFooter span,
 .drawFooter em {
   padding: 7px 10px;
@@ -1251,6 +1259,16 @@ output {
   border: 1px solid rgba(228, 214, 202, 0.72);
   border-radius: 8px;
   font-style: normal;
+}
+
+@keyframes pointerPulse {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(8px);
+  }
 }
 
 .swipeScreen {
