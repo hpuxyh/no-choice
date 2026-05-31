@@ -42,6 +42,10 @@ export default {
       return handleDecideRequest(request, env);
     }
 
+    if (url.pathname === "/api/restaurant-search-plan") {
+      return handleRestaurantSearchPlanRequest(request, env);
+    }
+
     if (url.pathname === "/api/rank-restaurants") {
       return handleRankRestaurantsRequest(request, env);
     }
@@ -141,6 +145,51 @@ async function handleDecideRequest(request, env) {
     });
   } catch (error) {
     return json({ ok: false, message: error.message || "AI 推荐暂时不可用" }, 502);
+  }
+}
+
+async function handleRestaurantSearchPlanRequest(request, env) {
+  if (request.method !== "POST") {
+    return json({ ok: false, message: "只支持 POST" }, 405);
+  }
+
+  const key = env.DEEPSEEK_API_KEY || "";
+  if (!key) {
+    return json(
+      {
+        ok: false,
+        needsKey: true,
+        message: "Cloudflare 还没有配置 DEEPSEEK_API_KEY",
+      },
+      501,
+    );
+  }
+
+  let input;
+  try {
+    input = normalizeRestaurantSearchPlanInput(await request.json());
+  } catch {
+    return json({ ok: false, message: "请求内容不是有效 JSON" }, 400);
+  }
+
+  try {
+    const model = env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+    const content = await askDeepSeekRestaurantSearchPlan({ key, model, input });
+    const parsed = parseJsonContent(content);
+    const plan = normalizeRestaurantSearchPlan(parsed.plan || parsed.searchPlan || parsed, input);
+
+    if (!plan.keywords.length) {
+      throw new Error("模型没有返回有效高德搜索关键词");
+    }
+
+    return json({
+      ok: true,
+      provider: "deepseek",
+      model,
+      plan,
+    });
+  } catch (error) {
+    return json({ ok: false, message: error.message || "AI 搜索条件解析暂时不可用" }, 502);
   }
 }
 
@@ -337,6 +386,46 @@ async function askDeepSeek({ key, model, input }) {
   return content;
 }
 
+async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
+  const response = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${key}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是不做选择 App 的高德餐饮搜索条件解析器。你必须只返回 JSON object，不要 Markdown。任务：把用户自然语言、标签、位置理解成高德 place/around 可用的搜索计划，不要推荐或排序餐厅，不要编造 POI。返回字段 plan：keywords 数组 2 到 6 个中文短关键词，每个不超过 8 字，适合高德餐饮搜索；minCost 和 maxCost 为数字或 null；radiusMeters 为 1000 到 10000；preferOpenLate 为 boolean；locationHint 为商圈/地标/区域短文本，没有则空字符串；explanation 中文 40 字以内。示例关键词：西餐、火锅、夜宵、烧烤、日料、约会餐厅、安静餐厅、咖啡。",
+        },
+        {
+          role: "user",
+          content: JSON.stringify(input),
+        },
+      ],
+      response_format: { type: "json_object" },
+      thinking: { type: "disabled" },
+      temperature: 0.15,
+      max_tokens: 800,
+    }),
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "DeepSeek 请求失败");
+  }
+
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error("DeepSeek 没有返回内容");
+  }
+
+  return content;
+}
+
 async function askDeepSeekRestaurantRanking({ key, model, input }) {
   const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -415,6 +504,70 @@ function normalizeDecisionInput(body) {
     pois,
     outputCount,
   };
+}
+
+function normalizeRestaurantSearchPlanInput(body) {
+  const selectedConditions = normalizeStringList(body?.selectedConditions || body?.tags, 16, 24);
+  const customConditions = normalizeStringList(body?.customConditions, 8, 80);
+
+  return {
+    moduleId: cleanToken(body?.moduleId, 24) || "dinner",
+    question: cleanText(body?.question, 220),
+    scenes: normalizeStringList(body?.scenes, 8, 24),
+    needs: normalizeStringList(body?.needs, 8, 24),
+    tags: selectedConditions,
+    customConditions,
+    location: normalizeInputLocation(body?.location),
+  };
+}
+
+function normalizeRestaurantSearchPlan(plan, input) {
+  const keywords = normalizeSearchKeywords(
+    plan?.keywords || plan?.searchKeywords || plan?.amapKeywords || plan?.tags,
+  );
+  const fallbackKeywords = normalizeSearchKeywords([...input.tags, input.question]);
+  const minCost = readMoneyValue(plan?.minCost ?? plan?.min_price ?? plan?.minPrice);
+  const maxCost = readMoneyValue(plan?.maxCost ?? plan?.max_price ?? plan?.maxPrice);
+  const radius = Number(plan?.radiusMeters || plan?.radius || plan?.radius_meters);
+  const fallbackMinCost = input.tags.includes("人均150+") || /人均\s*150|150\+|150以上/.test(input.question)
+    ? MIN_DINNER_COST
+    : null;
+  const resolvedMinCost = Number.isFinite(minCost) ? minCost : fallbackMinCost;
+
+  return {
+    keywords: (keywords.length ? keywords : fallbackKeywords).slice(0, 6),
+    minCost: resolvedMinCost,
+    maxCost: Number.isFinite(maxCost) && (!resolvedMinCost || maxCost >= resolvedMinCost) ? maxCost : null,
+    radiusMeters: Number.isFinite(radius) ? Math.max(1000, Math.min(10000, Math.round(radius))) : 3500,
+    preferOpenLate: Boolean(plan?.preferOpenLate || plan?.openLate || plan?.lateNight || input.tags.includes("通宵熬夜")),
+    locationHint: cleanText(plan?.locationHint || plan?.area || plan?.landmark, 40),
+    explanation: cleanText(plan?.explanation || plan?.reason, 80),
+  };
+}
+
+function normalizeSearchKeywords(value) {
+  const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|\s]+/);
+  const seen = new Set();
+  return list
+    .map((item) => cleanKeyword(item))
+    .filter(Boolean)
+    .filter((keyword) => {
+      if (seen.has(keyword)) {
+        return false;
+      }
+      seen.add(keyword);
+      return true;
+    })
+    .slice(0, 6);
+}
+
+function readMoneyValue(value) {
+  const direct = Number(value);
+  if (Number.isFinite(direct) && direct > 0) {
+    return Math.round(direct);
+  }
+  const match = String(value || "").match(/\d+(?:\.\d+)?/);
+  return match ? Math.round(Number(match[0])) : Number.NaN;
 }
 
 function normalizeRestaurantRankingInput(body) {
