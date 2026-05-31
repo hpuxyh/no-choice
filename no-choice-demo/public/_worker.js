@@ -352,7 +352,9 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
             "高德原生可接收字段：keywords、types、location、radius、sortrule、region、city_limit、page_size、page_num、show_fields、output。location/page_size/page_num/output 由前端补，不要输出。",
             "高德不原生筛选但前端会后处理的字段：minCost、maxCost、minRating、mustKeywords、avoidKeywords、preferOpenLate、openAtHour。",
             "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region/locationHint 为商圈/地标/行政区短文本，没有则空字符串；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 40 字以内。",
-            "关键词要能直接给高德搜，例如：西餐、火锅、夜宵、烧烤、日料、约会餐厅、安静餐厅、咖啡。不要输出长句作为 keyword。"
+            "关键词要能直接给高德搜，例如：西餐、火锅、夜宵、烧烤、日料、约会餐厅、安静餐厅、咖啡。不要输出长句作为 keyword。",
+            "先判断用户是否已有明确餐厅指向：明确店名、品牌、菜系、菜品、地域口味、商圈位置都算明确。明确时不要随意改写或扩写，keywords 和 searchRequests 的第一项必须保留用户原始核心词，例如“想吃云南菜”保留 云南菜，“想吃牛肉面”保留 牛肉面，“海底捞”保留 海底捞。",
+            "只有用户没有明确食物/餐厅指向时，才结合标签拆解成高德可搜关键词。例如“朋友聚餐、安静好聊”可拆成 聚餐、安静餐厅、西餐、咖啡；“不知道吃什么、少排队”可拆成 餐厅、简餐、小吃。不要只输出泛化的“餐厅”，除非输入确实没有明确意图。"
           ].join("\n"),
         },
         {
