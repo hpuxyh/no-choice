@@ -542,7 +542,7 @@
         "通宵熬夜": ["夜宵", "烧烤", "火锅"]
       };
       const PRIORITY_TAGS = new Set(["西餐", "火锅", "通宵熬夜"]);
-      const FOOD_SEARCH_TERMS = ["火锅","夜宵","烤肉","烧烤","日料","日本料理","寿司","韩餐","韩国料理","泰餐","西餐","牛排","意面","披萨","粤菜","川菜","湘菜","本帮菜","江浙菜","海鲜","素食","轻食","咖啡","甜品","brunch","早午餐","小酒馆","酒吧","烧鸟","居酒屋","麻辣烫","拉面","面馆","米粉","私房菜","中餐","餐厅"];
+      const FOOD_SEARCH_TERMS = ["火锅","夜宵","烤肉","烧烤","日料","日本料理","寿司","韩餐","韩国料理","泰餐","西餐","牛排","意面","披萨","粤菜","川菜","湘菜","云南菜","云贵菜","傣味","菌子火锅","过桥米线","云南米线","贵州菜","东北菜","新疆菜","西北菜","北京菜","烤鸭","本帮菜","江浙菜","海鲜","素食","轻食","咖啡","甜品","brunch","早午餐","小酒馆","酒吧","烧鸟","居酒屋","麻辣烫","拉面","面馆","米粉","私房菜","中餐","餐厅"];
       // 上传照片后展示的预生成像素头像（demo：原图 → 像素图）
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";
       const $ = (s) => document.querySelector(s);
@@ -937,12 +937,16 @@
 
       function getChoiceContext(){
         const chips = Array.from(document.querySelectorAll("#choiceTags .chip.on"));
+        const question = cleanChoiceQuestion($("#choiceInput")?.value || "");
         return {
-          question: ($("#choiceInput")?.value || "").trim(),
+          question,
           scenes: chips.filter((chip)=>chip.dataset.kind === "scene").map((chip)=>chip.dataset.tag).filter(Boolean),
           needs: chips.filter((chip)=>chip.dataset.kind === "need").map((chip)=>chip.dataset.tag).filter(Boolean),
           tags: chips.map((chip)=>chip.dataset.tag).filter(Boolean)
         };
+      }
+      function cleanChoiceQuestion(value){
+        return String(value || "").replace(/\n?标签：.*$/su, "").trim();
       }
 
       function invalidateRestaurantIntent(){
@@ -1104,6 +1108,7 @@
       function restaurantSearchKeywords(choice = getChoiceContext()){
         const raw = [];
         choice.tags.filter((tag)=>PRIORITY_TAGS.has(tag)).forEach(pushRestaurantTagKeywords);
+        extractRestaurantQuestionKeywords(choice.question).forEach((keyword)=>raw.push(keyword));
         choice.tags.filter((tag)=>!PRIORITY_TAGS.has(tag)).forEach(pushRestaurantTagKeywords);
         const text = [choice.question, choice.tags.join(" ")].join(" ");
         FOOD_SEARCH_TERMS.forEach((term)=>{ if(text.toLowerCase().includes(term.toLowerCase())) raw.push(term); });
@@ -1112,6 +1117,24 @@
         function pushRestaurantTagKeywords(tag){
           (TAG_SEARCH_KEYWORDS[tag] || [tag]).forEach((keyword)=>raw.push(keyword));
         }
+      }
+      function extractRestaurantQuestionKeywords(question){
+        const text = cleanChoiceQuestion(question).replace(/\s+/g, " ");
+        const keywords = [];
+        const actionPattern = /(?:想吃|想要吃|要吃|吃点|吃|来点|找|搜|搜索|安排)([\u4e00-\u9fa5A-Za-z0-9]{1,12})/g;
+        let match;
+        while((match = actionPattern.exec(text))){
+          const keyword = normalizeQuestionFoodKeyword(match[1]);
+          if(keyword) keywords.push(keyword);
+        }
+        FOOD_SEARCH_TERMS.forEach((term)=>{ if(text.toLowerCase().includes(term.toLowerCase())) keywords.push(term); });
+        return uniqueKeywords(keywords.map(cleanRestaurantKeyword).filter(Boolean)).slice(0, 4);
+      }
+      function normalizeQuestionFoodKeyword(value){
+        let keyword = String(value || "").replace(/^(点|个|家|些|一点|一家)/, "").replace(/(附近|周边|餐厅|饭店|店|馆|人均.*|便宜|贵|安静|好聊|少排队).*$/u, "").trim();
+        if(!keyword || /^(饭|饭饭|东西|什么|啥|随便|都行)$/.test(keyword)) return "";
+        if(/^[\u4e00-\u9fa5]{1,6}$/.test(keyword) && !/(菜|餐|饭|面|粉|火锅|烧烤|烤肉|料理|寿司|甜品|咖啡|酒|小吃|米线|烤鸭)$/.test(keyword)) keyword += "菜";
+        return keyword;
       }
       function cleanRestaurantKeyword(keyword){
         const value = String(keyword || "").replace(/标签：.*/u, "").replace(/[，,。.!！?？；;:：]/g, " ").trim();
