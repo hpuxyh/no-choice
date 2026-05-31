@@ -96,9 +96,11 @@
       .inputActionsTop .micBig { min-height: 54px; border-radius: 15px; font-size: 15px; }
       .inputActionsTop .voicePrimary { flex: 1.35; background: var(--yellow); color: var(--ink); font-size: 16px; }
       .inputActionsTop .photoAction { flex: .85; }
-      .locationStatus { flex: none; min-height: 43px; display: flex; align-items: center; gap: 8px; padding: 8px 11px; border: 3px solid var(--ink); border-radius: 14px; background: #fff7df; box-shadow: var(--shadow-sm); font-size: 13px; font-weight: 900; line-height: 1.25; color: var(--ink); overflow: hidden; }
+      .locationStatus { flex: none; min-height: 56px; max-height: 72px; display: flex; align-items: flex-start; gap: 8px; padding: 8px 11px; border: 3px solid var(--ink); border-radius: 14px; background: #fff7df; box-shadow: var(--shadow-sm); font-size: 13px; font-weight: 900; line-height: 1.22; color: var(--ink); overflow: hidden; }
       .locationStatus::before { content: "📍"; flex: none; font-size: 18px; line-height: 1; }
-      .locationStatus span { display: block; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .locationStatus span { display: flex; flex-direction: column; gap: 2px; min-width: 0; white-space: normal; overflow: hidden; }
+      .locationStatus strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: inherit; }
+      .locationStatus small { display: block; font-size: 10.5px; font-weight: 850; opacity: .86; line-height: 1.2; }
       .locationStatus[data-state="gps"] { background: var(--green); color: #fff; }
       .locationStatus[data-state="loading"] { background: var(--yellow); }
       .locationStatus[data-state="error"] { background: #fffdf6; color: #6b6253; }
@@ -132,7 +134,8 @@
       @media (max-height: 760px) {
         textarea.field.bigInput { height: clamp(138px, 22dvh, 178px); min-height: clamp(138px, 22dvh, 178px); }
         .inputActionsTop .micBig { min-height: 48px; }
-        .locationStatus { min-height: 38px; font-size: 12px; padding: 7px 10px; }
+        .locationStatus { min-height: 50px; max-height: 64px; font-size: 12px; padding: 7px 10px; }
+        .locationStatus small { font-size: 10px; }
         .gameHero { gap: 7px; }
         .voiceBox { gap: 7px; }
       }
@@ -570,7 +573,7 @@
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";
       const $ = (s) => document.querySelector(s);
       const BGM_VOLUME = 0.72;
-      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, lastCoords = null, locationStatusPromise = null, restaurantContext = null, restaurantContextPromise = null, restaurantSearchPlan = null, restaurantSearchPlanSignature = "", restaurantSearchPlanPromise = null, useComicImages = CAN_USE_COMIC_IMAGES && safeStorageGet("choice-over-use-comic") === "1";
+      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, lastCoords = null, locationStatusPromise = null, locationStatusSeq = 0, restaurantContext = null, restaurantContextPromise = null, restaurantSearchPlan = null, restaurantSearchPlanSignature = "", restaurantSearchPlanPromise = null, useComicImages = CAN_USE_COMIC_IMAGES && safeStorageGet("choice-over-use-comic") === "1";
       let bgmUnlockInstalled = false;
 
       function go(name){ startBgm(); document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); if(name === "game") primeLocationStatus(); }
@@ -1050,29 +1053,83 @@
         const percent = Math.round((safeDone / safeTotal) * 100);
         return `<div class="loadingProgress" style="--progress:${percent}%"><span></span></div><div class="loadingCount pixel">${safeDone}/${safeTotal} READY</div>`;
       }
-      function setLocationStatus(text, state = "idle"){
+      function setLocationStatus(text, state = "idle", meta = ""){
         const el = $("#locationStatus");
         if(!el) return;
         el.dataset.state = state;
         const target = el.querySelector("span") || el;
-        target.textContent = text;
+        target.innerHTML = meta ? `<strong>${escapeHTML(text)}</strong><small>${escapeHTML(meta)}</small>` : `<strong>${escapeHTML(text)}</strong>`;
       }
       function updateLocationStatus(coords, source = "city"){
         const lat = Number(coords?.lat), lng = Number(coords?.lng);
-        const coordText = Number.isFinite(lat) && Number.isFinite(lng) ? ` · ${lat.toFixed(4)}, ${lng.toFixed(4)}` : "";
+        const coordText = Number.isFinite(lat) && Number.isFinite(lng) ? `${source === "gps" ? "GPS" : "坐标"} ${lat.toFixed(5)}, ${lng.toFixed(5)}` : "";
         const label = coords?.label || (source === "gps" ? "GPS 定位" : "当前城市");
-        const accuracy = source === "gps" && coords?.accuracy ? ` · ±${coords.accuracy}m` : "";
-        setLocationStatus(`定位：${label}${coordText}${accuracy}`, source === "gps" ? "gps" : "city");
+        const accuracy = source === "gps" && coords?.accuracy ? ` · 精度约 ${coords.accuracy}m` : "";
+        const state = source === "gps" ? "gps" : "city";
+        const meta = [coordText, accuracy.replace(/^ · /, "")].filter(Boolean).join(" · ");
+        if(source !== "gps") locationStatusSeq++;
+        setLocationStatus(source === "gps" ? `当前位置：${label}` : `城市定位：${label}`, state, meta);
+        if(source === "gps" && Number.isFinite(lat) && Number.isFinite(lng)) enrichLocationStatus(coords, meta);
+      }
+      async function enrichLocationStatus(coords, fallbackMeta = ""){
+        const seq = ++locationStatusSeq;
+        try{
+          const detail = await reverseGeocodeLocation(coords);
+          if(seq !== locationStatusSeq || !detail) return;
+          setLocationStatus(`当前位置：${detail}`, "gps", fallbackMeta);
+        }catch(err){
+          console.warn("Detailed location unavailable", err);
+        }
       }
       function primeLocationStatus(){
         if(lastCoords){ updateLocationStatus(lastCoords, lastCoords.accuracy ? "gps" : "city"); return Promise.resolve(lastCoords); }
         if(locationStatusPromise) return locationStatusPromise;
-        setLocationStatus("定位：正在获取当前城市…", "loading");
-        locationStatusPromise = getApproxPosition()
-          .then((coords)=>{ updateLocationStatus(coords, "city"); return coords; })
-          .catch(()=>{ setLocationStatus("定位：暂时未获取，开局时再试", "error"); return null; })
+        setLocationStatus("定位：正在获取当前位置…", "loading");
+        locationStatusPromise = getCurrentPosition()
+          .then((coords)=>{ lastCoords = coords; updateLocationStatus(coords, "gps"); return coords; })
+          .catch(()=>getApproxPosition()
+            .then((coords)=>{ updateLocationStatus(coords, "city"); return coords; })
+            .catch(()=>{ setLocationStatus("定位：暂时未获取，开局时再试", "error"); return null; }))
           .finally(()=>{ locationStatusPromise = null; });
         return locationStatusPromise;
+      }
+      async function reverseGeocodeLocation(coords){
+        const center = coords?.amap ? coords : await convertToAmap(coords);
+        const lat = Number(center?.lat), lng = Number(center?.lng);
+        if(!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+        const data = await amapJsonp("https://restapi.amap.com/v3/geocode/regeo", {
+          key: AMAP_WEB_SERVICE_KEY,
+          location: `${lng.toFixed(6)},${lat.toFixed(6)}`,
+          radius: "1000",
+          extensions: "base",
+          roadlevel: "0",
+          output: "json"
+        });
+        if(data.status !== "1") throw new Error(data.info || "高德逆地理编码失败");
+        const regeocode = data.regeocode || {};
+        const component = regeocode.addressComponent || {};
+        const formatted = String(regeocode.formatted_address || "").replace(/^中国/, "").trim();
+        const componentAddress = compactLocationParts([
+          amapAddressText(component.province),
+          amapAddressText(component.city),
+          amapAddressText(component.district),
+          amapAddressText(component.township),
+          [amapAddressText(component.streetNumber?.street), amapAddressText(component.streetNumber?.number)].filter(Boolean).join("")
+        ]).join("");
+        return (formatted || componentAddress).slice(0, 80);
+      }
+      function amapAddressText(value){
+        if(Array.isArray(value)) return String(value[0] || "").trim();
+        return String(value || "").trim();
+      }
+      function compactLocationParts(parts){
+        const seen = new Set();
+        return parts.map((part)=>String(part || "").trim()).filter(Boolean).filter((part)=>{
+          const key = normalizeMatchText(part);
+          if(!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
       }
       function getCurrentPosition(){
         if(!("geolocation" in navigator)) return Promise.reject(new Error("当前浏览器不支持定位"));
