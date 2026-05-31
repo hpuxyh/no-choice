@@ -1,7 +1,7 @@
 const MIN_DINNER_COST = 150;
 const POI_PAGE_SIZE = 25;
-const POI_SEARCH_PAGES = 4;
-const DINNER_PRICE_POOL_SIZE = 32;
+const POI_SEARCH_PAGES = 6;
+const DINNER_PRICE_POOL_SIZE = 60;
 const DECIDE_POI_LIMIT = 20;
 
 const poiConfigs = {
