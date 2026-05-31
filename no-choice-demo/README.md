@@ -16,6 +16,8 @@
 - 手机优先演示：https://no-choice.pages.dev/
 - GitHub Pages 镜像：https://hpuxyh.github.io/no-choice/
 - 本地预览：http://127.0.0.1:5173/
+- 扫码体验图：`public/no-choice-play-qr.png`
+- 扫码展示页：`public/qr.html`
 
 ## 运行
 
@@ -28,6 +30,20 @@ npm run dev
 
 ```text
 http://127.0.0.1:5173/
+```
+
+## 发布扫码版
+
+二维码指向 GitHub Pages 的手机体验页：
+
+```text
+https://hpuxyh.github.io/no-choice/play.html
+```
+
+推送到 `main` 后，仓库里的 GitHub Actions 会自动构建并发布到 GitHub Pages：
+
+```text
+https://hpuxyh.github.io/no-choice/
 ```
 
 ## POI 配置
