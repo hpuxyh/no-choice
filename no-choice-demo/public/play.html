@@ -1308,7 +1308,8 @@
           };
         }).filter(Boolean).sort((a,b)=>a.priority-b.priority).slice(0, 8);
         if(requests.length) return requests;
-        return normalizePlanKeywords(fallbackKeywords).slice(0, 6).map((keyword, index)=>({
+        const requestKeywords = normalizeRequestKeywords(fallbackKeywords, 6);
+        return (requestKeywords.length ? requestKeywords : [RESTAURANT_KEYWORD_FALLBACK]).map((keyword, index)=>({
           keyword,
           types: normalizeAmapTypes(defaults.types),
           radiusMeters: defaults.radiusMeters || 3500,
@@ -1318,6 +1319,10 @@
           showFields: normalizeAmapShowFields(defaults.showFields),
           priority: index + 1
         }));
+      }
+      function normalizeRequestKeywords(value, limit = 6){
+        const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|\s]+/);
+        return uniqueKeywords(list.map(cleanRestaurantKeyword).filter(Boolean)).slice(0, limit);
       }
       function restaurantSearchOptions(searchPlan = {}){
         return {
