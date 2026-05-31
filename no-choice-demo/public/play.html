@@ -1176,15 +1176,20 @@
             mode: "ai",
             manualCandidates: [],
             location: coords,
-            pois: candidates.slice(0, 8).map(serializePoiForRanking),
-            outputCount: 3
+            pois: candidates.slice(0, AMAP_PRICE_POOL_SIZE).map(serializePoiForRanking),
+            outputCount: TOTAL
           })
         });
         const data = await response.json().catch(()=>null);
-        if(!response.ok || !data?.ok || !Array.isArray(data.cards)) throw new Error(data?.message || "AI 推荐失败");
-        const ranked = restaurantsFromDecisionCards(data.cards, candidates);
+        const aiItems = normalizeAiDecisionItems(data);
+        if(!response.ok || !data?.ok || !aiItems.length) throw new Error(data?.message || "AI 推荐失败");
+        const ranked = restaurantsFromDecisionCards(aiItems, candidates);
         if(!ranked.length) throw new Error("AI 推荐没有匹配到真实餐厅");
         return ranked;
+      }
+      function normalizeAiDecisionItems(data){
+        const source = data?.cards || data?.recommendations || data?.restaurants || data?.rankings || data?.ranking || data?.items;
+        return Array.isArray(source) ? source.slice(0, TOTAL) : [];
       }
       function restaurantsFromRankings(rankings, candidates){
         const byId = new Map(candidates.map((poi)=>[String(poi.id || poi.name), poi]));
@@ -1200,36 +1205,82 @@
       function restaurantsFromDecisionCards(cards, candidates){
         const used = new Set();
         return (cards || []).map((card, index)=>{
-          const poi = findPoiForDecisionCard(card, candidates);
+          const poi = findPoiForDecisionCard(card, candidates, used);
           const id = String(poi?.id || poi?.name || "");
           if(!poi || !id || used.has(id)) return null;
           used.add(id);
           const tags = Array.isArray(card.tags) ? card.tags : (Array.isArray(card.meta) ? card.meta : []);
-          return { ...poi, aiReason: card.reason || "", aiTags: tags.slice(0, 3), aiScore: Number(card.confidence) || Math.max(0.5, 1 - index * 0.12) };
+          return { ...poi, aiReason: card.reason || card.aiReason || "", aiTags: tags.slice(0, 3), aiScore: Number(card.confidence ?? card.score) || Math.max(0.5, 1 - index * 0.12) };
         }).filter(Boolean);
       }
-      function findPoiForDecisionCard(card, candidates){
-        const sourceId = String(card?.sourcePoiId || card?.poiId || "").trim();
+      function findPoiForDecisionCard(card, candidates, used = new Set()){
+        const sourceId = decisionCardPoiId(card);
         if(sourceId){
-          const byId = candidates.find((poi)=>String(poi.id || poi.name) === sourceId);
+          const byId = candidates.find((poi)=>!used.has(String(poi.id || poi.name)) && String(poi.id || poi.name) === sourceId);
           if(byId) return byId;
         }
         const cardId = String(card?.id || "").trim();
         if(cardId){
           const byCardId = candidates.find((poi)=>{
             const id = String(poi.id || poi.name);
-            return id && cardId.includes(id);
+            return id && !used.has(id) && cardId.includes(id);
           });
           if(byCardId) return byCardId;
         }
-        const title = String(card?.title || card?.name || "").trim();
+        const title = decisionCardTitle(card);
         if(!title) return null;
         const normalizedTitle = normalizeMatchText(title);
-        return candidates.find((poi)=>{
+        const direct = candidates.find((poi)=>{
           const name = String(poi.name || "");
+          if(used.has(String(poi.id || poi.name))) return false;
           const normalizedName = normalizeMatchText(name);
           return title.includes(name) || name.includes(title) || normalizedTitle.includes(normalizedName) || normalizedName.includes(normalizedTitle);
-        }) || null;
+        });
+        if(direct) return direct;
+        return bestPoiByAiText(card, candidates, used);
+      }
+      function decisionCardPoiId(card){
+        return String(card?.sourcePoiId || card?.source_poi_id || card?.poiId || card?.poi_id || card?.restaurantId || card?.restaurant_id || card?.amapId || card?.amap_id || "").trim();
+      }
+      function decisionCardTitle(card){
+        const nested = card?.restaurant || card?.poi || card?.venue;
+        if(typeof nested === "string") return nested.trim();
+        return String(card?.title || card?.name || card?.restaurantName || card?.restaurant_name || card?.poiName || card?.poi_name || nested?.name || "").trim();
+      }
+      function bestPoiByAiText(card, candidates, used){
+        const text = normalizeMatchText([
+          decisionCardTitle(card),
+          card?.reason || card?.aiReason || "",
+          ...(Array.isArray(card?.tags) ? card.tags : []),
+          ...(Array.isArray(card?.meta) ? card.meta : [])
+        ].join(" "));
+        let best = null;
+        let bestScore = 0;
+        candidates.forEach((poi)=>{
+          const id = String(poi.id || poi.name);
+          if(used.has(id)) return;
+          const name = normalizeMatchText(poi.name);
+          const type = normalizeMatchText(poi.type);
+          let score = 0;
+          if(name && text.includes(name)) score += 20;
+          if(type && text.includes(type)) score += 4;
+          score += sharedTextScore(text, name);
+          if(score > bestScore){ bestScore = score; best = poi; }
+        });
+        return bestScore >= 6 ? best : null;
+      }
+      function sharedTextScore(a, b){
+        const aa = String(a || "");
+        const bb = String(b || "");
+        let score = 0;
+        for(let size = Math.min(8, bb.length); size >= 2; size--){
+          for(let i = 0; i <= bb.length - size; i++){
+            const part = bb.slice(i, i + size);
+            if(aa.includes(part)) score += size;
+          }
+          if(score) break;
+        }
+        return score;
       }
       function mergeRankedRestaurants(ranked, candidates){
         const used = new Set((ranked || []).map((poi)=>String(poi.id || poi.name)));

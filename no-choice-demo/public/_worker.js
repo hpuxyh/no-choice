@@ -127,7 +127,7 @@ async function handleDecideRequest(request, env) {
     const parsed = parseJsonContent(content);
     const cards = normalizeAiCards(parsed.cards, input);
 
-    if (cards.length < 3) {
+    if (cards.length < Math.min(3, input.outputCount)) {
       throw new Error("模型没有返回足够候选");
     }
 
@@ -296,6 +296,7 @@ async function generateComicImage({ key, model, image, prompt, size }) {
 }
 
 async function askDeepSeek({ key, model, input }) {
+  const outputCount = Math.max(3, Math.min(5, Number(input.outputCount) || 3));
   const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
@@ -308,7 +309,7 @@ async function askDeepSeek({ key, model, input }) {
         {
           role: "system",
           content:
-            "你是不做选择 App 的决策推荐引擎。你必须只返回 JSON object，不要 Markdown。输出 exactly 3 张卡，字段为 cards。每张卡必须有 title、reason、tags、sourcePoiId、confidence。reason 用中文，45 字以内。tags 2 到 3 个，每个 8 字以内。若输入里有 pois 且模块是 dinner 或 weekend，优先从 pois 里选择真实地点，title 尽量使用 POI 原名，sourcePoiId 填对应 id，不要编造不存在的餐厅或地点。若没有真实 POI，则给可执行方向。礼物模块给具体礼物类型，通用模块给具体下一步动作。",
+            `你是不做选择 App 的决策推荐引擎。你必须只返回 JSON object，不要 Markdown。输出 exactly ${outputCount} 张卡，字段为 cards。每张卡必须有 title、reason、tags、sourcePoiId、confidence。reason 用中文，45 字以内。tags 2 到 3 个，每个 8 字以内。若输入里有 pois 且模块是 dinner 或 weekend，必须从 pois 里选择真实地点，title 尽量使用 POI 原名，sourcePoiId 必须填对应 id，不要编造不存在的餐厅或地点。若没有真实 POI，则给可执行方向。礼物模块给具体礼物类型，通用模块给具体下一步动作。`,
         },
         {
           role: "user",
@@ -318,7 +319,7 @@ async function askDeepSeek({ key, model, input }) {
       response_format: { type: "json_object" },
       thinking: { type: "disabled" },
       temperature: 0.35,
-      max_tokens: 900,
+      max_tokens: outputCount >= 5 ? 1400 : 900,
     }),
   });
 
@@ -503,7 +504,7 @@ function normalizeAiCards(cards, input) {
       };
     })
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, Math.max(3, Math.min(5, Number(input.outputCount) || 3)));
 }
 
 function findMatchedPoi(card, pois) {
