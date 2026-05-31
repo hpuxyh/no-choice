@@ -1367,13 +1367,13 @@
         const broadKeywords = limitRestaurantKeywords([...(Array.isArray(keywords) ? keywords : [keywords]), RESTAURANT_KEYWORD_FALLBACK], 6);
         const relaxedOptions = relaxedRestaurantSearchOptions(options);
         let activeCoords = coords;
-        let pois = await searchNearbyRestaurants(activeCoords, radius, keywords, options);
-        if(pois.length < TOTAL) pois = uniquePois([...pois, ...await searchNearbyRestaurants(activeCoords, Math.max(radius, 8000), keywords, options)]);
-        if(pois.length < TOTAL) pois = uniquePois([...pois, ...await searchNearbyRestaurants(activeCoords, Math.max(radius, 8000), broadKeywords, relaxedOptions)]);
+        let pois = await trySearchNearbyRestaurants(activeCoords, radius, keywords, options, "primary");
+        if(pois.length < TOTAL) pois = uniquePois([...pois, ...await trySearchNearbyRestaurants(activeCoords, Math.max(radius, 8000), keywords, options, "wide-primary")]);
+        if(pois.length < TOTAL) pois = uniquePois([...pois, ...await trySearchNearbyRestaurants(activeCoords, Math.max(radius, 8000), broadKeywords, relaxedOptions, "relaxed")]);
         if(pois.length < TOTAL){
           const fallbackCoords = await getApproxPosition();
           if(!sameRestaurantCoords(activeCoords, fallbackCoords)){
-            const fallbackPois = await searchNearbyRestaurants(fallbackCoords, 8000, broadKeywords, relaxedOptions);
+            const fallbackPois = await trySearchNearbyRestaurants(fallbackCoords, 8000, broadKeywords, relaxedOptions, "city-fallback");
             if(fallbackPois.length > pois.length){
               activeCoords = fallbackCoords;
               pois = fallbackPois;
@@ -1383,7 +1383,7 @@
           }
         }
         if(pois.length < TOTAL && !sameRestaurantCoords(activeCoords, DEFAULT_AMAP_CENTER)){
-          const defaultPois = await searchNearbyRestaurants(DEFAULT_AMAP_CENTER, 8000, broadKeywords, relaxedOptions);
+          const defaultPois = await trySearchNearbyRestaurants(DEFAULT_AMAP_CENTER, 8000, broadKeywords, relaxedOptions, "default-fallback");
           if(defaultPois.length > pois.length){
             activeCoords = DEFAULT_AMAP_CENTER;
             pois = defaultPois;
@@ -1393,8 +1393,16 @@
         }
         return { coords: activeCoords, pois: diverseRestaurantPois(pois, AMAP_PRICE_POOL_SIZE) };
       }
+      async function trySearchNearbyRestaurants(coords, radius, keywords, options, label){
+        try{
+          return await searchNearbyRestaurants(coords, radius, keywords, options);
+        }catch(err){
+          console.warn("Restaurant search attempt failed", label, err);
+          return [];
+        }
+      }
       function relaxedRestaurantSearchOptions(options = {}){
-        return { ...options, minCost: 0, maxCost: 0, minRating: 0, mustKeywords: [] };
+        return { ...options, minCost: 0, maxCost: 0, minRating: 0, mustKeywords: [], avoidKeywords: [], region: "", cityLimit: false, types: "050000", sortrule: "distance", showFields: "business,photos", searchRequests: [] };
       }
       function sameRestaurantCoords(a, b){
         if(!a || !b) return false;
