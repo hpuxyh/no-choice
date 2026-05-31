@@ -487,8 +487,9 @@
       const DEFAULT_AMAP_CENTER = { lat: 31.230416, lng: 121.473701, amap: true, label: "上海人民广场" };
       const MIN_RESTAURANT_COST = 150;
       const AMAP_RESTAURANT_LIMIT = 25;
-      const AMAP_SEARCH_PAGES = 3;
-      const AMAP_PRICE_POOL_SIZE = 12;
+      const AMAP_SEARCH_PAGES = 4;
+      const AMAP_PRICE_POOL_SIZE = 32;
+      const AMAP_AI_CANDIDATE_SIZE = 12;
       const ACCENTS = ["var(--red)", "var(--green)", "var(--yellow)", "var(--purple)", "var(--blue)"];
       const FOOD_CARD_IMAGES = [
         { keywords: ["火锅","川","湘","辣","麻辣","串串","烤鱼"], urls: [
@@ -1045,16 +1046,16 @@
         lastCoords = coords;
         let pois = await searchNearbyRestaurants(coords, 3500, searchKeywords);
         if(pois.length < 5) pois = await searchNearbyRestaurants(coords, 8000, searchKeywords);
-        restaurantContext = { coords, pois: pois.slice(0, AMAP_PRICE_POOL_SIZE), searchKey, searchKeywords, fetchedAt: Date.now() };
-        if(!silent && restaurantContext.pois.length) toast("已准备好附近高价餐厅");
+        restaurantContext = { coords, pois: diverseRestaurantPois(pois, AMAP_PRICE_POOL_SIZE), searchKey, searchKeywords, fetchedAt: Date.now() };
+        if(!silent && restaurantContext.pois.length) toast(`已准备好 ${restaurantContext.pois.length} 家附近餐厅候选`);
         return restaurantContext;
       }
 
       async function loadRestaurantCards(coords, preloadedPois){
         const searchKeywords = restaurantSearchKeywords();
-        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? preloadedPois.slice(0, AMAP_PRICE_POOL_SIZE) : await searchNearbyRestaurants(coords, 3500, searchKeywords);
-        let cards = poisToCards(randomPick(pois, TOTAL));
-        if(cards.length < TOTAL){ pois = await searchNearbyRestaurants(coords, 8000, searchKeywords); cards = poisToCards(randomPick(pois, TOTAL)); }
+        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? diverseRestaurantPois(preloadedPois, AMAP_PRICE_POOL_SIZE) : await searchNearbyRestaurants(coords, 3500, searchKeywords);
+        let cards = poisToCards(diverseRestaurantSample(pois, TOTAL));
+        if(cards.length < TOTAL){ pois = await searchNearbyRestaurants(coords, 8000, searchKeywords); cards = poisToCards(diverseRestaurantSample(pois, TOTAL)); }
         if(mode === "AI 模式"){
           pois = await ensureAiRestaurantRanking({ silent: false });
           cards = poisToCards(pois.slice(0, TOTAL));
@@ -1064,7 +1065,7 @@
 
       async function ensureAiRestaurantRanking({ silent = false } = {}){
         const context = await ensureRestaurantContext({ silent });
-        const candidates = (context.pois || []).filter(Boolean).slice(0, AMAP_RESTAURANT_LIMIT);
+        const candidates = diverseRestaurantPois((context.pois || []).filter(Boolean), AMAP_RESTAURANT_LIMIT);
         if(candidates.length < 2) return candidates;
         const signature = restaurantRankingKey(candidates, context.coords);
         if(rankedRestaurantPois?.length && restaurantRankingSignature === signature) return rankedRestaurantPois;
@@ -1127,9 +1128,12 @@
         const visible = (keywords || []).filter((keyword)=>keyword !== RESTAURANT_KEYWORD_FALLBACK).slice(0, 2);
         return visible.length ? `正在按「${visible.join("、")}」搜索附近餐厅` : "正在获取附近餐厅候选";
       }
+      function aiRestaurantCandidates(candidates){
+        return diverseRestaurantPois(candidates, AMAP_AI_CANDIDATE_SIZE);
+      }
 
       async function rankRestaurantsWithAI(pois, coords, { silent = false } = {}){
-        const candidates = (pois || []).filter(Boolean).slice(0, AMAP_RESTAURANT_LIMIT);
+        const candidates = diverseRestaurantPois((pois || []).filter(Boolean), AMAP_RESTAURANT_LIMIT);
         if(candidates.length < 2) return candidates;
         const choice = getChoiceContext();
         if(!silent) renderLoadingDeck("AI 正在排序餐厅", `结合你的场景、需求、标签和位置，从 ${candidates.length} 家候选里挑最匹配的。`);
@@ -1162,6 +1166,7 @@
         return ranked;
       }
       async function decideRestaurantsEndpoint(candidates, coords, choice){
+        const aiCandidates = aiRestaurantCandidates(candidates);
         const response = await fetch(DECIDE_ENDPOINT, {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -1169,23 +1174,23 @@
             moduleId: "dinner",
             moduleLabel: "今晚吃什么",
             question: restaurantQuestion(choice),
-            context: restaurantDecisionContext(choice, coords, candidates),
+            context: restaurantDecisionContext(choice, coords, aiCandidates),
             selectedConditions: choice.tags,
             customConditions: [],
             mode: "ai",
             manualCandidates: [],
             location: coords,
-            pois: candidates.slice(0, AMAP_PRICE_POOL_SIZE).map(serializePoiForRanking),
+            pois: aiCandidates.map(serializePoiForRanking),
             outputCount: TOTAL
           })
         });
         const data = await response.json().catch(()=>null);
         const aiItems = normalizeAiRestaurantRecommendations(data);
         if(!response.ok || !data?.ok || !aiItems.length) throw new Error(data?.message || "AI 推荐失败");
-        const ranked = restaurantsFromDecisionCards(aiItems, candidates);
+        const ranked = restaurantsFromDecisionCards(aiItems, aiCandidates);
         if(!ranked.length) {
-          console.warn("AI recommendations did not match candidates", { aiItems, candidates });
-          return candidates;
+          console.warn("AI recommendations did not match candidates", { aiItems, candidates: aiCandidates });
+          return aiCandidates.length ? aiCandidates : candidates;
         }
         return ranked;
       }
@@ -1374,7 +1379,7 @@
         if(choice.needs.length) parts.push(`需求：${choice.needs.join("、")}`);
         if(coords?.label) parts.push(`位置：${coords.label}`);
         else if(coords) parts.push(`位置：${coords.lat},${coords.lng}`);
-        const candidateLine = candidates.slice(0, 8).map((poi)=>`${poi.id}:${poi.name}`).join("；");
+        const candidateLine = candidates.slice(0, AMAP_AI_CANDIDATE_SIZE).map((poi)=>`${poi.id}:${poi.name}${poi.type ? `/${poi.type}` : ""}${poi.cost ? `/人均${formatCost(poi.cost)}` : ""}`).join("；");
         if(candidateLine) parts.push(`只能从这些候选ID中选：${candidateLine}`);
         return parts.join("；");
       }
@@ -1457,12 +1462,12 @@
             const data = await amapJsonp("https://restapi.amap.com/v5/place/around", { key: AMAP_WEB_SERVICE_KEY, location: `${center.lng.toFixed(6)},${center.lat.toFixed(6)}`, radius: String(radius), types: "050000", keywords: keyword, sortrule: "distance", page_size: String(AMAP_RESTAURANT_LIMIT), page_num: String(page), show_fields: "business,photos", output: "json" });
             if(data.status !== "1") throw new Error(data.info || "高德附近餐厅查询失败");
             const pagePois = data.pois || [];
-            pois.push(...pagePois);
+            pois.push(...pagePois.map((poi)=>({ ...poi, __searchKeyword: keyword })));
             if(pagePois.length < AMAP_RESTAURANT_LIMIT) break;
           }
-          if(topPricePois(pois.map(normalizeAmapPoi).filter(isTargetCostPoi)).length >= AMAP_PRICE_POOL_SIZE) break;
+          if(diverseRestaurantPois(pois.map(normalizeAmapPoi).filter(isTargetCostPoi), AMAP_PRICE_POOL_SIZE).length >= AMAP_PRICE_POOL_SIZE) break;
         }
-        return topPricePois(pois.map(normalizeAmapPoi).filter(isTargetCostPoi));
+        return diverseRestaurantPois(pois.map(normalizeAmapPoi).filter(isTargetCostPoi), AMAP_PRICE_POOL_SIZE);
       }
       async function getApproxPosition(){
         try{
@@ -1507,7 +1512,7 @@
         const business = poi.business || {};
         const [lng,lat] = String(poi.location || "").split(",").map(Number);
         const typeParts = String(poi.type || "").split(";");
-        return { id: poi.id || poi.name, name: poi.name, address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""), type: typeParts[typeParts.length-1] || typeParts[0] || "餐厅", distance: Number(poi.distance) || 0, rating: business.rating || "", cost: business.cost || "", image, location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null };
+        return { id: poi.id || poi.name, name: poi.name, address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""), type: typeParts[typeParts.length-1] || typeParts[0] || "餐厅", distance: Number(poi.distance) || 0, rating: business.rating || "", cost: business.cost || "", image, searchKeyword: cleanRestaurantKeyword(poi.__searchKeyword || ""), location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null };
       }
       function isTargetCostPoi(poi){
         const cost = readCostValue(poi?.cost);
@@ -1520,7 +1525,7 @@
         return match ? Number(match[0]) : Number.NaN;
       }
       function topPricePois(pois){
-        return uniquePois(pois).sort(comparePoiCostDesc).slice(0, AMAP_PRICE_POOL_SIZE);
+        return diverseRestaurantPois(pois, AMAP_PRICE_POOL_SIZE);
       }
       function uniquePois(pois){
         const seen = new Set();
@@ -1535,6 +1540,81 @@
         const costDiff = readCostValue(b?.cost) - readCostValue(a?.cost);
         if(Number.isFinite(costDiff) && costDiff !== 0) return costDiff;
         return (Number(a?.distance) || Infinity) - (Number(b?.distance) || Infinity);
+      }
+      function diverseRestaurantPois(pois, limit = AMAP_PRICE_POOL_SIZE){
+        const sorted = uniquePois(pois).filter(Boolean).sort(compareRestaurantCandidate);
+        const buckets = new Map();
+        sorted.forEach((poi)=>{
+          const bucket = restaurantDiversityBucket(poi);
+          if(!buckets.has(bucket)) buckets.set(bucket, []);
+          buckets.get(bucket).push(poi);
+        });
+        const bucketEntries = Array.from(buckets.entries()).sort((a,b)=>restaurantCandidateScore(b[1][0]) - restaurantCandidateScore(a[1][0]));
+        const selected = [];
+        const usedIds = new Set();
+        const usedNames = new Set();
+        for(let pass=0; pass<2 && selected.length<limit; pass++){
+          let took = true;
+          while(took && selected.length<limit){
+            took = false;
+            for(const [,list] of bucketEntries){
+              const next = list.find((poi)=>{
+                const id = String(poi.id || poi.name || "");
+                if(!id || usedIds.has(id)) return false;
+                const nameKey = restaurantBrandKey(poi.name);
+                return pass > 0 || !nameKey || !usedNames.has(nameKey);
+              });
+              if(!next) continue;
+              selected.push(next);
+              usedIds.add(String(next.id || next.name));
+              const nameKey = restaurantBrandKey(next.name);
+              if(nameKey) usedNames.add(nameKey);
+              took = true;
+              if(selected.length >= limit) break;
+            }
+          }
+        }
+        if(selected.length < limit){
+          sorted.forEach((poi)=>{
+            const id = String(poi.id || poi.name || "");
+            if(id && !usedIds.has(id) && selected.length < limit){
+              selected.push(poi);
+              usedIds.add(id);
+            }
+          });
+        }
+        return selected.slice(0, limit);
+      }
+      function diverseRestaurantSample(pois, count){
+        return diverseRestaurantPois(randomPick(pois, Math.max(count * 4, count)), count);
+      }
+      function restaurantDiversityBucket(poi){
+        const text = `${poi?.searchKeyword || ""} ${poi?.name || ""} ${poi?.type || ""}`.toLowerCase();
+        if(/火锅|川|湘|辣|麻辣|串串|烤鱼/.test(text)) return "辣味";
+        if(/日料|日本|寿司|烧鸟|居酒屋|刺身|拉面/.test(text)) return "日料";
+        if(/西餐|牛排|bistro|法餐|意面|披萨|brunch|早午餐/i.test(text)) return "西餐";
+        if(/粤|港|茶餐|点心|本帮|江浙|中餐|私房/.test(text)) return "中餐";
+        if(/韩餐|韩国|烤肉/.test(text)) return "韩餐";
+        if(/泰|东南亚|越南/.test(text)) return "东南亚";
+        if(/海鲜|鱼|蟹|虾/.test(text)) return "海鲜";
+        if(/咖啡|甜品|蛋糕|酒吧|小酒馆/.test(text)) return "轻食酒咖";
+        return poi?.searchKeyword && poi.searchKeyword !== RESTAURANT_KEYWORD_FALLBACK ? `关键词:${poi.searchKeyword}` : String(poi?.type || "餐厅");
+      }
+      function restaurantBrandKey(name){
+        return normalizeMatchText(String(name || "").replace(/[（(].*?[）)]/g, "").replace(/·.*$/g, "")).slice(0, 12);
+      }
+      function compareRestaurantCandidate(a,b){
+        const scoreDiff = restaurantCandidateScore(b) - restaurantCandidateScore(a);
+        if(Math.abs(scoreDiff) > 0.01) return scoreDiff;
+        return comparePoiCostDesc(a,b);
+      }
+      function restaurantCandidateScore(poi){
+        const rating = Number(poi?.rating) || 0;
+        const cost = readCostValue(poi?.cost);
+        const distance = Number(poi?.distance) || 99999;
+        const costScore = Number.isFinite(cost) ? Math.min(cost, 500) / 35 : 0;
+        const distancePenalty = Math.min(distance, 8000) / 1200;
+        return rating * 8 + costScore - distancePenalty;
       }
       function randomPick(items, count){
         const arr = (items || []).filter(Boolean).slice();

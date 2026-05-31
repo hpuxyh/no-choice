@@ -1,7 +1,8 @@
 const MIN_DINNER_COST = 150;
 const POI_PAGE_SIZE = 25;
-const POI_SEARCH_PAGES = 3;
-const DINNER_PRICE_POOL_SIZE = 12;
+const POI_SEARCH_PAGES = 4;
+const DINNER_PRICE_POOL_SIZE = 32;
+const DECIDE_POI_LIMIT = 12;
 
 const poiConfigs = {
   dinner: {
@@ -394,24 +395,25 @@ async function askDeepSeekRestaurantRanking({ key, model, input }) {
 
 function normalizeDecisionInput(body) {
   const moduleId = cleanToken(body?.moduleId, 24) || "general";
+  const outputCount = Math.max(3, Math.min(5, Number(body?.outputCount) || 3));
   const manualCandidates = Array.isArray(body?.manualCandidates)
     ? body.manualCandidates.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 8)
     : [];
-  const pois = Array.isArray(body?.pois) ? body.pois.map(normalizeInputPoi).filter(Boolean).slice(0, 8) : [];
+  const pois = Array.isArray(body?.pois) ? body.pois.map(normalizeInputPoi).filter(Boolean).slice(0, DECIDE_POI_LIMIT) : [];
   const location = normalizeInputLocation(body?.location);
 
   return {
     moduleId,
     moduleLabel: cleanText(body?.moduleLabel, 24),
     question: cleanText(body?.question, 160),
-    context: cleanText(body?.context, 600),
+    context: cleanText(body?.context, 900),
     selectedConditions: normalizeStringList(body?.selectedConditions, 16, 24),
     customConditions: normalizeStringList(body?.customConditions, 8, 80),
     mode: cleanToken(body?.mode, 16) || "auto",
     manualCandidates,
     location,
     pois,
-    outputCount: 3,
+    outputCount,
   };
 }
 
@@ -633,9 +635,9 @@ async function fetchAroundPois({ center, key, keyword, config }) {
 
   const normalized = pois.map(normalizeAmapPoi).filter((poi) => isTargetPoi(poi, config));
   if (!config.minCost) {
-    return normalized.slice(0, 8);
+    return uniquePois(normalized).slice(0, DECIDE_POI_LIMIT);
   }
-  return topPricePois(normalized).slice(0, DINNER_PRICE_POOL_SIZE);
+  return diverseRestaurantPois(normalized, DINNER_PRICE_POOL_SIZE);
 }
 
 function normalizeAmapPoi(poi) {
@@ -684,7 +686,7 @@ function readCostValue(value) {
 }
 
 function topPricePois(pois) {
-  return uniquePois(pois).sort(comparePoiCostDesc);
+  return diverseRestaurantPois(pois, DINNER_PRICE_POOL_SIZE);
 }
 
 function uniquePois(pois) {
@@ -705,6 +707,107 @@ function comparePoiCostDesc(a, b) {
     return costDiff;
   }
   return (Number(a?.distance) || Infinity) - (Number(b?.distance) || Infinity);
+}
+
+function diverseRestaurantPois(pois, limit = DINNER_PRICE_POOL_SIZE) {
+  const sorted = uniquePois(pois).filter(Boolean).sort(compareRestaurantCandidate);
+  const buckets = new Map();
+
+  sorted.forEach((poi) => {
+    const bucket = restaurantDiversityBucket(poi);
+    if (!buckets.has(bucket)) {
+      buckets.set(bucket, []);
+    }
+    buckets.get(bucket).push(poi);
+  });
+
+  const bucketEntries = Array.from(buckets.entries()).sort(
+    (a, b) => restaurantCandidateScore(b[1][0]) - restaurantCandidateScore(a[1][0]),
+  );
+  const selected = [];
+  const usedIds = new Set();
+  const usedNames = new Set();
+
+  for (let pass = 0; pass < 2 && selected.length < limit; pass += 1) {
+    let took = true;
+    while (took && selected.length < limit) {
+      took = false;
+      for (const [, list] of bucketEntries) {
+        const next = list.find((poi) => {
+          const id = String(poi.id || poi.name || "");
+          if (!id || usedIds.has(id)) {
+            return false;
+          }
+          const nameKey = restaurantBrandKey(poi.name);
+          return pass > 0 || !nameKey || !usedNames.has(nameKey);
+        });
+        if (!next) {
+          continue;
+        }
+        selected.push(next);
+        usedIds.add(String(next.id || next.name));
+        const nameKey = restaurantBrandKey(next.name);
+        if (nameKey) {
+          usedNames.add(nameKey);
+        }
+        took = true;
+        if (selected.length >= limit) {
+          break;
+        }
+      }
+    }
+  }
+
+  if (selected.length < limit) {
+    sorted.forEach((poi) => {
+      const id = String(poi.id || poi.name || "");
+      if (id && !usedIds.has(id) && selected.length < limit) {
+        selected.push(poi);
+        usedIds.add(id);
+      }
+    });
+  }
+
+  return selected.slice(0, limit);
+}
+
+function restaurantDiversityBucket(poi) {
+  const text = `${poi?.name || ""} ${poi?.type || ""}`.toLowerCase();
+  if (/火锅|川|湘|辣|麻辣|串串|烤鱼/.test(text)) return "辣味";
+  if (/日料|日本|寿司|烧鸟|居酒屋|刺身|拉面/.test(text)) return "日料";
+  if (/西餐|牛排|bistro|法餐|意面|披萨|brunch|早午餐/i.test(text)) return "西餐";
+  if (/粤|港|茶餐|点心|本帮|江浙|中餐|私房/.test(text)) return "中餐";
+  if (/韩餐|韩国|烤肉/.test(text)) return "韩餐";
+  if (/泰|东南亚|越南/.test(text)) return "东南亚";
+  if (/海鲜|鱼|蟹|虾/.test(text)) return "海鲜";
+  if (/咖啡|甜品|蛋糕|酒吧|小酒馆/.test(text)) return "轻食酒咖";
+  return String(poi?.type || "餐厅");
+}
+
+function restaurantBrandKey(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/[（(].*?[）)]/g, "")
+    .replace(/·.*$/g, "")
+    .replace(/[\s.,，。'"“”‘’()（）\-_/&＋+|]/g, "")
+    .slice(0, 12);
+}
+
+function compareRestaurantCandidate(a, b) {
+  const scoreDiff = restaurantCandidateScore(b) - restaurantCandidateScore(a);
+  if (Math.abs(scoreDiff) > 0.01) {
+    return scoreDiff;
+  }
+  return comparePoiCostDesc(a, b);
+}
+
+function restaurantCandidateScore(poi) {
+  const rating = Number(poi?.rating) || 0;
+  const cost = readCostValue(poi?.cost);
+  const distance = Number(poi?.distance) || 99999;
+  const costScore = Number.isFinite(cost) ? Math.min(cost, 500) / 35 : 0;
+  const distancePenalty = Math.min(distance, 8000) / 1200;
+  return rating * 8 + costScore - distancePenalty;
 }
 
 function json(body, status = 200) {
