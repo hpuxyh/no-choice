@@ -521,6 +521,7 @@
       const COMIC_IMAGE_ENDPOINT = location.protocol === "file:" ? "http://127.0.0.1:8788/api/comic-image" : "/api/comic-image";
       const WORKER_API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8788" : (location.hostname.endsWith(".pages.dev") ? "" : "https://no-choice.pages.dev");
       const RANK_RESTAURANTS_ENDPOINT = `${WORKER_API_BASE}/api/rank-restaurants`;
+      const DECIDE_ENDPOINT = `${WORKER_API_BASE}/api/decide`;
       // 上传照片后展示的预生成像素头像（demo：原图 → 像素图）
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";
       const $ = (s) => document.querySelector(s);
@@ -1078,40 +1079,115 @@
         const choice = getChoiceContext();
         if(!silent) renderLoadingDeck("AI 正在排序餐厅", `结合你的场景、需求、标签和位置，从 ${candidates.length} 家候选里挑最匹配的。`);
         try{
-          const response = await fetch(RANK_RESTAURANTS_ENDPOINT, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              question: choice.question,
-              scenes: choice.scenes,
-              needs: choice.needs,
-              tags: choice.tags,
-              location: coords,
-              pois: candidates.map(serializePoiForRanking)
-            })
-          });
-          const data = await response.json().catch(()=>null);
-          if(!response.ok || !data?.ok || !Array.isArray(data.rankings)) throw new Error(data?.message || "AI 排序失败");
-          const byId = new Map(candidates.map((poi)=>[String(poi.id || poi.name), poi]));
-          const used = new Set();
-          const ranked = data.rankings.map((item)=>{
-            const id = String(item.id || item.poiId || "");
-            const poi = byId.get(id);
-            if(!poi || used.has(id)) return null;
-            used.add(id);
-            return { ...poi, aiReason: item.reason || "", aiTags: Array.isArray(item.tags) ? item.tags.slice(0, 3) : [], aiScore: Number(item.score) || 0 };
-          }).filter(Boolean);
-          const rest = candidates.filter((poi)=>!used.has(String(poi.id || poi.name)));
-          if(!ranked.length){
-            if(!silent) toast("AI 没有返回排序，按高德高价候选随机发牌");
+          const ranked = await rankRestaurantsEndpoint(candidates, coords, choice);
+          if(!silent) toast("AI 已按匹配度排好餐厅");
+          return mergeRankedRestaurants(ranked, candidates);
+        }catch(err){
+          try{
+            const ranked = await decideRestaurantsEndpoint(candidates, coords, choice);
+            if(!silent) toast("AI 已选出更匹配的餐厅");
+            return mergeRankedRestaurants(ranked, candidates);
+          }catch(fallbackErr){
+            console.warn("AI restaurant ranking unavailable", err, fallbackErr);
+            if(!silent) toast("AI 排序暂不可用，按高德高价候选随机发牌");
             return candidates;
           }
-          if(!silent) toast("AI 已按匹配度排好餐厅");
-          return [...ranked, ...rest].slice(0, AMAP_RESTAURANT_LIMIT);
-        }catch(err){
-          if(!silent) toast("AI 排序暂不可用，按高德高价候选随机发牌");
-          return candidates;
         }
+      }
+      async function rankRestaurantsEndpoint(candidates, coords, choice){
+        const response = await fetch(RANK_RESTAURANTS_ENDPOINT, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            question: choice.question,
+            scenes: choice.scenes,
+            needs: choice.needs,
+            tags: choice.tags,
+            location: coords,
+            pois: candidates.map(serializePoiForRanking)
+          })
+        });
+        const data = await response.json().catch(()=>null);
+        if(!response.ok || !data?.ok || !Array.isArray(data.rankings)) throw new Error(data?.message || "AI 排序失败");
+        const ranked = restaurantsFromRankings(data.rankings, candidates);
+        if(!ranked.length) throw new Error("AI 没有返回有效排序");
+        return ranked;
+      }
+      async function decideRestaurantsEndpoint(candidates, coords, choice){
+        const response = await fetch(DECIDE_ENDPOINT, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            moduleId: "dinner",
+            moduleLabel: "今晚吃什么",
+            question: restaurantQuestion(choice),
+            context: restaurantDecisionContext(choice, coords),
+            selectedConditions: choice.tags,
+            customConditions: [],
+            mode: "ai",
+            manualCandidates: [],
+            location: coords,
+            pois: candidates.slice(0, 8).map(serializePoiForRanking),
+            outputCount: 3
+          })
+        });
+        const data = await response.json().catch(()=>null);
+        if(!response.ok || !data?.ok || !Array.isArray(data.cards)) throw new Error(data?.message || "AI 推荐失败");
+        const ranked = restaurantsFromDecisionCards(data.cards, candidates);
+        if(!ranked.length) throw new Error("AI 推荐没有匹配到真实餐厅");
+        return ranked;
+      }
+      function restaurantsFromRankings(rankings, candidates){
+        const byId = new Map(candidates.map((poi)=>[String(poi.id || poi.name), poi]));
+        const used = new Set();
+        return (rankings || []).map((item)=>{
+          const id = String(item.id || item.poiId || "");
+          const poi = byId.get(id);
+          if(!poi || used.has(id)) return null;
+          used.add(id);
+          return { ...poi, aiReason: item.reason || "", aiTags: Array.isArray(item.tags) ? item.tags.slice(0, 3) : [], aiScore: Number(item.score) || 0 };
+        }).filter(Boolean);
+      }
+      function restaurantsFromDecisionCards(cards, candidates){
+        const used = new Set();
+        return (cards || []).map((card, index)=>{
+          const poi = findPoiForDecisionCard(card, candidates);
+          const id = String(poi?.id || poi?.name || "");
+          if(!poi || !id || used.has(id)) return null;
+          used.add(id);
+          const tags = Array.isArray(card.tags) ? card.tags : (Array.isArray(card.meta) ? card.meta : []);
+          return { ...poi, aiReason: card.reason || "", aiTags: tags.slice(0, 3), aiScore: Number(card.confidence) || Math.max(0.5, 1 - index * 0.12) };
+        }).filter(Boolean);
+      }
+      function findPoiForDecisionCard(card, candidates){
+        const sourceId = String(card?.sourcePoiId || card?.poiId || "").trim();
+        if(sourceId){
+          const byId = candidates.find((poi)=>String(poi.id || poi.name) === sourceId);
+          if(byId) return byId;
+        }
+        const title = String(card?.title || card?.name || "").trim();
+        if(!title) return null;
+        return candidates.find((poi)=>{
+          const name = String(poi.name || "");
+          return title.includes(name) || name.includes(title);
+        }) || null;
+      }
+      function mergeRankedRestaurants(ranked, candidates){
+        const used = new Set((ranked || []).map((poi)=>String(poi.id || poi.name)));
+        const rest = candidates.filter((poi)=>!used.has(String(poi.id || poi.name)));
+        return [...ranked, ...rest].slice(0, AMAP_RESTAURANT_LIMIT);
+      }
+      function restaurantQuestion(choice){
+        if(choice.question) return choice.question;
+        return choice.tags.length ? `今晚吃什么？偏好：${choice.tags.join("、")}` : "今晚吃什么？请从真实候选餐厅里选最合适的。";
+      }
+      function restaurantDecisionContext(choice, coords){
+        const parts = [];
+        if(choice.scenes.length) parts.push(`场景：${choice.scenes.join("、")}`);
+        if(choice.needs.length) parts.push(`需求：${choice.needs.join("、")}`);
+        if(coords?.label) parts.push(`位置：${coords.label}`);
+        else if(coords) parts.push(`位置：${coords.lat},${coords.lng}`);
+        return parts.join("；");
       }
       function hasAiRanking(poi){
         return Boolean(poi?.aiReason || (Number.isFinite(Number(poi?.aiScore)) && Number(poi.aiScore) > 0));
