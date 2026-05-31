@@ -354,6 +354,7 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
             "高德不原生筛选但前端会后处理的字段：minCost、maxCost、minRating、mustKeywords、avoidKeywords、preferOpenLate、openAtHour。",
             "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region 为商圈/行政区/街道短文本；locationHint 为用户确认的目的地/搜索中心，例如“定在三里屯附近”返回“三里屯”，没有则空字符串；locationHints 为多人出发地数组，最多 4 个，例如“一个人在海淀区，一个在朝阳区”返回 [\"海淀区\",\"朝阳区\"]；如果同时有目的地和出发地，locationHint 优先表达目的地，locationHints 只放出发地；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 60 字以内。",
             "还必须返回意图拆解字段：sceneIntent 对象，包含 primaryScenario、companions、decisionNeed、constraints、searchImplication；keywordStrategy 数组，解释每个高德 keyword 为什么选、适合什么场景、优先级；priceIntent 对象，说明价格段位 tier、minCost、maxCost、reason；locationIntent 对象，说明目的地、地区/商圈、街道、多人出发地、搜索策略 midpoint/destination/current、radiusReason；restaurantTypeIntent 对象，说明餐厅类型、是否必须是餐厅、要排除的非餐饮类型和理由。",
+            "严格 schema：sceneIntent={primaryScenario,companions,decisionNeed,constraints,searchImplication}; keywordStrategy=[{keyword,purpose,scenario,priority}]; priceIntent={tier,minCost,maxCost,reason}; locationIntent={destination,region,street,participantLocations,strategy,radiusReason}; restaurantTypeIntent={types,categories,restaurantOnly,avoidNonRestaurantReason}。这些字段不得省略，即使信息不足也要用空字符串、空数组或合理推断。",
             "拆关键词方法：优先保留用户明确菜系/菜品/品牌/地域口味；其次补场景型关键词，如约会餐厅、安静餐厅、朋友聚餐、夜宵；再补兜底餐厅关键词。关键词必须短、能直接给高德搜，不要用长句。searchRequests 应从精准到宽泛分层，第一层匹配明确意图，后面用于召回足够候选。",
             "价格和位置方法：用户说人均/贵/便宜/请客/约会时要推断 minCost/maxCost；用户说目的地、附近、街道、商圈时写入 locationHint/region/street；多人不同位置时写 locationHints 并说明折中策略；只有当前位置时不要编造街道。",
             "餐厅类型方法：餐饮默认 types=050000；只有明确咖啡、酒吧、甜品等可考虑更具体但仍要保证能召回吃饭选择；如果用户是在吃饭场景，不要把景点、商场、娱乐设施当成主要关键词。场景信息要拆清楚，说明这些关键词在什么场景下应该被选。",
@@ -370,7 +371,7 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
       response_format: { type: "json_object" },
       thinking: { type: "disabled" },
       temperature: 0.15,
-      max_tokens: 1200,
+      max_tokens: 1600,
     }),
   });
 
@@ -444,8 +445,9 @@ function normalizeRestaurantSearchPlan(plan, input) {
     ? MIN_DINNER_COST
     : null;
   const resolvedMinCost = Number.isFinite(minCost) ? minCost : fallbackMinCost;
+  const resolvedKeywords = (keywords.length ? keywords : fallbackKeywords).slice(0, 6);
   const resolvedPlan = {
-    keywords: (keywords.length ? keywords : fallbackKeywords).slice(0, 6),
+    keywords: resolvedKeywords,
     types: normalizeAmapTypes(plan?.types || plan?.typeCodes || plan?.amapTypes),
     sortrule: normalizeAmapSortRule(plan?.sortrule || plan?.sortRule),
     region: cleanText(plan?.region || plan?.city, 40),
@@ -468,6 +470,14 @@ function normalizeRestaurantSearchPlan(plan, input) {
     restaurantTypeIntent: normalizePlanInsight(plan?.restaurantTypeIntent || plan?.typeIntent || plan?.typeAnalysis),
     explanation: cleanText(plan?.explanation || plan?.reason, 80),
   };
+
+  resolvedPlan.sceneIntent ||= fallbackSceneIntent(input, resolvedPlan);
+  if (!resolvedPlan.keywordStrategy.length) {
+    resolvedPlan.keywordStrategy = fallbackKeywordStrategy(resolvedPlan);
+  }
+  resolvedPlan.priceIntent ||= fallbackPriceIntent(resolvedPlan);
+  resolvedPlan.locationIntent ||= fallbackLocationIntent(input, resolvedPlan);
+  resolvedPlan.restaurantTypeIntent ||= fallbackRestaurantTypeIntent(resolvedPlan);
 
   return {
     ...resolvedPlan,
@@ -693,6 +703,65 @@ function normalizePlanInsight(value) {
   }
 
   return null;
+}
+
+function fallbackSceneIntent(input, plan) {
+  const primaryScenario = input.scenes[0] || input.tags.find((tag) => /约饭|聚餐|约会|一人食|夜宵/.test(tag)) || "吃饭选择";
+  const constraints = uniqueStrings([...input.needs, ...input.tags], 8, 40);
+  const companions = /一个人|一人食|solo/i.test(input.question)
+    ? "一人食"
+    : (/朋友|同事|聚餐/.test(input.question) ? "朋友/多人" : (/约会|对象|情侣/.test(input.question) ? "约会对象" : ""));
+
+  return {
+    primaryScenario,
+    companions,
+    decisionNeed: cleanText(input.question || constraints.join("、") || "降低选择成本", 120),
+    constraints,
+    searchImplication: cleanText(`用 ${plan.keywords.join("、")} 分层召回，先满足明确口味/场景，再兼顾位置和价格。`, 120),
+  };
+}
+
+function fallbackKeywordStrategy(plan) {
+  return plan.keywords.map((keyword, index) => ({
+    keyword,
+    purpose: index === 0 ? "优先匹配用户最明确的吃饭意图" : "补充召回相近餐饮候选",
+    scenario: plan.locationHint ? `${plan.locationHint}附近搜索` : "当前位置或折中区域搜索",
+    priority: index + 1,
+  }));
+}
+
+function fallbackPriceIntent(plan) {
+  const minCost = Number.isFinite(plan.minCost) ? plan.minCost : null;
+  const maxCost = Number.isFinite(plan.maxCost) && plan.maxCost > 0 ? plan.maxCost : null;
+  const tier = minCost && minCost >= 200 ? "中高价位" : (minCost && minCost >= MIN_DINNER_COST ? "中价位以上" : "未限定");
+  return {
+    tier,
+    minCost,
+    maxCost,
+    reason: minCost || maxCost ? "用户输入或标签里出现预算/人均约束，前端会按人均后处理。" : "用户未给出明确预算，先保证召回数量。",
+  };
+}
+
+function fallbackLocationIntent(input, plan) {
+  const strategy = plan.locationHint ? "destination" : (plan.locationHints.length >= 2 ? "midpoint" : "current");
+  return {
+    destination: plan.locationHint || "",
+    region: plan.region || "",
+    street: "",
+    participantLocations: plan.locationHints,
+    strategy,
+    radiusReason: `${plan.radiusMeters} 米半径用于平衡召回数量和到达成本。`,
+    currentLocation: input.location?.label || "",
+  };
+}
+
+function fallbackRestaurantTypeIntent(plan) {
+  return {
+    types: plan.types || "050000",
+    categories: plan.keywords,
+    restaurantOnly: true,
+    avoidNonRestaurantReason: "当前模块是吃饭决策，默认优先餐饮 POI，避免景点、商场、娱乐设施主导召回。",
+  };
 }
 
 function normalizeInputPoi(poi) {
