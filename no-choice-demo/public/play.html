@@ -667,7 +667,7 @@
           const cards = await loadRestaurantCards(context.coords, context.pois);
           if(cards.length){
             const prepared = await prepareVisualCards(cards);
-            resetDeck(prepared || cards);
+            resetDeck(prepared || cards, { shuffle: mode !== "AI 模式" });
             return;
           }
           throw new Error("真实餐厅为空");
@@ -679,14 +679,16 @@
         }
       }
 
-      function resetDeck(cards = POOL){
+      function resetDeck(cards = POOL, { shuffle = true } = {}){
         activePool = (cards && cards.length ? cards : POOL).map((c,i)=>({
           ...c,
           no:i+1,
           slogan: c.slogan || randomCardSlogan()
         }));
         deck = activePool.map(c=>({...c}));
-        for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
+        if(shuffle){
+          for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
+        }
         pending = [];
         renderDeck(); dealRound();
       }
