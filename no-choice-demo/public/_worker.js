@@ -708,9 +708,11 @@ function normalizePlanInsight(value) {
 function fallbackSceneIntent(input, plan) {
   const primaryScenario = input.scenes[0] || input.tags.find((tag) => /约饭|聚餐|约会|一人食|夜宵/.test(tag)) || "吃饭选择";
   const constraints = uniqueStrings([...input.needs, ...input.tags], 8, 40);
-  const companions = /一个人|一人食|solo/i.test(input.question)
+  const companions = plan.locationHints.length >= 2
+    ? "两人/多人"
+    : (/一个人|一人食|solo/i.test(input.question)
     ? "一人食"
-    : (/朋友|同事|聚餐/.test(input.question) ? "朋友/多人" : (/约会|对象|情侣/.test(input.question) ? "约会对象" : ""));
+    : (/朋友|同事|聚餐/.test(input.question) ? "朋友/多人" : (/约会|对象|情侣/.test(input.question) ? "约会对象" : "")));
 
   return {
     primaryScenario,
