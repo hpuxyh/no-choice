@@ -640,7 +640,6 @@
         $("#modeList").classList.remove("haspick");
         document.querySelectorAll(".mode").forEach(m=>m.classList.remove("sel"));
         go("mode");
-        ensureAiRestaurantRanking({ silent: true }).catch(()=>{});
       }
 
       async function startGame(name,label){ mode=name; $("#deckLabel").textContent=label+" · DECK"; go("deck"); await prepareLocationDeck(); }
@@ -673,11 +672,11 @@
         updateGestureButtons();
         try{
           renderLoadingDeck("正在定位附近餐厅", "读取你的位置，再从高德拿真实餐厅。");
-          const context = await ensureRestaurantContext();
+          const context = await ensureRestaurantContext({ modeName: mode });
           const cards = await loadRestaurantCards(context.coords, context.pois);
           if(cards.length){
             const prepared = await prepareVisualCards(cards);
-            resetDeck(prepared || cards, { shuffle: mode !== "AI 模式" });
+            resetDeck(prepared || cards, { shuffle: mode === "玄学模式" });
             return;
           }
           throw new Error("真实餐厅为空");
@@ -924,10 +923,10 @@
         if (!chip) return;
         chip.classList.toggle("on");
         syncChoiceTags();
-        scheduleAiRestaurantRanking();
+        invalidateAiRestaurantRanking();
       });
 
-      $("#choiceInput").addEventListener("input", scheduleAiRestaurantRanking);
+      $("#choiceInput").addEventListener("input", invalidateAiRestaurantRanking);
 
       function syncChoiceTags(){
         const input = $("#choiceInput");
@@ -948,9 +947,11 @@
         };
       }
 
-      function scheduleAiRestaurantRanking(){
+      function invalidateAiRestaurantRanking(){
         clearTimeout(restaurantRankingTimer);
-        restaurantRankingTimer = setTimeout(()=>ensureAiRestaurantRanking({ silent: true }).catch(()=>{}), 900);
+        restaurantRankingTimer = null;
+        rankedRestaurantPois = null;
+        restaurantRankingSignature = "";
       }
 
       // 性别单选
@@ -1040,43 +1041,52 @@
         return "定位失败，改用城市定位";
       }
 
-      function ensureRestaurantContext({ silent = false } = {}){
-        const searchKey = restaurantSearchSignature();
+      function ensureRestaurantContext({ silent = false, modeName = mode } = {}){
+        const searchKey = restaurantSearchSignature(modeName);
         if(restaurantContext?.pois?.length && restaurantContext.searchKey === searchKey) return Promise.resolve(restaurantContext);
         if(restaurantContextPromise?.searchKey === searchKey) return restaurantContextPromise;
-        restaurantContextPromise = fetchRestaurantContext({ silent, searchKey }).finally(()=>{ restaurantContextPromise = null; });
+        restaurantContextPromise = fetchRestaurantContext({ silent, searchKey, modeName }).finally(()=>{ restaurantContextPromise = null; });
         restaurantContextPromise.searchKey = searchKey;
         return restaurantContextPromise;
       }
 
-      async function fetchRestaurantContext({ silent = false, searchKey = restaurantSearchSignature() } = {}){
-        const searchKeywords = restaurantSearchKeywords();
+      async function fetchRestaurantContext({ silent = false, searchKey = restaurantSearchSignature(mode), modeName = mode } = {}){
+        const choice = getChoiceContext();
+        const searchKeywords = restaurantSearchKeywordsForMode(modeName, choice);
+        const requireTargetCost = restaurantRequiresTargetCost(modeName, choice);
         if(!silent) toast(restaurantSearchToast(searchKeywords));
         let coords;
         try { coords = await getCurrentPosition(); }
         catch(e){ if(!silent) toast(e.message || "定位失败，改用城市定位"); coords = await getApproxPosition(); }
         lastCoords = coords;
-        let pois = await searchNearbyRestaurants(coords, 3500, searchKeywords);
-        if(pois.length < 5) pois = await searchNearbyRestaurants(coords, 8000, searchKeywords);
-        restaurantContext = { coords, pois: diverseRestaurantPois(pois, AMAP_PRICE_POOL_SIZE), searchKey, searchKeywords, fetchedAt: Date.now() };
+        let pois = await searchNearbyRestaurants(coords, 3500, searchKeywords, { requireTargetCost });
+        if(pois.length < 5) pois = await searchNearbyRestaurants(coords, 8000, searchKeywords, { requireTargetCost });
+        restaurantContext = { coords, pois: diverseRestaurantPois(pois, AMAP_PRICE_POOL_SIZE), searchKey, searchKeywords, requireTargetCost, modeName, fetchedAt: Date.now() };
         if(!silent && restaurantContext.pois.length) toast(`已准备好 ${restaurantContext.pois.length} 家附近餐厅候选`);
         return restaurantContext;
       }
 
       async function loadRestaurantCards(coords, preloadedPois){
-        const searchKeywords = restaurantSearchKeywords();
-        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? diverseRestaurantPois(preloadedPois, AMAP_PRICE_POOL_SIZE) : await searchNearbyRestaurants(coords, 3500, searchKeywords);
-        let cards = poisToCards(diverseRestaurantSample(pois, TOTAL));
-        if(cards.length < TOTAL){ pois = await searchNearbyRestaurants(coords, 8000, searchKeywords); cards = poisToCards(diverseRestaurantSample(pois, TOTAL)); }
+        const choice = getChoiceContext();
+        const searchKeywords = restaurantSearchKeywordsForMode(mode, choice);
+        const requireTargetCost = restaurantRequiresTargetCost(mode, choice);
+        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? diverseRestaurantPois(preloadedPois, AMAP_PRICE_POOL_SIZE) : await searchNearbyRestaurants(coords, 3500, searchKeywords, { requireTargetCost });
+        let cards = restaurantCardsForMode(pois, { requireTargetCost });
+        if(cards.length < TOTAL){ pois = await searchNearbyRestaurants(coords, 8000, searchKeywords, { requireTargetCost }); cards = restaurantCardsForMode(pois, { requireTargetCost }); }
         if(mode === "AI 模式"){
           pois = await ensureAiRestaurantRanking({ silent: false });
-          cards = poisToCards(pois.slice(0, TOTAL));
+          cards = poisToCards(pois.slice(0, TOTAL), { requireTargetCost });
         }
         return cards.slice(0,TOTAL);
       }
+      function restaurantCardsForMode(pois, { requireTargetCost = false } = {}){
+        if(mode === "霸总模式") return poisToCards(topRatingPois(pois).slice(0, TOTAL), { requireTargetCost });
+        if(mode === "玄学模式") return poisToCards(randomPick(pois, TOTAL), { requireTargetCost });
+        return poisToCards(diverseRestaurantSample(pois, TOTAL), { requireTargetCost });
+      }
 
       async function ensureAiRestaurantRanking({ silent = false } = {}){
-        const context = await ensureRestaurantContext({ silent });
+        const context = await ensureRestaurantContext({ silent, modeName: "AI 模式" });
         const candidates = diverseRestaurantPois((context.pois || []).filter(Boolean), AMAP_RESTAURANT_LIMIT);
         if(candidates.length < 2) return candidates;
         const signature = restaurantRankingKey(candidates, context.coords);
@@ -1105,8 +1115,19 @@
           ids: pois.map((poi)=>String(poi.id || poi.name))
         });
       }
-      function restaurantSearchSignature(){
-        return JSON.stringify(restaurantSearchKeywords(getChoiceContext()));
+      function restaurantSearchSignature(modeName = mode){
+        const choice = getChoiceContext();
+        return JSON.stringify({
+          mode: modeName,
+          keywords: restaurantSearchKeywordsForMode(modeName, choice),
+          requireTargetCost: restaurantRequiresTargetCost(modeName, choice)
+        });
+      }
+      function restaurantSearchKeywordsForMode(modeName = mode, choice = getChoiceContext()){
+        return modeName === "AI 模式" ? restaurantSearchKeywords(choice) : [RESTAURANT_KEYWORD_FALLBACK];
+      }
+      function restaurantRequiresTargetCost(modeName = mode, choice = getChoiceContext()){
+        return modeName === "AI 模式" && choice.tags.includes("人均150+");
       }
       function restaurantSearchKeywords(choice = getChoiceContext()){
         const raw = [];
@@ -1467,7 +1488,7 @@
       function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
       function safeStorageGet(key){ try { return sessionStorage.getItem(key); } catch { return ""; } }
       function safeStorageSet(key, value){ try { sessionStorage.setItem(key, value); } catch {} }
-      async function searchNearbyRestaurants(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK]){
+      async function searchNearbyRestaurants(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK], { requireTargetCost = true } = {}){
         const center = coords.amap ? coords : await convertToAmap(coords);
         const pois = [];
         const searchTerms = limitRestaurantKeywords(Array.isArray(keywords) ? keywords : [keywords]);
@@ -1479,9 +1500,9 @@
             pois.push(...pagePois.map((poi)=>({ ...poi, __searchKeyword: keyword })));
             if(pagePois.length < AMAP_RESTAURANT_LIMIT) break;
           }
-          if(diverseRestaurantPois(pois.map(normalizeAmapPoi).filter(isTargetCostPoi), AMAP_PRICE_POOL_SIZE).length >= AMAP_PRICE_POOL_SIZE) break;
+          if(diverseRestaurantPois(filterRestaurantPois(pois.map(normalizeAmapPoi), { requireTargetCost }), AMAP_PRICE_POOL_SIZE).length >= AMAP_PRICE_POOL_SIZE) break;
         }
-        return diverseRestaurantPois(pois.map(normalizeAmapPoi).filter(isTargetCostPoi), AMAP_PRICE_POOL_SIZE);
+        return diverseRestaurantPois(filterRestaurantPois(pois.map(normalizeAmapPoi), { requireTargetCost }), AMAP_PRICE_POOL_SIZE);
       }
       async function getApproxPosition(){
         try{
@@ -1532,6 +1553,9 @@
         const cost = readCostValue(poi?.cost);
         return Number.isFinite(cost) && cost >= MIN_RESTAURANT_COST;
       }
+      function filterRestaurantPois(pois, { requireTargetCost = true } = {}){
+        return (pois || []).filter((poi)=>poi?.name && (!requireTargetCost || isTargetCostPoi(poi)));
+      }
       function readCostValue(value){
         const direct = Number(value);
         if(Number.isFinite(direct)) return direct;
@@ -1554,6 +1578,18 @@
         const costDiff = readCostValue(b?.cost) - readCostValue(a?.cost);
         if(Number.isFinite(costDiff) && costDiff !== 0) return costDiff;
         return (Number(a?.distance) || Infinity) - (Number(b?.distance) || Infinity);
+      }
+      function topRatingPois(pois){
+        return uniquePois(pois).filter(Boolean).sort(comparePoiRatingDesc);
+      }
+      function comparePoiRatingDesc(a,b){
+        const ratingDiff = readRatingValue(b?.rating) - readRatingValue(a?.rating);
+        if(Number.isFinite(ratingDiff) && ratingDiff !== 0) return ratingDiff;
+        return (Number(a?.distance) || Infinity) - (Number(b?.distance) || Infinity);
+      }
+      function readRatingValue(value){
+        const rating = Number(value);
+        return Number.isFinite(rating) ? rating : -1;
       }
       function diverseRestaurantPois(pois, limit = AMAP_PRICE_POOL_SIZE){
         const sorted = uniquePois(pois).filter(Boolean).sort(compareRestaurantCandidate);
@@ -1635,8 +1671,8 @@
         for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
         return arr.slice(0, count);
       }
-      function poisToCards(pois){
-        const named = pois.filter(p=>p.name && isTargetCostPoi(p));
+      function poisToCards(pois, { requireTargetCost = true } = {}){
+        const named = filterRestaurantPois(pois, { requireTargetCost });
         return named.map((p,i)=>({ emoji: foodEmojiForPoi(p), name: p.name, art: ACCENTS[i % ACCENTS.length], image: foodImageForPoi(p, i), venueImage: p.image, reason: p.aiReason || poiReason(p), meta: [formatDistance(p.distance), p.rating ? `${p.rating}分` : "", p.cost ? `人均${formatCost(p.cost)}` : p.type].filter(Boolean).slice(0,3), theme: INFO_THEMES[i % INFO_THEMES.length], navUrl: amapNavigationUrl(p), orderUrl: `https://www.amap.com/search?query=${encodeURIComponent(p.name)}` })).slice(0,5);
       }
       function foodImageForPoi(p, index = 0){
@@ -1689,12 +1725,6 @@
       $("#deck").addEventListener("pointerdown",(e)=>{ if(e.target.closest(".navMini")) e.stopPropagation(); });
 
       startBgm();
-      primeRestaurantRecommendation();
-
-      function primeRestaurantRecommendation(){
-        ensureAiRestaurantRanking({ silent: true }).catch(()=>{});
-      }
-
       if (location.hash === "#deck") startGame("AI 模式", "AI INTEL");
       else if (location.hash === "#config") go("config");
       else if (location.hash === "#game") { updatePill(); go("game"); }
