@@ -522,6 +522,18 @@
       const WORKER_API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8788" : (location.hostname.endsWith(".pages.dev") ? "" : "https://no-choice.pages.dev");
       const RANK_RESTAURANTS_ENDPOINT = `${WORKER_API_BASE}/api/rank-restaurants`;
       const DECIDE_ENDPOINT = `${WORKER_API_BASE}/api/decide`;
+      const RESTAURANT_KEYWORD_FALLBACK = "餐厅";
+      const TAG_SEARCH_KEYWORDS = {
+        "今晚约饭": ["餐厅"],
+        "朋友聚餐": ["聚餐", "餐厅"],
+        "约会吃饭": ["约会餐厅", "西餐", "日料"],
+        "一人食": ["一人食", "简餐"],
+        "人均150+": [],
+        "离我近": [],
+        "少排队": [],
+        "安静好聊": ["安静餐厅", "咖啡", "西餐"]
+      };
+      const FOOD_SEARCH_TERMS = ["火锅","烤肉","烧烤","日料","日本料理","寿司","韩餐","韩国料理","泰餐","西餐","牛排","意面","披萨","粤菜","川菜","湘菜","本帮菜","江浙菜","海鲜","素食","轻食","咖啡","甜品","brunch","早午餐","小酒馆","酒吧","烧鸟","居酒屋","麻辣烫","拉面","面馆","米粉","私房菜","中餐","餐厅"];
       // 上传照片后展示的预生成像素头像（demo：原图 → 像素图）
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";
       const $ = (s) => document.querySelector(s);
@@ -1016,29 +1028,33 @@
       }
 
       function ensureRestaurantContext({ silent = false } = {}){
-        if(restaurantContext?.pois?.length) return Promise.resolve(restaurantContext);
-        if(restaurantContextPromise) return restaurantContextPromise;
-        restaurantContextPromise = fetchRestaurantContext({ silent }).finally(()=>{ restaurantContextPromise = null; });
+        const searchKey = restaurantSearchSignature();
+        if(restaurantContext?.pois?.length && restaurantContext.searchKey === searchKey) return Promise.resolve(restaurantContext);
+        if(restaurantContextPromise?.searchKey === searchKey) return restaurantContextPromise;
+        restaurantContextPromise = fetchRestaurantContext({ silent, searchKey }).finally(()=>{ restaurantContextPromise = null; });
+        restaurantContextPromise.searchKey = searchKey;
         return restaurantContextPromise;
       }
 
-      async function fetchRestaurantContext({ silent = false } = {}){
-        if(!silent) toast("正在获取附近餐厅候选");
+      async function fetchRestaurantContext({ silent = false, searchKey = restaurantSearchSignature() } = {}){
+        const searchKeywords = restaurantSearchKeywords();
+        if(!silent) toast(restaurantSearchToast(searchKeywords));
         let coords;
         try { coords = await getCurrentPosition(); }
         catch(e){ if(!silent) toast(e.message || "定位失败，改用城市定位"); coords = await getApproxPosition(); }
         lastCoords = coords;
-        let pois = await searchNearbyRestaurants(coords, 3500);
-        if(pois.length < 5) pois = await searchNearbyRestaurants(coords, 8000);
-        restaurantContext = { coords, pois: pois.slice(0, AMAP_PRICE_POOL_SIZE), fetchedAt: Date.now() };
+        let pois = await searchNearbyRestaurants(coords, 3500, searchKeywords);
+        if(pois.length < 5) pois = await searchNearbyRestaurants(coords, 8000, searchKeywords);
+        restaurantContext = { coords, pois: pois.slice(0, AMAP_PRICE_POOL_SIZE), searchKey, searchKeywords, fetchedAt: Date.now() };
         if(!silent && restaurantContext.pois.length) toast("已准备好附近高价餐厅");
         return restaurantContext;
       }
 
       async function loadRestaurantCards(coords, preloadedPois){
-        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? preloadedPois.slice(0, AMAP_PRICE_POOL_SIZE) : await searchNearbyRestaurants(coords, 3500);
+        const searchKeywords = restaurantSearchKeywords();
+        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? preloadedPois.slice(0, AMAP_PRICE_POOL_SIZE) : await searchNearbyRestaurants(coords, 3500, searchKeywords);
         let cards = poisToCards(randomPick(pois, TOTAL));
-        if(cards.length < TOTAL){ pois = await searchNearbyRestaurants(coords, 8000); cards = poisToCards(randomPick(pois, TOTAL)); }
+        if(cards.length < TOTAL){ pois = await searchNearbyRestaurants(coords, 8000, searchKeywords); cards = poisToCards(randomPick(pois, TOTAL)); }
         if(mode === "AI 模式"){
           pois = await ensureAiRestaurantRanking({ silent: false });
           cards = poisToCards(pois.some(hasAiRanking) ? pois.slice(0, TOTAL) : randomPick(pois, TOTAL));
@@ -1075,6 +1091,41 @@
           coords: coords ? [coords.lat, coords.lng] : null,
           ids: pois.map((poi)=>String(poi.id || poi.name))
         });
+      }
+      function restaurantSearchSignature(){
+        return JSON.stringify(restaurantSearchKeywords(getChoiceContext()));
+      }
+      function restaurantSearchKeywords(choice = getChoiceContext()){
+        const raw = [];
+        choice.tags.forEach((tag)=>{
+          (TAG_SEARCH_KEYWORDS[tag] || [tag]).forEach((keyword)=>raw.push(keyword));
+        });
+        const text = [choice.question, choice.tags.join(" ")].join(" ");
+        FOOD_SEARCH_TERMS.forEach((term)=>{ if(text.toLowerCase().includes(term.toLowerCase())) raw.push(term); });
+        const cleaned = uniqueKeywords(raw.map(cleanRestaurantKeyword).filter(Boolean));
+        return limitRestaurantKeywords(cleaned);
+      }
+      function cleanRestaurantKeyword(keyword){
+        const value = String(keyword || "").replace(/标签：.*/u, "").replace(/[，,。.!！?？；;:：]/g, " ").trim();
+        if(!value || /^(人均|离我近|少排队)$/.test(value)) return "";
+        return value.slice(0, 12);
+      }
+      function uniqueKeywords(keywords){
+        const seen = new Set();
+        return keywords.filter((keyword)=>{
+          if(seen.has(keyword)) return false;
+          seen.add(keyword);
+          return true;
+        });
+      }
+      function limitRestaurantKeywords(keywords, limit = 4){
+        const unique = uniqueKeywords((keywords || []).map(cleanRestaurantKeyword).filter(Boolean));
+        const specific = unique.filter((keyword)=>keyword !== RESTAURANT_KEYWORD_FALLBACK).slice(0, Math.max(0, limit - 1));
+        return [...specific, RESTAURANT_KEYWORD_FALLBACK];
+      }
+      function restaurantSearchToast(keywords){
+        const visible = (keywords || []).filter((keyword)=>keyword !== RESTAURANT_KEYWORD_FALLBACK).slice(0, 2);
+        return visible.length ? `正在按「${visible.join("、")}」搜索附近餐厅` : "正在获取附近餐厅候选";
       }
 
       async function rankRestaurantsWithAI(pois, coords, { silent = false } = {}){
@@ -1260,15 +1311,19 @@
       function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
       function safeStorageGet(key){ try { return sessionStorage.getItem(key); } catch { return ""; } }
       function safeStorageSet(key, value){ try { sessionStorage.setItem(key, value); } catch {} }
-      async function searchNearbyRestaurants(coords, radius = 3500){
+      async function searchNearbyRestaurants(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK]){
         const center = coords.amap ? coords : await convertToAmap(coords);
         const pois = [];
-        for(let page=1; page<=AMAP_SEARCH_PAGES; page++){
-          const data = await amapJsonp("https://restapi.amap.com/v5/place/around", { key: AMAP_WEB_SERVICE_KEY, location: `${center.lng.toFixed(6)},${center.lat.toFixed(6)}`, radius: String(radius), types: "050000", keywords: "餐厅", sortrule: "distance", page_size: String(AMAP_RESTAURANT_LIMIT), page_num: String(page), show_fields: "business,photos", output: "json" });
-          if(data.status !== "1") throw new Error(data.info || "高德附近餐厅查询失败");
-          const pagePois = data.pois || [];
-          pois.push(...pagePois);
-          if(pagePois.length < AMAP_RESTAURANT_LIMIT) break;
+        const searchTerms = limitRestaurantKeywords(Array.isArray(keywords) ? keywords : [keywords]);
+        for(const keyword of searchTerms){
+          for(let page=1; page<=AMAP_SEARCH_PAGES; page++){
+            const data = await amapJsonp("https://restapi.amap.com/v5/place/around", { key: AMAP_WEB_SERVICE_KEY, location: `${center.lng.toFixed(6)},${center.lat.toFixed(6)}`, radius: String(radius), types: "050000", keywords: keyword, sortrule: "distance", page_size: String(AMAP_RESTAURANT_LIMIT), page_num: String(page), show_fields: "business,photos", output: "json" });
+            if(data.status !== "1") throw new Error(data.info || "高德附近餐厅查询失败");
+            const pagePois = data.pois || [];
+            pois.push(...pagePois);
+            if(pagePois.length < AMAP_RESTAURANT_LIMIT) break;
+          }
+          if(topPricePois(pois.map(normalizeAmapPoi).filter(isTargetCostPoi)).length >= AMAP_PRICE_POOL_SIZE) break;
         }
         return topPricePois(pois.map(normalizeAmapPoi).filter(isTargetCostPoi));
       }
