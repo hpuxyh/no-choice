@@ -1066,16 +1066,17 @@
         catch(e){ if(!silent) toast(e.message || "定位失败，改用城市定位"); coords = await getApproxPosition(); }
         lastCoords = coords;
         const searchPlan = await restaurantSearchPlanForMode(modeName, choice, coords, { silent });
-        const meetup = await resolveRestaurantMeetupContext(coords, searchPlan, choice);
-        const searchCoords = meetup?.searchCoords || await resolveRestaurantSearchCoords(coords, searchPlan);
+        const destination = await resolveRestaurantDestinationContext(coords, searchPlan, choice);
+        const meetup = destination ? null : await resolveRestaurantMeetupContext(coords, searchPlan, choice);
+        const searchCoords = destination?.searchCoords || meetup?.searchCoords || await resolveRestaurantSearchCoords(coords, searchPlan);
         const searchKeywords = searchPlan.keywords;
         const searchOptions = restaurantSearchOptions(searchPlan);
         const minCost = searchOptions.minCost;
         const maxCost = searchOptions.maxCost;
-        const radius = meetup?.radiusMeters || searchPlan.radiusMeters || 3500;
-        if(!silent) toast(restaurantSearchToast(searchKeywords, meetup));
+        const radius = destination?.radiusMeters || meetup?.radiusMeters || searchPlan.radiusMeters || 3500;
+        if(!silent) toast(restaurantSearchToast(searchKeywords, meetup, destination));
         const result = await searchRestaurantsWithFallback(searchCoords, radius, searchKeywords, searchOptions, meetup);
-        restaurantContext = { coords: result.coords, userCoords: coords, pois: result.pois, searchKey, searchKeywords, searchPlan, searchOptions, meetup, minCost, maxCost, modeName, fetchedAt: Date.now() };
+        restaurantContext = { coords: result.coords, userCoords: coords, pois: result.pois, searchKey, searchKeywords, searchPlan, searchOptions, destination, meetup, minCost, maxCost, modeName, fetchedAt: Date.now() };
         if(!silent && restaurantContext.pois.length) toast(`已准备好 ${restaurantContext.pois.length} 家附近餐厅候选`);
         return restaurantContext;
       }
@@ -1087,12 +1088,14 @@
         const searchOptions = context.searchOptions || restaurantSearchOptions(searchPlan);
         const minCost = context.minCost ?? searchOptions.minCost;
         const maxCost = context.maxCost ?? searchOptions.maxCost;
-        const meetup = context.meetup || await resolveRestaurantMeetupContext(coords, searchPlan, choice);
-        const radius = meetup?.radiusMeters || searchPlan.radiusMeters || 3500;
-        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? diverseRestaurantPois(preloadedPois, AMAP_PRICE_POOL_SIZE) : (await searchRestaurantsWithFallback(meetup?.searchCoords || coords, radius, searchKeywords, searchOptions, meetup)).pois;
+        const destination = context.destination || await resolveRestaurantDestinationContext(coords, searchPlan, choice);
+        const meetup = destination ? null : (context.meetup || await resolveRestaurantMeetupContext(coords, searchPlan, choice));
+        const radius = destination?.radiusMeters || meetup?.radiusMeters || searchPlan.radiusMeters || 3500;
+        const searchCoords = destination?.searchCoords || meetup?.searchCoords || coords;
+        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? diverseRestaurantPois(preloadedPois, AMAP_PRICE_POOL_SIZE) : (await searchRestaurantsWithFallback(searchCoords, radius, searchKeywords, searchOptions, meetup)).pois;
         if(meetup) pois = rankRestaurantPoisForMeetup(pois, meetup);
         let cards = restaurantCardsForMode(pois, { ...searchOptions, minCost, maxCost });
-        if(cards.length < TOTAL){ pois = (await searchRestaurantsWithFallback(meetup?.searchCoords || coords, Math.max(radius, 8000), searchKeywords, searchOptions, meetup)).pois; cards = restaurantCardsForMode(pois, { ...searchOptions, minCost, maxCost }); }
+        if(cards.length < TOTAL){ pois = (await searchRestaurantsWithFallback(searchCoords, Math.max(radius, 8000), searchKeywords, searchOptions, meetup)).pois; cards = restaurantCardsForMode(pois, { ...searchOptions, minCost, maxCost }); }
         return cards.slice(0,TOTAL);
       }
       function restaurantCardsForMode(pois, options = {}){
@@ -1103,13 +1106,15 @@
 
       function restaurantSearchSignature(modeName = mode){
         const choice = getChoiceContext();
-        const locations = extractRestaurantLocationHints(choice).map((item)=>item.name);
+        const locations = extractedRestaurantParticipantLocationNames(choice);
+        const destination = extractRestaurantDestinationHint(choice)?.name || "";
         return JSON.stringify({
           mode: modeName,
           question: modeName === "AI 模式" ? choice.question : "",
           tags: modeName === "AI 模式" ? choice.tags : [],
           locations,
-          version: "search-plan-v3"
+          destination,
+          version: "search-plan-v4"
         });
       }
       async function restaurantSearchPlanForMode(modeName = mode, choice = getChoiceContext(), coords, { silent = false } = {}){
@@ -1162,10 +1167,42 @@
           .replace(/[，,。.!！?？；;:：]/g, " ")
           .replace(/^.+(?:住在|出发地是|位置在|位置是|在|从|出发)(?=.{2,}$)/u, "")
           .replace(/^(?:(?:我|本人|对方|朋友|同事|他|她|一个人|另一个人|一位|另一位|A|B)(?:住在|出发地是|位置在|位置是|在|从|出发)?|(?:住在|出发地是|位置在|位置是|在|出发))/i, "")
+          .replace(/(?:附近|周边|这边|那边)(?:吃饭|吃|找|搜|搜索|安排|看看|餐厅|饭店)?.*$/u, "")
           .replace(/(?:附近|周边|这边|那边|出发|上班|下班|过去|过来)$/u, "")
           .trim();
         if(!cleaned || /^(附近|周边|当前位置|当前城市|中间|中间点|折中|餐厅|饭店|吃饭)$/.test(cleaned)) return "";
         return cleaned.slice(0, 24);
+      }
+      function cleanRestaurantDestinationHint(value){
+        const withoutNearbyTail = String(value || "")
+          .replace(/(?:附近|周边|这边|那边)(?:吃饭|吃|找|搜|搜索|安排|看看|餐厅|饭店)?.*$/u, "")
+          .replace(/(?:吃饭|餐厅|饭店).*$/u, "");
+        return cleanRestaurantLocationHint(withoutNearbyTail);
+      }
+      function extractRestaurantDestinationHint(choice = getChoiceContext()){
+        const text = cleanChoiceQuestion(choice.question || "").replace(/\s+/g, " ");
+        const hints = [];
+        const collect = (match, valueIndex = 1)=>{
+          const start = match.index + match[0].indexOf(match[valueIndex]);
+          if(isParticipantLocationContext(text, start)) return;
+          const hint = cleanRestaurantDestinationHint(match[valueIndex]);
+          if(hint) hints.push(hint);
+        };
+        const destinationPatterns = [
+          /(?:目的地|见面地|集合地|会合地|碰头地|吃饭地点|吃饭地|地点|位置|区域|商圈)(?:定在|选在|放在|在|是|到)?\s*([\u4e00-\u9fa5A-Za-z0-9·\-]{2,24})/gi,
+          /(?:定在|约在|聚在|集合在|会合在|碰头在|见面在|就在|去|到)\s*([\u4e00-\u9fa5A-Za-z0-9·\-]{2,24})/gi,
+          /(?:在|到|去)?\s*([\u4e00-\u9fa5A-Za-z0-9·\-]{2,24})(?:附近|周边|这边|那边)(?:吃饭|吃|找|搜|搜索|安排|看看|餐厅|饭店)/gi
+        ];
+        for(const pattern of destinationPatterns){
+          let match;
+          while((match = pattern.exec(text))) collect(match);
+        }
+        const name = uniqueRestaurantLocationHints(hints)[0];
+        return name ? { name } : null;
+      }
+      function isParticipantLocationContext(text, index){
+        const before = text.slice(Math.max(0, index - 14), index);
+        return /(?:我|本人|朋友|对方|他|她|同事|一个人|另一个人|一位|另一位|a|b)\s*(?:在|住在|从|出发地是|出发|位置在|位置是)?\s*$/i.test(before);
       }
       function extractRestaurantLocationHints(choice = getChoiceContext()){
         const text = cleanChoiceQuestion(choice.question || "");
@@ -1182,6 +1219,12 @@
           if(hint) hints.push(hint);
         }
         return uniqueRestaurantLocationHints(hints).map((name)=>({ name }));
+      }
+      function extractedRestaurantParticipantLocationNames(choice = getChoiceContext()){
+        const destinationKey = normalizeMatchText(extractRestaurantDestinationHint(choice)?.name || "");
+        return extractRestaurantLocationHints(choice)
+          .map((item)=>item.name)
+          .filter((name)=>!destinationKey || normalizeMatchText(name) !== destinationKey);
       }
       function normalizeRestaurantLocationHints(value){
         const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|]+/);
@@ -1209,7 +1252,10 @@
         const specific = unique.filter((keyword)=>keyword !== RESTAURANT_KEYWORD_FALLBACK).slice(0, includeFallback ? Math.max(0, limit - 1) : limit);
         return includeFallback ? [...specific, RESTAURANT_KEYWORD_FALLBACK] : specific;
       }
-      function restaurantSearchToast(keywords, meetup){
+      function restaurantSearchToast(keywords, meetup, destination){
+        if(destination?.label){
+          return `正在找「${destination.label}」附近的餐厅`;
+        }
         if(meetup?.participants?.length >= 2){
           return `正在找「${meetup.participants.map((item)=>item.label).join(" / ")}」之间的折中餐厅`;
         }
@@ -1217,7 +1263,7 @@
         return visible.length ? `正在按「${visible.join("、")}」搜索附近餐厅` : "正在获取附近餐厅候选";
       }
       async function aiRestaurantSearchPlan(choice, coords, { silent = false } = {}){
-        const signature = JSON.stringify({ question: choice.question, tags: choice.tags, locations: extractRestaurantLocationHints(choice).map((item)=>item.name), coords: coords ? [coords.lat, coords.lng, coords.label || ""] : null, version: "search-plan-v3" });
+        const signature = JSON.stringify({ question: choice.question, tags: choice.tags, destination: extractRestaurantDestinationHint(choice)?.name || "", locations: extractedRestaurantParticipantLocationNames(choice), coords: coords ? [coords.lat, coords.lng, coords.label || ""] : null, version: "search-plan-v4" });
         if(restaurantSearchPlan && restaurantSearchPlanSignature === signature) return restaurantSearchPlan;
         if(restaurantSearchPlanPromise?.signature === signature) return restaurantSearchPlanPromise;
         if(!silent) renderLoadingDeck("AI 正在拆解搜索条件", "把你的输入转成高德可用的关键词、价格和位置条件。");
@@ -1248,7 +1294,8 @@
             scenes: choice.scenes,
             needs: choice.needs,
             tags: choice.tags,
-            locationHints: extractRestaurantLocationHints(choice).map((item)=>item.name),
+            locationHint: extractRestaurantDestinationHint(choice)?.name || "",
+            locationHints: extractedRestaurantParticipantLocationNames(choice),
             location: coords
           })
         });
@@ -1266,7 +1313,10 @@
         const resolvedMinCost = Number.isFinite(minCost) ? minCost : fallback.minCost;
         const radius = Number(source.radiusMeters || source.radius || source.radius_meters);
         const locationHints = normalizeRestaurantLocationHints(source.locationHints || source.locations || source.participantLocations || source.meetingLocations);
-        const fallbackLocationHints = extractRestaurantLocationHints(choice).map((item)=>item.name);
+        const fallbackLocationHints = extractedRestaurantParticipantLocationNames(choice);
+        const resolvedLocationHints = uniqueRestaurantLocationHints([...locationHints, ...fallbackLocationHints]);
+        const fallbackDestinationHint = extractRestaurantDestinationHint(choice)?.name || "";
+        const sourceLocationHint = cleanRestaurantDestinationHint(source.locationHint || source.destinationHint || source.destination || source.area || source.landmark || "");
         const resolved = {
           keywords: keywords.length ? keywords : fallback.keywords,
           minCost: resolvedMinCost,
@@ -1282,8 +1332,8 @@
           openAtHour: readPlanHour(source.openAtHour || source.open_at_hour || source.openAt),
           mustKeywords: normalizeSimpleKeywords(source.mustKeywords || source.includeKeywords || source.requiredKeywords, 8),
           avoidKeywords: normalizeSimpleKeywords(source.avoidKeywords || source.excludeKeywords || source.negativeKeywords, 8),
-          locationHint: cleanRestaurantLocationHint(source.locationHint || source.area || source.landmark || ""),
-          locationHints: uniqueRestaurantLocationHints([...locationHints, ...fallbackLocationHints]),
+          locationHint: fallbackDestinationHint || sourceLocationHint || (resolvedLocationHints.length === 1 ? resolvedLocationHints[0] : fallback.locationHint),
+          locationHints: resolvedLocationHints,
           explanation: String(source.explanation || source.reason || "").slice(0, 120),
           source: source.source || "deepseek"
         };
@@ -1292,6 +1342,8 @@
       }
       function localRestaurantSearchPlan(choice = getChoiceContext(), { forceGeneric = false } = {}){
         const keywords = forceGeneric ? [RESTAURANT_KEYWORD_FALLBACK] : restaurantSearchKeywords(choice);
+        const locationHints = extractedRestaurantParticipantLocationNames(choice);
+        const destinationHint = extractRestaurantDestinationHint(choice)?.name || (locationHints.length === 1 ? locationHints[0] : "");
         const plan = {
           keywords,
           minCost: !forceGeneric && choice.tags.includes("人均150+") ? MIN_RESTAURANT_COST : 0,
@@ -1307,8 +1359,8 @@
           openAtHour: !forceGeneric && choice.tags.includes("通宵熬夜") ? 23 : 0,
           mustKeywords: [],
           avoidKeywords: [],
-          locationHint: "",
-          locationHints: extractRestaurantLocationHints(choice).map((item)=>item.name),
+          locationHint: destinationHint,
+          locationHints,
           explanation: "",
           source: "local"
         };
@@ -1581,6 +1633,23 @@
         }catch{}
         return { ...DEFAULT_AMAP_CENTER };
       }
+      async function resolveRestaurantDestinationContext(coords, searchPlan, choice = getChoiceContext()){
+        const hint = restaurantDestinationHint(searchPlan, choice);
+        if(!hint) return null;
+        const point = await geocodeRestaurantLocationHint(hint, coords);
+        if(!point) return null;
+        return {
+          strategy: "destination",
+          label: hint,
+          searchCoords: { ...point, label: `${hint}附近` },
+          radiusMeters: searchPlan?.radiusMeters || 3500
+        };
+      }
+      function restaurantDestinationHint(searchPlan = {}, choice = getChoiceContext()){
+        const explicit = extractRestaurantDestinationHint(choice)?.name || "";
+        const hint = cleanRestaurantDestinationHint(searchPlan.locationHint || searchPlan.destinationHint || searchPlan.destination || searchPlan.area || searchPlan.landmark || "");
+        return explicit || hint;
+      }
       async function resolveRestaurantMeetupContext(coords, searchPlan, choice = getChoiceContext()){
         const hints = restaurantParticipantLocationHints(searchPlan, choice);
         if(hints.length < 2) return null;
@@ -1607,7 +1676,7 @@
       function restaurantParticipantLocationHints(searchPlan = {}, choice = getChoiceContext()){
         return uniqueRestaurantLocationHints([
           ...normalizeRestaurantLocationHints(searchPlan.locationHints || searchPlan.locations || searchPlan.participantLocations || searchPlan.meetingLocations),
-          ...extractRestaurantLocationHints(choice).map((item)=>item.name)
+          ...extractedRestaurantParticipantLocationNames(choice)
         ]);
       }
       function midpointRestaurantCoords(points){
