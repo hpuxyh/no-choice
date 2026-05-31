@@ -1212,7 +1212,7 @@
           tags: modeName === "AI 模式" ? choice.tags : [],
           locations,
           destination,
-          version: "search-plan-v4"
+          version: "search-plan-v5"
         });
       }
       async function restaurantSearchPlanForMode(modeName = mode, choice = getChoiceContext(), coords, { silent = false } = {}){
@@ -1361,7 +1361,7 @@
         return visible.length ? `正在按「${visible.join("、")}」搜索附近餐厅` : "正在获取附近餐厅候选";
       }
       async function aiRestaurantSearchPlan(choice, coords, { silent = false } = {}){
-        const signature = JSON.stringify({ question: choice.question, tags: choice.tags, destination: extractRestaurantDestinationHint(choice)?.name || "", locations: extractedRestaurantParticipantLocationNames(choice), coords: coords ? [coords.lat, coords.lng, coords.label || ""] : null, version: "search-plan-v4" });
+        const signature = JSON.stringify({ question: choice.question, tags: choice.tags, destination: extractRestaurantDestinationHint(choice)?.name || "", locations: extractedRestaurantParticipantLocationNames(choice), coords: coords ? [coords.lat, coords.lng, coords.label || ""] : null, version: "search-plan-v5" });
         if(restaurantSearchPlan && restaurantSearchPlanSignature === signature) return restaurantSearchPlan;
         if(restaurantSearchPlanPromise?.signature === signature) return restaurantSearchPlanPromise;
         if(!silent) renderLoadingDeck("AI 正在拆解搜索条件", "把你的输入转成高德可用的关键词、价格和位置条件。");
@@ -1432,6 +1432,11 @@
           avoidKeywords: normalizeSimpleKeywords(source.avoidKeywords || source.excludeKeywords || source.negativeKeywords, 8),
           locationHint: fallbackDestinationHint || sourceLocationHint || (resolvedLocationHints.length === 1 ? resolvedLocationHints[0] : fallback.locationHint),
           locationHints: resolvedLocationHints,
+          sceneIntent: source.sceneIntent || source.scenarioIntent || null,
+          keywordStrategy: Array.isArray(source.keywordStrategy) ? source.keywordStrategy.slice(0, 8) : [],
+          priceIntent: source.priceIntent || null,
+          locationIntent: source.locationIntent || null,
+          restaurantTypeIntent: source.restaurantTypeIntent || source.typeIntent || null,
           explanation: String(source.explanation || source.reason || "").slice(0, 120),
           source: source.source || "deepseek"
         };

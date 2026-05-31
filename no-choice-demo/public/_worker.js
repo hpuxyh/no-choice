@@ -348,10 +348,15 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
           role: "system",
           content: [
             "你是不做选择 App 的高德餐饮搜索条件解析器。你必须只返回 JSON object，不要 Markdown。",
-            "任务：把用户自然语言、标签、位置理解成高德 Web 服务 v5 place/around 可执行的搜索计划。不要推荐餐厅，不要排序餐厅，不要编造 POI。",
+            "项目背景：不做选择 App 是给有选择焦虑、选择困难的用户用的。用户常常只会说“今晚吃什么”“一个人在海淀一个人在朝阳”“想安静好聊”“少排队”这类不完整、带情绪和场景限制的话。你的目标不是替用户拍脑袋推荐店名，而是把纠结翻译成高德地图能召回好餐厅的搜索意图，让后续真实 POI 搜索更准、更不让用户失望。",
+            "任务：把用户自然语言、标签、位置理解成高德 Web 服务 v5 place/around 可执行的搜索计划。你要像产品里的搜索意图分析器：先拆场景和限制，再给高德关键词、价格、位置、街道/商圈、餐厅类型和搜索半径。不要推荐餐厅，不要排序餐厅，不要编造 POI。",
             "高德原生可接收字段：keywords、types、location、radius、sortrule、region、city_limit、page_size、page_num、show_fields、output。location/page_size/page_num/output 由前端补，不要输出。",
             "高德不原生筛选但前端会后处理的字段：minCost、maxCost、minRating、mustKeywords、avoidKeywords、preferOpenLate、openAtHour。",
-            "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region 为商圈/行政区短文本；locationHint 为用户确认的目的地/搜索中心，例如“定在三里屯附近”返回“三里屯”，没有则空字符串；locationHints 为多人出发地数组，最多 4 个，例如“一个人在海淀区，一个在朝阳区”返回 [\"海淀区\",\"朝阳区\"]；如果同时有目的地和出发地，locationHint 优先表达目的地，locationHints 只放出发地；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 40 字以内。",
+            "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region 为商圈/行政区/街道短文本；locationHint 为用户确认的目的地/搜索中心，例如“定在三里屯附近”返回“三里屯”，没有则空字符串；locationHints 为多人出发地数组，最多 4 个，例如“一个人在海淀区，一个在朝阳区”返回 [\"海淀区\",\"朝阳区\"]；如果同时有目的地和出发地，locationHint 优先表达目的地，locationHints 只放出发地；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 60 字以内。",
+            "还必须返回意图拆解字段：sceneIntent 对象，包含 primaryScenario、companions、decisionNeed、constraints、searchImplication；keywordStrategy 数组，解释每个高德 keyword 为什么选、适合什么场景、优先级；priceIntent 对象，说明价格段位 tier、minCost、maxCost、reason；locationIntent 对象，说明目的地、地区/商圈、街道、多人出发地、搜索策略 midpoint/destination/current、radiusReason；restaurantTypeIntent 对象，说明餐厅类型、是否必须是餐厅、要排除的非餐饮类型和理由。",
+            "拆关键词方法：优先保留用户明确菜系/菜品/品牌/地域口味；其次补场景型关键词，如约会餐厅、安静餐厅、朋友聚餐、夜宵；再补兜底餐厅关键词。关键词必须短、能直接给高德搜，不要用长句。searchRequests 应从精准到宽泛分层，第一层匹配明确意图，后面用于召回足够候选。",
+            "价格和位置方法：用户说人均/贵/便宜/请客/约会时要推断 minCost/maxCost；用户说目的地、附近、街道、商圈时写入 locationHint/region/street；多人不同位置时写 locationHints 并说明折中策略；只有当前位置时不要编造街道。",
+            "餐厅类型方法：餐饮默认 types=050000；只有明确咖啡、酒吧、甜品等可考虑更具体但仍要保证能召回吃饭选择；如果用户是在吃饭场景，不要把景点、商场、娱乐设施当成主要关键词。场景信息要拆清楚，说明这些关键词在什么场景下应该被选。",
             "关键词要能直接给高德搜，例如：西餐、火锅、夜宵、烧烤、日料、约会餐厅、安静餐厅、咖啡。不要输出长句作为 keyword。",
             "先判断用户是否已有明确餐厅指向：明确店名、品牌、菜系、菜品、地域口味、商圈位置都算明确。明确时不要随意改写或扩写，keywords 和 searchRequests 的第一项必须保留用户原始核心词，例如“想吃云南菜”保留 云南菜，“想吃牛肉面”保留 牛肉面，“海底捞”保留 海底捞。",
             "只有用户没有明确食物/餐厅指向时，才结合标签拆解成高德可搜关键词。例如“朋友聚餐、安静好聊”可拆成 聚餐、安静餐厅、西餐、咖啡；“不知道吃什么、少排队”可拆成 餐厅、简餐、小吃。不要只输出泛化的“餐厅”，除非输入确实没有明确意图。"
@@ -365,7 +370,7 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
       response_format: { type: "json_object" },
       thinking: { type: "disabled" },
       temperature: 0.15,
-      max_tokens: 800,
+      max_tokens: 1200,
     }),
   });
 
@@ -456,6 +461,11 @@ function normalizeRestaurantSearchPlan(plan, input) {
     avoidKeywords: normalizeSearchKeywords(plan?.avoidKeywords || plan?.excludeKeywords || plan?.negativeKeywords, 8),
     locationHint: locationHint || input.locationHint,
     locationHints: uniqueStrings([...locationHints, ...input.locationHints], 4, 40),
+    sceneIntent: normalizePlanInsight(plan?.sceneIntent || plan?.scenarioIntent || plan?.sceneAnalysis || plan?.scenarioAnalysis),
+    keywordStrategy: normalizeKeywordStrategy(plan?.keywordStrategy || plan?.keywordBreakdown || plan?.keywordAnalysis),
+    priceIntent: normalizePlanInsight(plan?.priceIntent || plan?.priceAnalysis || plan?.budgetIntent),
+    locationIntent: normalizePlanInsight(plan?.locationIntent || plan?.locationAnalysis || plan?.areaIntent),
+    restaurantTypeIntent: normalizePlanInsight(plan?.restaurantTypeIntent || plan?.typeIntent || plan?.typeAnalysis),
     explanation: cleanText(plan?.explanation || plan?.reason, 80),
   };
 
@@ -597,6 +607,92 @@ function normalizeSearchRequests(value, defaults) {
     showFields: normalizeAmapShowFields(defaults.showFields),
     priority: index + 1,
   }));
+}
+
+function normalizeKeywordStrategy(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (typeof item === "string") {
+        const keyword = cleanKeyword(item);
+        return keyword ? { keyword, purpose: "", scenario: "", priority: 0 } : null;
+      }
+
+      const keyword = cleanKeyword(item?.keyword || item?.query || item?.term);
+      if (!keyword) {
+        return null;
+      }
+
+      return {
+        keyword,
+        purpose: cleanText(item?.purpose || item?.reason || item?.why, 90),
+        scenario: cleanText(item?.scenario || item?.scene || item?.whenToUse, 60),
+        priority: Math.max(0, Math.min(9, Math.round(Number(item?.priority) || 0))),
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function normalizePlanInsight(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const text = cleanText(value, 320);
+    return text ? { summary: text } : null;
+  }
+
+  if (Array.isArray(value)) {
+    const items = value
+      .map((item) => cleanText(typeof item === "string" ? item : JSON.stringify(item), 120))
+      .filter(Boolean)
+      .slice(0, 8);
+    return items.length ? { items } : null;
+  }
+
+  if (typeof value === "object") {
+    const result = {};
+    Object.entries(value)
+      .slice(0, 12)
+      .forEach(([key, item]) => {
+        const cleanKey = cleanToken(key, 32);
+        if (!cleanKey) {
+          return;
+        }
+
+        if (Array.isArray(item)) {
+          const list = item
+            .map((entry) => cleanText(typeof entry === "string" ? entry : JSON.stringify(entry), 80))
+            .filter(Boolean)
+            .slice(0, 8);
+          if (list.length) {
+            result[cleanKey] = list;
+          }
+          return;
+        }
+
+        if (item && typeof item === "object") {
+          const text = cleanText(JSON.stringify(item), 180);
+          if (text) {
+            result[cleanKey] = text;
+          }
+          return;
+        }
+
+        const text = cleanText(item, 120);
+        if (text) {
+          result[cleanKey] = text;
+        }
+      });
+    return Object.keys(result).length ? result : null;
+  }
+
+  return null;
 }
 
 function normalizeInputPoi(poi) {
