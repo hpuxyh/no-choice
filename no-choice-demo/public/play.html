@@ -1349,12 +1349,27 @@
           renderLoadingDeck("正在加载食物图片", "确认 5 张精致食物图可展示后直接发牌。", { done: 0, total: 5 });
           let done = 0;
           const results = await Promise.all(cards.map(card=>
-            preloadImage(card.image).then(()=>{ done+=1; renderLoadingDeck("正在加载食物图片", `第 ${done} 张已加载。`, { done, total: 5 }); return card; }).catch((error)=>({ error }))
+            readyDisplayCard(card).then((readyCard)=>{ done+=1; renderLoadingDeck("正在加载食物图片", `第 ${done} 张已加载。`, { done, total: 5 }); return readyCard; }).catch((error)=>({ error }))
           ));
           if(results.some(item=>item.error)) return null;
           return results;
         }
         return comicStyleCards(cards);
+      }
+      async function readyDisplayCard(card){
+        if(card.image){
+          try{
+            await preloadImage(card.image);
+            return card;
+          }catch(err){
+            console.warn("Restaurant image unavailable", card.name, err);
+          }
+        }
+        if(card.fallbackImage){
+          await preloadImage(card.fallbackImage);
+          return { ...card, image: card.fallbackImage };
+        }
+        return card;
       }
       async function comicStyleCards(cards){
         const targets = cards.filter(card=>card.image).slice(0,5);
@@ -1678,7 +1693,7 @@
       }
       function poisToCards(pois, options = {}){
         const named = preferredRestaurantPois(pois, options);
-        return named.map((p,i)=>({ emoji: foodEmojiForPoi(p), name: p.name, art: ACCENTS[i % ACCENTS.length], image: foodImageForPoi(p, i), venueImage: p.image, reason: p.aiReason || poiReason(p), meta: [formatDistance(p.distance), p.rating ? `${p.rating}分` : "", p.cost ? `人均${formatCost(p.cost)}` : p.type].filter(Boolean).slice(0,3), theme: INFO_THEMES[i % INFO_THEMES.length], navUrl: amapNavigationUrl(p), orderUrl: `https://www.amap.com/search?query=${encodeURIComponent(p.name)}` })).slice(0,5);
+        return named.map((p,i)=>{ const fallbackImage = foodImageForPoi(p, i); return { emoji: foodEmojiForPoi(p), name: p.name, art: ACCENTS[i % ACCENTS.length], image: p.image || fallbackImage, fallbackImage, venueImage: p.image, reason: p.aiReason || poiReason(p), meta: [formatDistance(p.distance), p.rating ? `${p.rating}分` : "", p.cost ? `人均${formatCost(p.cost)}` : p.type].filter(Boolean).slice(0,3), theme: INFO_THEMES[i % INFO_THEMES.length], navUrl: amapNavigationUrl(p), orderUrl: `https://www.amap.com/search?query=${encodeURIComponent(p.name)}` }; }).slice(0,5);
       }
       function foodImageForPoi(p, index = 0){
         const text = `${p?.name || ""} ${p?.type || ""} ${p?.address || ""}`.toLowerCase();
