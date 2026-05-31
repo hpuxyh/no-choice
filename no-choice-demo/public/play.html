@@ -652,14 +652,16 @@
           renderLoadingDeck("正在定位附近餐厅", "读取你的位置，再从高德拿真实餐厅。");
           const context = await ensureRestaurantContext();
           const cards = await loadRestaurantCards(context.coords, context.pois);
-          if(cards.length === 5){
+          if(cards.length){
             const prepared = await prepareVisualCards(cards);
-            if(prepared){ resetDeck(prepared); return; }
+            resetDeck(prepared || cards);
+            return;
           }
-          throw new Error("真实餐厅不足");
+          throw new Error("真实餐厅为空");
         }catch(err){
-          // 兜底：本地示例餐厅卡，保证一定能玩（GitHub Pages / 无网络 / 接口失败时）
-          toast("用本地示例餐厅先玩一局");
+          console.warn("Restaurant deck unavailable", err);
+          // 只有真实餐厅和 AI 链路都没有可用结果时，才使用本地示例兜底。
+          toast("真实餐厅暂时为空，使用示例卡兜底");
           resetDeck(POOL);
         }
       }
@@ -1053,8 +1055,10 @@
         if(restaurantRankingPromise?.signature === signature) return restaurantRankingPromise;
         restaurantRankingPromise = rankRestaurantsWithAI(candidates, context.coords, { silent }).then((pois)=>{
           const resolved = pois?.length ? pois : candidates;
-          rankedRestaurantPois = resolved;
-          restaurantRankingSignature = signature;
+          if(resolved.some(hasAiRanking)){
+            rankedRestaurantPois = resolved;
+            restaurantRankingSignature = signature;
+          }
           return resolved;
         }).finally(()=>{ restaurantRankingPromise = null; });
         restaurantRankingPromise.signature = signature;
