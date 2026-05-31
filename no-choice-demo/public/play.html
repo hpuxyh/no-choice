@@ -1107,15 +1107,20 @@
       }
       function restaurantSearchKeywords(choice = getChoiceContext()){
         const raw = [];
+        const questionKeywords = extractRestaurantQuestionKeywords(choice.question);
+        const hasQuestionKeywords = questionKeywords.length > 0;
         choice.tags.filter((tag)=>PRIORITY_TAGS.has(tag)).forEach(pushRestaurantTagKeywords);
-        extractRestaurantQuestionKeywords(choice.question).forEach((keyword)=>raw.push(keyword));
+        questionKeywords.forEach((keyword)=>raw.push(keyword));
         choice.tags.filter((tag)=>!PRIORITY_TAGS.has(tag)).forEach(pushRestaurantTagKeywords);
         const text = [choice.question, choice.tags.join(" ")].join(" ");
         FOOD_SEARCH_TERMS.forEach((term)=>{ if(text.toLowerCase().includes(term.toLowerCase())) raw.push(term); });
         const cleaned = uniqueKeywords(raw.map(cleanRestaurantKeyword).filter(Boolean));
-        return limitRestaurantKeywords(cleaned);
+        return limitRestaurantKeywords(cleaned, 6, { includeFallback: !hasQuestionKeywords });
         function pushRestaurantTagKeywords(tag){
-          (TAG_SEARCH_KEYWORDS[tag] || [tag]).forEach((keyword)=>raw.push(keyword));
+          (TAG_SEARCH_KEYWORDS[tag] || [tag]).forEach((keyword)=>{
+            if(hasQuestionKeywords && keyword === RESTAURANT_KEYWORD_FALLBACK) return;
+            raw.push(keyword);
+          });
         }
       }
       function extractRestaurantQuestionKeywords(question){
@@ -1133,7 +1138,6 @@
       function normalizeQuestionFoodKeyword(value){
         let keyword = String(value || "").replace(/^(点|个|家|些|一点|一家)/, "").replace(/(附近|周边|餐厅|饭店|店|馆|人均.*|便宜|贵|安静|好聊|少排队).*$/u, "").trim();
         if(!keyword || /^(饭|饭饭|东西|什么|啥|随便|都行)$/.test(keyword)) return "";
-        if(/^[\u4e00-\u9fa5]{1,6}$/.test(keyword) && !/(菜|餐|饭|面|粉|火锅|烧烤|烤肉|料理|寿司|甜品|咖啡|酒|小吃|米线|烤鸭)$/.test(keyword)) keyword += "菜";
         return keyword;
       }
       function cleanRestaurantKeyword(keyword){
@@ -1149,10 +1153,10 @@
           return true;
         });
       }
-      function limitRestaurantKeywords(keywords, limit = 6){
+      function limitRestaurantKeywords(keywords, limit = 6, { includeFallback = true } = {}){
         const unique = uniqueKeywords((keywords || []).map(cleanRestaurantKeyword).filter(Boolean));
-        const specific = unique.filter((keyword)=>keyword !== RESTAURANT_KEYWORD_FALLBACK).slice(0, Math.max(0, limit - 1));
-        return [...specific, RESTAURANT_KEYWORD_FALLBACK];
+        const specific = unique.filter((keyword)=>keyword !== RESTAURANT_KEYWORD_FALLBACK).slice(0, includeFallback ? Math.max(0, limit - 1) : limit);
+        return includeFallback ? [...specific, RESTAURANT_KEYWORD_FALLBACK] : specific;
       }
       function restaurantSearchToast(keywords){
         const visible = (keywords || []).filter((keyword)=>keyword !== RESTAURANT_KEYWORD_FALLBACK).slice(0, 2);
@@ -1253,7 +1257,7 @@
         return plan;
       }
       function normalizePlanKeywords(value){
-        return limitRestaurantKeywords(normalizeSimpleKeywords(value, 6), 6);
+        return limitRestaurantKeywords(normalizeSimpleKeywords(value, 6), 6, { includeFallback: false });
       }
       function normalizeSimpleKeywords(value, limit = 8){
         const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|\s]+/);
