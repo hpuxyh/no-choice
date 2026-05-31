@@ -91,8 +91,17 @@
       .configScreen .profileCard { gap: 12px; }
       .configScreen .pRow > label { width: 48px; }
       /* 选择页上传图片 */
-      .inputActions { display: flex; gap: 8px; flex: none; }
+      .inputActions { display: flex; gap: 9px; flex: none; }
       .inputActions .micBig { flex: 1; font-size: 13px; padding: 12px; }
+      .inputActionsTop .micBig { min-height: 54px; border-radius: 15px; font-size: 15px; }
+      .inputActionsTop .voicePrimary { flex: 1.35; background: var(--yellow); color: var(--ink); font-size: 16px; }
+      .inputActionsTop .photoAction { flex: .85; }
+      .locationStatus { flex: none; min-height: 43px; display: flex; align-items: center; gap: 8px; padding: 8px 11px; border: 3px solid var(--ink); border-radius: 14px; background: #fff7df; box-shadow: var(--shadow-sm); font-size: 13px; font-weight: 900; line-height: 1.25; color: var(--ink); overflow: hidden; }
+      .locationStatus::before { content: "📍"; flex: none; font-size: 18px; line-height: 1; }
+      .locationStatus span { display: block; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .locationStatus[data-state="gps"] { background: var(--green); color: #fff; }
+      .locationStatus[data-state="loading"] { background: var(--yellow); }
+      .locationStatus[data-state="error"] { background: #fffdf6; color: #6b6253; }
       .quickTags { flex: none; display: flex; flex-direction: column; gap: 6px; }
       .quickTagRow { display: flex; align-items: center; gap: 6px; min-width: 0; }
       .quickTagLabel { flex: none; width: 35px; font-size: 11px; font-weight: 900; color: #6b6253; }
@@ -116,10 +125,17 @@
       .micBtn { flex: none; width: 50px; border: 3px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: var(--shadow-sm); font-size: 20px; cursor: pointer; }
       .micBtn.rec, .micBig.rec { background: var(--red); color: #fff; animation: pulse .8s infinite; }
       @keyframes pulse { 50% { opacity: .55; } }
-      .gameHero { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding-top: 6px; }
-      .voiceBox { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
-      .bigInput { flex: 1 1 auto; min-height: 42dvh; font-size: 16px; line-height: 1.5; resize: none; }
+      .gameHero { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 9px; padding-top: 2px; }
+      .voiceBox { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+      textarea.field.bigInput { flex: none; height: clamp(168px, 25dvh, 210px); min-height: clamp(168px, 25dvh, 210px); font-size: 15.5px; line-height: 1.48; resize: none; }
       .micBig { flex: none; font-weight: 900; font-size: 14px; padding: 13px; border: 3px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: var(--shadow-sm); cursor: pointer; }
+      @media (max-height: 760px) {
+        textarea.field.bigInput { height: clamp(138px, 22dvh, 178px); min-height: clamp(138px, 22dvh, 178px); }
+        .inputActionsTop .micBig { min-height: 48px; }
+        .locationStatus { min-height: 38px; font-size: 12px; padding: 7px 10px; }
+        .gameHero { gap: 7px; }
+        .voiceBox { gap: 7px; }
+      }
       .playerPill { width: 38px; height: 38px; border: 2px solid var(--ink); border-radius: 9px; display: grid; place-items: center; font-size: 20px; background: var(--card); box-shadow: var(--shadow-sm); overflow: hidden; background-size: cover; background-position: center; }
       .playerPill.img { image-rendering: pixelated; }
       .playerWrap { display: flex; align-items: center; gap: 7px; }
@@ -348,6 +364,11 @@
           <div class="gameHero">
             <div class="lead" style="font-size:23px; text-align:center; line-height:1.25">选择难？<br />开一局就有答案！</div>
             <div class="voiceBox">
+              <div class="inputActions inputActionsTop">
+                <button class="micBig voicePrimary" id="micChoice" type="button" onclick="startVoice('choiceInput', this)">🎤 语音说出纠结</button>
+                <button class="micBig photoAction" type="button" onclick="document.getElementById('choicePhoto').click()">🖼️ 上传图片</button>
+              </div>
+              <div class="locationStatus" id="locationStatus" data-state="loading"><span>定位：正在获取当前城市…</span></div>
               <textarea class="field bigInput" id="choiceInput" placeholder="说出、打出或拍下你的纠结…&#10;例如：今晚到底吃什么？"></textarea>
               <div class="quickTags" id="choiceTags">
                 <div class="quickTagRow" aria-label="场景标签">
@@ -372,10 +393,6 @@
                 </div>
               </div>
               <div class="thumbRow" id="choiceThumbs"></div>
-              <div class="inputActions">
-                <button class="micBig" id="micChoice" type="button" onclick="startVoice('choiceInput', this)">🎤 语音说出纠结</button>
-                <button class="micBig" type="button" onclick="document.getElementById('choicePhoto').click()">🖼️ 上传图片</button>
-              </div>
               <input type="file" id="choicePhoto" accept="image/*" hidden />
               <div class="miniSwitch gameComicSwitch">
                 <div class="copy"><strong>漫画卡面</strong><span id="comicImageHint">关闭后直接用真实照片</span></div>
@@ -553,10 +570,10 @@
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";
       const $ = (s) => document.querySelector(s);
       const BGM_VOLUME = 0.72;
-      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, lastCoords = null, restaurantContext = null, restaurantContextPromise = null, restaurantSearchPlan = null, restaurantSearchPlanSignature = "", restaurantSearchPlanPromise = null, useComicImages = CAN_USE_COMIC_IMAGES && safeStorageGet("choice-over-use-comic") === "1";
+      let deck = [], pending = [], mode = "AI 模式", drag = null, ready = false, topEl = null, revT = null, activePool = POOL, lastCoords = null, locationStatusPromise = null, restaurantContext = null, restaurantContextPromise = null, restaurantSearchPlan = null, restaurantSearchPlanSignature = "", restaurantSearchPlanPromise = null, useComicImages = CAN_USE_COMIC_IMAGES && safeStorageGet("choice-over-use-comic") === "1";
       let bgmUnlockInstalled = false;
 
-      function go(name){ startBgm(); document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); }
+      function go(name){ startBgm(); document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active", s.dataset.screen===name)); if(name === "game") primeLocationStatus(); }
       function setSoundGate(state, label){
         const gate = $("#soundGate");
         if(!gate) return;
@@ -1033,6 +1050,30 @@
         const percent = Math.round((safeDone / safeTotal) * 100);
         return `<div class="loadingProgress" style="--progress:${percent}%"><span></span></div><div class="loadingCount pixel">${safeDone}/${safeTotal} READY</div>`;
       }
+      function setLocationStatus(text, state = "idle"){
+        const el = $("#locationStatus");
+        if(!el) return;
+        el.dataset.state = state;
+        const target = el.querySelector("span") || el;
+        target.textContent = text;
+      }
+      function updateLocationStatus(coords, source = "city"){
+        const lat = Number(coords?.lat), lng = Number(coords?.lng);
+        const coordText = Number.isFinite(lat) && Number.isFinite(lng) ? ` · ${lat.toFixed(4)}, ${lng.toFixed(4)}` : "";
+        const label = coords?.label || (source === "gps" ? "GPS 定位" : "当前城市");
+        const accuracy = source === "gps" && coords?.accuracy ? ` · ±${coords.accuracy}m` : "";
+        setLocationStatus(`定位：${label}${coordText}${accuracy}`, source === "gps" ? "gps" : "city");
+      }
+      function primeLocationStatus(){
+        if(lastCoords){ updateLocationStatus(lastCoords, lastCoords.accuracy ? "gps" : "city"); return Promise.resolve(lastCoords); }
+        if(locationStatusPromise) return locationStatusPromise;
+        setLocationStatus("定位：正在获取当前城市…", "loading");
+        locationStatusPromise = getApproxPosition()
+          .then((coords)=>{ updateLocationStatus(coords, "city"); return coords; })
+          .catch(()=>{ setLocationStatus("定位：暂时未获取，开局时再试", "error"); return null; })
+          .finally(()=>{ locationStatusPromise = null; });
+        return locationStatusPromise;
+      }
       function getCurrentPosition(){
         if(!("geolocation" in navigator)) return Promise.reject(new Error("当前浏览器不支持定位"));
         return new Promise((resolve,reject)=>{
@@ -1062,8 +1103,8 @@
       async function fetchRestaurantContext({ silent = false, searchKey = restaurantSearchSignature(mode), modeName = mode } = {}){
         const choice = getChoiceContext();
         let coords;
-        try { coords = await getCurrentPosition(); }
-        catch(e){ if(!silent) toast(e.message || "定位失败，改用城市定位"); coords = await getApproxPosition(); }
+        try { setLocationStatus("定位：正在获取 GPS…", "loading"); coords = await getCurrentPosition(); updateLocationStatus(coords, "gps"); }
+        catch(e){ if(!silent) toast(e.message || "定位失败，改用城市定位"); setLocationStatus("定位：GPS 不可用，改用城市定位", "error"); coords = await getApproxPosition(); updateLocationStatus(coords, "city"); }
         lastCoords = coords;
         const searchPlan = await restaurantSearchPlanForMode(modeName, choice, coords, { silent });
         const destination = await resolveRestaurantDestinationContext(coords, searchPlan, choice);
