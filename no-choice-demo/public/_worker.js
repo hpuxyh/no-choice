@@ -46,10 +46,6 @@ export default {
       return handleRestaurantSearchPlanRequest(request, env);
     }
 
-    if (url.pathname === "/api/rank-restaurants") {
-      return handleRankRestaurantsRequest(request, env);
-    }
-
     if (url.pathname === "/api/comic-image") {
       return handleComicImageRequest(request, env);
     }
@@ -190,54 +186,6 @@ async function handleRestaurantSearchPlanRequest(request, env) {
     });
   } catch (error) {
     return json({ ok: false, message: error.message || "AI 搜索条件解析暂时不可用" }, 502);
-  }
-}
-
-async function handleRankRestaurantsRequest(request, env) {
-  if (request.method !== "POST") {
-    return json({ ok: false, message: "只支持 POST" }, 405);
-  }
-
-  const key = env.DEEPSEEK_API_KEY || "";
-  if (!key) {
-    return json(
-      {
-        ok: false,
-        needsKey: true,
-        message: "Cloudflare 还没有配置 DEEPSEEK_API_KEY",
-      },
-      501,
-    );
-  }
-
-  let input;
-  try {
-    input = normalizeRestaurantRankingInput(await request.json());
-  } catch {
-    return json({ ok: false, message: "请求内容不是有效 JSON" }, 400);
-  }
-
-  if (input.pois.length < 2) {
-    return json({ ok: false, message: "候选餐厅不足" }, 400);
-  }
-
-  try {
-    const model = env.DEEPSEEK_MODEL || "deepseek-v4-flash";
-    const content = await askDeepSeekRestaurantRanking({ key, model, input });
-    const parsed = parseJsonContent(content);
-    const rankings = normalizeRestaurantRankings(parsed.rankings || parsed.restaurants || parsed.ranking, input);
-
-    return json({
-      ok: true,
-      provider: "deepseek",
-      model,
-      rankings,
-      fallback: rankings.length ? null : "amap_order",
-      message: rankings.length ? "" : "模型没有返回有效排序，前端可使用高德原始顺序",
-      usage: parsed.usage || null,
-    });
-  } catch (error) {
-    return json({ ok: false, message: error.message || "AI 排序暂时不可用" }, 502);
   }
 }
 
@@ -398,8 +346,14 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
       messages: [
         {
           role: "system",
-          content:
-            "你是不做选择 App 的高德餐饮搜索条件解析器。你必须只返回 JSON object，不要 Markdown。任务：把用户自然语言、标签、位置理解成高德 place/around 可用的搜索计划，不要推荐或排序餐厅，不要编造 POI。返回字段 plan：keywords 数组 2 到 6 个中文短关键词，每个不超过 8 字，适合高德餐饮搜索；minCost 和 maxCost 为数字或 null；radiusMeters 为 1000 到 10000；preferOpenLate 为 boolean；locationHint 为商圈/地标/区域短文本，没有则空字符串；explanation 中文 40 字以内。示例关键词：西餐、火锅、夜宵、烧烤、日料、约会餐厅、安静餐厅、咖啡。",
+          content: [
+            "你是不做选择 App 的高德餐饮搜索条件解析器。你必须只返回 JSON object，不要 Markdown。",
+            "任务：把用户自然语言、标签、位置理解成高德 Web 服务 v5 place/around 可执行的搜索计划。不要推荐餐厅，不要排序餐厅，不要编造 POI。",
+            "高德原生可接收字段：keywords、types、location、radius、sortrule、region、city_limit、page_size、page_num、show_fields、output。location/page_size/page_num/output 由前端补，不要输出。",
+            "高德不原生筛选但前端会后处理的字段：minCost、maxCost、minRating、mustKeywords、avoidKeywords、preferOpenLate、openAtHour。",
+            "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region/locationHint 为商圈/地标/行政区短文本，没有则空字符串；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 40 字以内。",
+            "关键词要能直接给高德搜，例如：西餐、火锅、夜宵、烧烤、日料、约会餐厅、安静餐厅、咖啡。不要输出长句作为 keyword。"
+          ].join("\n"),
         },
         {
           role: "user",
@@ -410,62 +364,6 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
       thinking: { type: "disabled" },
       temperature: 0.15,
       max_tokens: 800,
-    }),
-  });
-
-  const data = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(data?.error?.message || "DeepSeek 请求失败");
-  }
-
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error("DeepSeek 没有返回内容");
-  }
-
-  return content;
-}
-
-async function askDeepSeekRestaurantRanking({ key, model, input }) {
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${key}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是不做选择 App 的餐厅匹配排序引擎。你必须只返回 JSON object，不要 Markdown。任务：根据用户输入、场景标签、需求标签、当前位置和真实高德餐厅列表，对餐厅做匹配度排序。只能使用输入列表里的餐厅，不能编造。返回字段 rankings，数组元素必须有 id、reason、tags、score。id 必须等于输入餐厅 id；reason 中文 36 字以内，说明为什么更符合；tags 2 到 3 个，每个 6 字以内；score 为 0 到 1。优先考虑标签和输入，其次考虑距离、评分、人均、类型和地址。",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            question: input.question,
-            scenes: input.scenes,
-            needs: input.needs,
-            tags: input.tags,
-            location: input.location,
-            restaurants: input.pois.map((poi) => ({
-              id: poi.id,
-              name: poi.name,
-              address: poi.address,
-              type: poi.type,
-              distance: poi.distance,
-              rating: poi.rating,
-              cost: poi.cost,
-              location: poi.location,
-            })),
-          }),
-        },
-      ],
-      response_format: { type: "json_object" },
-      thinking: { type: "disabled" },
-      temperature: 0.25,
-      max_tokens: 1600,
     }),
   });
 
@@ -528,29 +426,44 @@ function normalizeRestaurantSearchPlan(plan, input) {
   const fallbackKeywords = normalizeSearchKeywords([...input.tags, input.question]);
   const minCost = readMoneyValue(plan?.minCost ?? plan?.min_price ?? plan?.minPrice);
   const maxCost = readMoneyValue(plan?.maxCost ?? plan?.max_price ?? plan?.maxPrice);
+  const minRating = readRatingNumber(plan?.minRating ?? plan?.min_rating ?? plan?.ratingMin);
+  const openAtHour = readHourNumber(plan?.openAtHour ?? plan?.open_at_hour ?? plan?.openAt);
   const radius = Number(plan?.radiusMeters || plan?.radius || plan?.radius_meters);
   const fallbackMinCost = input.tags.includes("人均150+") || /人均\s*150|150\+|150以上/.test(input.question)
     ? MIN_DINNER_COST
     : null;
   const resolvedMinCost = Number.isFinite(minCost) ? minCost : fallbackMinCost;
-
-  return {
+  const resolvedPlan = {
     keywords: (keywords.length ? keywords : fallbackKeywords).slice(0, 6),
+    types: normalizeAmapTypes(plan?.types || plan?.typeCodes || plan?.amapTypes),
+    sortrule: normalizeAmapSortRule(plan?.sortrule || plan?.sortRule),
+    region: cleanText(plan?.region || plan?.city, 40),
+    cityLimit: Boolean(plan?.cityLimit || plan?.city_limit),
+    showFields: normalizeAmapShowFields(plan?.showFields || plan?.show_fields),
     minCost: resolvedMinCost,
     maxCost: Number.isFinite(maxCost) && (!resolvedMinCost || maxCost >= resolvedMinCost) ? maxCost : null,
+    minRating: Number.isFinite(minRating) ? minRating : null,
     radiusMeters: Number.isFinite(radius) ? Math.max(1000, Math.min(10000, Math.round(radius))) : 3500,
     preferOpenLate: Boolean(plan?.preferOpenLate || plan?.openLate || plan?.lateNight || input.tags.includes("通宵熬夜")),
+    openAtHour: Number.isFinite(openAtHour) ? openAtHour : null,
+    mustKeywords: normalizeSearchKeywords(plan?.mustKeywords || plan?.includeKeywords || plan?.requiredKeywords, 8),
+    avoidKeywords: normalizeSearchKeywords(plan?.avoidKeywords || plan?.excludeKeywords || plan?.negativeKeywords, 8),
     locationHint: cleanText(plan?.locationHint || plan?.area || plan?.landmark, 40),
     explanation: cleanText(plan?.explanation || plan?.reason, 80),
   };
+
+  return {
+    ...resolvedPlan,
+    searchRequests: normalizeSearchRequests(plan?.searchRequests || plan?.queries || plan?.queryIntents, resolvedPlan),
+  };
 }
 
-function normalizeSearchKeywords(value) {
+function normalizeSearchKeywords(value, limit = 6) {
   const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|\s]+/);
   const seen = new Set();
   return list
     .map((item) => cleanKeyword(item))
-    .filter(Boolean)
+    .filter((keyword) => keyword && !/^(人均.*|离我近|少排队)$/.test(keyword))
     .filter((keyword) => {
       if (seen.has(keyword)) {
         return false;
@@ -558,7 +471,7 @@ function normalizeSearchKeywords(value) {
       seen.add(keyword);
       return true;
     })
-    .slice(0, 6);
+    .slice(0, limit);
 }
 
 function readMoneyValue(value) {
@@ -570,17 +483,113 @@ function readMoneyValue(value) {
   return match ? Math.round(Number(match[0])) : Number.NaN;
 }
 
-function normalizeRestaurantRankingInput(body) {
-  const pois = Array.isArray(body?.pois) ? body.pois.map(normalizeInputPoi).filter(Boolean).slice(0, 25) : [];
+function readRatingNumber(value) {
+  const direct = Number(value);
+  if (Number.isFinite(direct) && direct > 0) {
+    return Math.max(0, Math.min(5, Number(direct.toFixed(1))));
+  }
+  const match = String(value || "").match(/\d+(?:\.\d+)?/);
+  if (!match) {
+    return Number.NaN;
+  }
+  const rating = Number(match[0]);
+  return Number.isFinite(rating) ? Math.max(0, Math.min(5, Number(rating.toFixed(1)))) : Number.NaN;
+}
 
-  return {
-    question: cleanText(body?.question, 240),
-    scenes: normalizeStringList(body?.scenes, 8, 24),
-    needs: normalizeStringList(body?.needs, 8, 24),
-    tags: normalizeStringList(body?.tags, 16, 24),
-    location: normalizeInputLocation(body?.location),
-    pois,
-  };
+function readHourNumber(value) {
+  const direct = Number(value);
+  if (Number.isFinite(direct) && direct >= 0) {
+    return Math.max(0, Math.min(29, Math.round(direct)));
+  }
+  const match = String(value || "").match(/\d+(?:\.\d+)?/);
+  if (!match) {
+    return Number.NaN;
+  }
+  const hour = Number(match[0]);
+  return Number.isFinite(hour) ? Math.max(0, Math.min(29, Math.round(hour))) : Number.NaN;
+}
+
+function normalizeAmapTypes(value) {
+  const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|]+/);
+  const seen = new Set();
+  const codes = list
+    .map((item) => String(item || "").trim())
+    .filter((item) => /^\d{6}$/.test(item))
+    .filter((item) => {
+      if (seen.has(item)) {
+        return false;
+      }
+      seen.add(item);
+      return true;
+    })
+    .slice(0, 8);
+  return codes.length ? codes.join("|") : "050000";
+}
+
+function normalizeAmapSortRule(value) {
+  const rule = String(value || "").toLowerCase();
+  if (rule === "weight" || /综合|推荐|权重/.test(rule)) {
+    return "weight";
+  }
+  return "distance";
+}
+
+function normalizeAmapShowFields(value) {
+  const allowed = new Set(["children", "business", "indoor", "navi", "photos"]);
+  const seen = new Set();
+  const fields = String(value || "business,photos")
+    .split(/[、,，;；/|]+/)
+    .map((item) => item.trim())
+    .filter((item) => allowed.has(item))
+    .filter((item) => {
+      if (seen.has(item)) {
+        return false;
+      }
+      seen.add(item);
+      return true;
+    })
+    .slice(0, 5);
+  return fields.length ? fields.join(",") : "business,photos";
+}
+
+function normalizeSearchRequests(value, defaults) {
+  const items = Array.isArray(value) ? value : [];
+  const requests = items
+    .map((item, index) => {
+      const keyword = cleanKeyword(item?.keyword || item?.keywords || item?.query || item?.searchKeyword || item);
+      if (!keyword) {
+        return null;
+      }
+      const radius = Number(item?.radiusMeters || item?.radius || defaults.radiusMeters);
+      return {
+        keyword,
+        types: normalizeAmapTypes(item?.types || item?.typeCodes || defaults.types),
+        radiusMeters: Number.isFinite(radius) ? Math.max(1000, Math.min(10000, Math.round(radius))) : defaults.radiusMeters,
+        sortrule: normalizeAmapSortRule(item?.sortrule || item?.sortRule || defaults.sortrule),
+        region: cleanText(item?.region || defaults.region, 40),
+        cityLimit: Boolean(item?.cityLimit ?? item?.city_limit ?? defaults.cityLimit),
+        showFields: normalizeAmapShowFields(item?.showFields || item?.show_fields || defaults.showFields),
+        priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : index + 1,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, 8);
+
+  if (requests.length) {
+    return requests;
+  }
+
+  return normalizeSearchKeywords(defaults.keywords, 6).map((keyword, index) => ({
+    keyword,
+    types: normalizeAmapTypes(defaults.types),
+    radiusMeters: defaults.radiusMeters,
+    sortrule: normalizeAmapSortRule(defaults.sortrule),
+    region: cleanText(defaults.region, 40),
+    cityLimit: Boolean(defaults.cityLimit),
+    showFields: normalizeAmapShowFields(defaults.showFields),
+    priority: index + 1,
+  }));
 }
 
 function normalizeInputPoi(poi) {
@@ -681,39 +690,6 @@ function findMatchedPoi(card, pois) {
   }
 
   return pois.find((poi) => title.includes(poi.name) || poi.name.includes(title)) || null;
-}
-
-function normalizeRestaurantRankings(rankings, input) {
-  if (!Array.isArray(rankings)) {
-    return [];
-  }
-
-  const validIds = new Set(input.pois.map((poi) => poi.id));
-  const used = new Set();
-  return rankings
-    .map((item) => {
-      const id = cleanText(item?.id || item?.poiId || item?.sourcePoiId, 80);
-      if (!id || !validIds.has(id) || used.has(id)) {
-        return null;
-      }
-      used.add(id);
-      return {
-        id,
-        reason: cleanText(item?.reason, 70) || "更贴合这次吃饭需求。",
-        tags: normalizeStringList(item?.tags || item?.meta, 3, 8),
-        score: clampScore(item?.score),
-      };
-    })
-    .filter(Boolean)
-    .slice(0, 25);
-}
-
-function clampScore(value) {
-  const score = Number(value);
-  if (!Number.isFinite(score)) {
-    return 0;
-  }
-  return Math.max(0, Math.min(1, score));
 }
 
 function normalizeStringList(list, limit, itemLength) {

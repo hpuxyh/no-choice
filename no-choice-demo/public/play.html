@@ -1058,13 +1058,14 @@
         const searchPlan = await restaurantSearchPlanForMode(modeName, choice, coords, { silent });
         const searchCoords = await resolveRestaurantSearchCoords(coords, searchPlan);
         const searchKeywords = searchPlan.keywords;
-        const minCost = searchPlan.minCost || 0;
-        const maxCost = searchPlan.maxCost || 0;
+        const searchOptions = restaurantSearchOptions(searchPlan);
+        const minCost = searchOptions.minCost;
+        const maxCost = searchOptions.maxCost;
         const radius = searchPlan.radiusMeters || 3500;
         if(!silent) toast(restaurantSearchToast(searchKeywords));
-        let pois = await searchNearbyRestaurants(searchCoords, radius, searchKeywords, { minCost, maxCost });
-        if(pois.length < 5) pois = await searchNearbyRestaurants(searchCoords, Math.max(radius, 8000), searchKeywords, { minCost, maxCost });
-        restaurantContext = { coords: searchCoords, userCoords: coords, pois: diverseRestaurantPois(pois, AMAP_PRICE_POOL_SIZE), searchKey, searchKeywords, searchPlan, minCost, maxCost, modeName, fetchedAt: Date.now() };
+        let pois = await searchNearbyRestaurants(searchCoords, radius, searchKeywords, searchOptions);
+        if(pois.length < 5) pois = await searchNearbyRestaurants(searchCoords, Math.max(radius, 8000), searchKeywords, searchOptions);
+        restaurantContext = { coords: searchCoords, userCoords: coords, pois: diverseRestaurantPois(pois, AMAP_PRICE_POOL_SIZE), searchKey, searchKeywords, searchPlan, searchOptions, minCost, maxCost, modeName, fetchedAt: Date.now() };
         if(!silent && restaurantContext.pois.length) toast(`已准备好 ${restaurantContext.pois.length} 家附近餐厅候选`);
         return restaurantContext;
       }
@@ -1073,18 +1074,19 @@
         const choice = getChoiceContext();
         const searchPlan = context.searchPlan || await restaurantSearchPlanForMode(mode, choice, coords, { silent: true });
         const searchKeywords = context.searchKeywords || searchPlan.keywords;
-        const minCost = context.minCost ?? searchPlan.minCost ?? 0;
-        const maxCost = context.maxCost ?? searchPlan.maxCost ?? 0;
+        const searchOptions = context.searchOptions || restaurantSearchOptions(searchPlan);
+        const minCost = context.minCost ?? searchOptions.minCost;
+        const maxCost = context.maxCost ?? searchOptions.maxCost;
         const radius = searchPlan.radiusMeters || 3500;
-        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? diverseRestaurantPois(preloadedPois, AMAP_PRICE_POOL_SIZE) : await searchNearbyRestaurants(coords, radius, searchKeywords, { minCost, maxCost });
-        let cards = restaurantCardsForMode(pois, { minCost, maxCost });
-        if(cards.length < TOTAL){ pois = await searchNearbyRestaurants(coords, Math.max(radius, 8000), searchKeywords, { minCost, maxCost }); cards = restaurantCardsForMode(pois, { minCost, maxCost }); }
+        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? diverseRestaurantPois(preloadedPois, AMAP_PRICE_POOL_SIZE) : await searchNearbyRestaurants(coords, radius, searchKeywords, searchOptions);
+        let cards = restaurantCardsForMode(pois, { ...searchOptions, minCost, maxCost });
+        if(cards.length < TOTAL){ pois = await searchNearbyRestaurants(coords, Math.max(radius, 8000), searchKeywords, searchOptions); cards = restaurantCardsForMode(pois, { ...searchOptions, minCost, maxCost }); }
         return cards.slice(0,TOTAL);
       }
-      function restaurantCardsForMode(pois, { minCost = 0, maxCost = 0 } = {}){
-        if(mode === "霸总模式") return poisToCards(topRatingPois(pois).slice(0, TOTAL), { minCost, maxCost });
-        if(mode === "玄学模式") return poisToCards(randomPick(pois, TOTAL), { minCost, maxCost });
-        return poisToCards(diverseRestaurantPois(pois, TOTAL), { minCost, maxCost });
+      function restaurantCardsForMode(pois, options = {}){
+        if(mode === "霸总模式") return poisToCards(topRatingPois(pois).slice(0, TOTAL), options);
+        if(mode === "玄学模式") return poisToCards(randomPick(pois, TOTAL), options);
+        return poisToCards(diverseRestaurantPois(pois, TOTAL), options);
       }
 
       function restaurantSearchSignature(modeName = mode){
@@ -1093,7 +1095,7 @@
           mode: modeName,
           question: modeName === "AI 模式" ? choice.question : "",
           tags: modeName === "AI 模式" ? choice.tags : [],
-          version: "search-plan-v1"
+          version: "search-plan-v2"
         });
       }
       async function restaurantSearchPlanForMode(modeName = mode, choice = getChoiceContext(), coords, { silent = false } = {}){
@@ -1114,7 +1116,7 @@
       }
       function cleanRestaurantKeyword(keyword){
         const value = String(keyword || "").replace(/标签：.*/u, "").replace(/[，,。.!！?？；;:：]/g, " ").trim();
-        if(!value || /^(人均|离我近|少排队)$/.test(value)) return "";
+        if(!value || /^(人均.*|离我近|少排队)$/.test(value)) return "";
         return value.slice(0, 12);
       }
       function uniqueKeywords(keywords){
@@ -1179,39 +1181,134 @@
         const fallback = localRestaurantSearchPlan(choice);
         const minCost = readPlanCost(source.minCost ?? source.min_price ?? source.minPrice);
         const maxCost = readPlanCost(source.maxCost ?? source.max_price ?? source.maxPrice);
+        const minRating = readPlanRating(source.minRating ?? source.min_rating ?? source.ratingMin);
         const resolvedMinCost = Number.isFinite(minCost) ? minCost : fallback.minCost;
         const radius = Number(source.radiusMeters || source.radius || source.radius_meters);
-        return {
+        const resolved = {
           keywords: keywords.length ? keywords : fallback.keywords,
           minCost: resolvedMinCost,
           maxCost: Number.isFinite(maxCost) && (!resolvedMinCost || maxCost >= resolvedMinCost) ? maxCost : 0,
           radiusMeters: Number.isFinite(radius) ? Math.max(1000, Math.min(10000, Math.round(radius))) : fallback.radiusMeters,
-          preferOpenLate: Boolean(source.preferOpenLate || source.openLate || source.lateNight),
+          types: normalizeAmapTypes(source.types || source.typeCodes || source.amapTypes),
+          sortrule: normalizeAmapSortRule(source.sortrule || source.sortRule),
+          region: cleanRestaurantKeyword(source.region || source.city || ""),
+          cityLimit: Boolean(source.cityLimit || source.city_limit),
+          showFields: normalizeAmapShowFields(source.showFields || source.show_fields),
+          minRating: Number.isFinite(minRating) ? minRating : fallback.minRating,
+          preferOpenLate: Boolean(source.preferOpenLate || source.openLate || source.lateNight || fallback.preferOpenLate),
+          openAtHour: readPlanHour(source.openAtHour || source.open_at_hour || source.openAt),
+          mustKeywords: normalizeSimpleKeywords(source.mustKeywords || source.includeKeywords || source.requiredKeywords, 8),
+          avoidKeywords: normalizeSimpleKeywords(source.avoidKeywords || source.excludeKeywords || source.negativeKeywords, 8),
           locationHint: cleanRestaurantKeyword(source.locationHint || source.area || source.landmark || ""),
           explanation: String(source.explanation || source.reason || "").slice(0, 120),
           source: source.source || "deepseek"
         };
+        resolved.searchRequests = normalizePlanSearchRequests(source.searchRequests || source.queries || source.queryIntents, resolved.keywords, resolved);
+        return resolved;
       }
       function localRestaurantSearchPlan(choice = getChoiceContext(), { forceGeneric = false } = {}){
         const keywords = forceGeneric ? [RESTAURANT_KEYWORD_FALLBACK] : restaurantSearchKeywords(choice);
-        return {
+        const plan = {
           keywords,
           minCost: !forceGeneric && choice.tags.includes("人均150+") ? MIN_RESTAURANT_COST : 0,
           maxCost: 0,
           radiusMeters: 3500,
+          types: "050000",
+          sortrule: "distance",
+          region: "",
+          cityLimit: false,
+          showFields: "business,photos",
+          minRating: 0,
           preferOpenLate: !forceGeneric && choice.tags.includes("通宵熬夜"),
+          openAtHour: !forceGeneric && choice.tags.includes("通宵熬夜") ? 23 : 0,
+          mustKeywords: [],
+          avoidKeywords: [],
           locationHint: "",
           explanation: "",
           source: "local"
         };
+        plan.searchRequests = normalizePlanSearchRequests([], plan.keywords, plan);
+        return plan;
       }
       function normalizePlanKeywords(value){
-        const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|]/);
-        return limitRestaurantKeywords(list.map(cleanRestaurantKeyword).filter(Boolean), 6);
+        return limitRestaurantKeywords(normalizeSimpleKeywords(value, 6), 6);
+      }
+      function normalizeSimpleKeywords(value, limit = 8){
+        const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|\s]+/);
+        return uniqueKeywords(list.map(cleanRestaurantKeyword).filter(Boolean)).slice(0, limit);
+      }
+      function normalizeAmapTypes(value){
+        const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|]+/);
+        const codes = uniqueKeywords(list.map((item)=>String(item || "").trim()).filter((item)=>/^\d{6}$/.test(item))).slice(0, 8);
+        return codes.length ? codes.join("|") : "050000";
+      }
+      function normalizeAmapSortRule(value){
+        const rule = String(value || "").toLowerCase();
+        if(rule === "weight" || /综合|权重|推荐/.test(rule)) return "weight";
+        return "distance";
+      }
+      function normalizeAmapShowFields(value){
+        const allowed = new Set(["children", "business", "indoor", "navi", "photos"]);
+        const fields = uniqueKeywords(String(value || "business,photos").split(/[、,，;；/|]+/).map((item)=>item.trim()).filter((item)=>allowed.has(item))).slice(0, 5);
+        return fields.length ? fields.join(",") : "business,photos";
       }
       function readPlanCost(value){
         const cost = readCostValue(value);
         return Number.isFinite(cost) && cost > 0 ? Math.round(cost) : Number.NaN;
+      }
+      function readPlanRating(value){
+        const rating = readCostValue(value);
+        return Number.isFinite(rating) && rating > 0 ? Math.max(0, Math.min(5, Number(rating.toFixed(1)))) : Number.NaN;
+      }
+      function readPlanHour(value){
+        const hour = readCostValue(value);
+        return Number.isFinite(hour) && hour >= 0 ? Math.max(0, Math.min(29, Math.round(hour))) : 0;
+      }
+      function normalizePlanSearchRequests(value, fallbackKeywords = [], defaults = {}){
+        const items = Array.isArray(value) ? value : [];
+        const requests = items.map((item, index)=>{
+          const keyword = cleanRestaurantKeyword(item?.keyword || item?.keywords || item?.query || item?.searchKeyword || item);
+          if(!keyword) return null;
+          const radius = Number(item?.radiusMeters || item?.radius || defaults.radiusMeters);
+          return {
+            keyword,
+            types: normalizeAmapTypes(item?.types || item?.typeCodes || defaults.types),
+            radiusMeters: Number.isFinite(radius) ? Math.max(1000, Math.min(10000, Math.round(radius))) : (defaults.radiusMeters || 3500),
+            sortrule: normalizeAmapSortRule(item?.sortrule || item?.sortRule || defaults.sortrule),
+            region: cleanRestaurantKeyword(item?.region || defaults.region || ""),
+            cityLimit: Boolean(item?.cityLimit ?? item?.city_limit ?? defaults.cityLimit),
+            showFields: normalizeAmapShowFields(item?.showFields || item?.show_fields || defaults.showFields),
+            priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : index + 1
+          };
+        }).filter(Boolean).sort((a,b)=>a.priority-b.priority).slice(0, 8);
+        if(requests.length) return requests;
+        return normalizePlanKeywords(fallbackKeywords).slice(0, 6).map((keyword, index)=>({
+          keyword,
+          types: normalizeAmapTypes(defaults.types),
+          radiusMeters: defaults.radiusMeters || 3500,
+          sortrule: normalizeAmapSortRule(defaults.sortrule),
+          region: cleanRestaurantKeyword(defaults.region || ""),
+          cityLimit: Boolean(defaults.cityLimit),
+          showFields: normalizeAmapShowFields(defaults.showFields),
+          priority: index + 1
+        }));
+      }
+      function restaurantSearchOptions(searchPlan = {}){
+        return {
+          minCost: searchPlan.minCost || 0,
+          maxCost: searchPlan.maxCost || 0,
+          minRating: searchPlan.minRating || 0,
+          preferOpenLate: Boolean(searchPlan.preferOpenLate),
+          openAtHour: searchPlan.openAtHour || 0,
+          mustKeywords: normalizeSimpleKeywords(searchPlan.mustKeywords, 8),
+          avoidKeywords: normalizeSimpleKeywords(searchPlan.avoidKeywords, 8),
+          types: normalizeAmapTypes(searchPlan.types),
+          sortrule: normalizeAmapSortRule(searchPlan.sortrule),
+          region: cleanRestaurantKeyword(searchPlan.region || ""),
+          cityLimit: Boolean(searchPlan.cityLimit),
+          showFields: normalizeAmapShowFields(searchPlan.showFields),
+          searchRequests: normalizePlanSearchRequests(searchPlan.searchRequests, searchPlan.keywords, searchPlan)
+        };
       }
       function normalizeMatchText(value){
         return String(value || "").toLowerCase().replace(/[\s·・.,，。'"“”‘’()（）\\-_/&＋+|]/g, "");
@@ -1267,21 +1364,38 @@
       function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
       function safeStorageGet(key){ try { return sessionStorage.getItem(key); } catch { return ""; } }
       function safeStorageSet(key, value){ try { sessionStorage.setItem(key, value); } catch {} }
-      async function searchNearbyRestaurants(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK], { minCost = 0, maxCost = 0 } = {}){
+      async function searchNearbyRestaurants(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK], options = {}){
         const center = coords.amap ? coords : await convertToAmap(coords);
         const pois = [];
-        const searchTerms = limitRestaurantKeywords(Array.isArray(keywords) ? keywords : [keywords]);
-        for(const keyword of searchTerms){
+        const searchRequests = restaurantAmapRequests(radius, keywords, options);
+        const minRequestsBeforeStop = Math.min(2, searchRequests.length);
+        for(let requestIndex=0; requestIndex<searchRequests.length; requestIndex++){
+          const request = searchRequests[requestIndex];
           for(let page=1; page<=AMAP_SEARCH_PAGES; page++){
-            const data = await amapJsonp("https://restapi.amap.com/v5/place/around", { key: AMAP_WEB_SERVICE_KEY, location: `${center.lng.toFixed(6)},${center.lat.toFixed(6)}`, radius: String(radius), types: "050000", keywords: keyword, sortrule: "distance", page_size: String(AMAP_RESTAURANT_LIMIT), page_num: String(page), show_fields: "business,photos", output: "json" });
+            const params = { key: AMAP_WEB_SERVICE_KEY, location: `${center.lng.toFixed(6)},${center.lat.toFixed(6)}`, radius: String(request.radiusMeters), types: request.types, keywords: request.keyword, sortrule: request.sortrule, page_size: String(AMAP_RESTAURANT_LIMIT), page_num: String(page), show_fields: request.showFields, output: "json" };
+            if(request.region) params.region = request.region;
+            if(request.cityLimit) params.city_limit = "true";
+            const data = await amapJsonp("https://restapi.amap.com/v5/place/around", params);
             if(data.status !== "1") throw new Error(data.info || "高德附近餐厅查询失败");
             const pagePois = data.pois || [];
-            pois.push(...pagePois.map((poi)=>({ ...poi, __searchKeyword: keyword })));
+            pois.push(...pagePois.map((poi)=>({ ...poi, __searchKeyword: request.keyword })));
             if(pagePois.length < AMAP_RESTAURANT_LIMIT) break;
           }
-          if(diverseRestaurantPois(filterRestaurantPois(pois.map(normalizeAmapPoi), { minCost, maxCost }), AMAP_PRICE_POOL_SIZE).length >= AMAP_PRICE_POOL_SIZE) break;
+          if(requestIndex + 1 >= minRequestsBeforeStop && diverseRestaurantPois(preferredRestaurantPois(pois.map(normalizeAmapPoi), options), AMAP_PRICE_POOL_SIZE).length >= AMAP_PRICE_POOL_SIZE) break;
         }
-        return diverseRestaurantPois(filterRestaurantPois(pois.map(normalizeAmapPoi), { minCost, maxCost }), AMAP_PRICE_POOL_SIZE);
+        return diverseRestaurantPois(preferredRestaurantPois(pois.map(normalizeAmapPoi), options), AMAP_PRICE_POOL_SIZE);
+      }
+      function restaurantAmapRequests(radius, keywords, options = {}){
+        const base = normalizePlanSearchRequests(options.searchRequests, keywords, { ...options, radiusMeters: radius });
+        return base.map((request)=>({
+          keyword: cleanRestaurantKeyword(request.keyword) || RESTAURANT_KEYWORD_FALLBACK,
+          types: normalizeAmapTypes(request.types || options.types),
+          radiusMeters: Math.max(1000, Math.min(10000, Math.round(Number(request.radiusMeters || radius) || 3500))),
+          sortrule: normalizeAmapSortRule(request.sortrule || options.sortrule),
+          region: cleanRestaurantKeyword(request.region || options.region || ""),
+          cityLimit: Boolean(request.cityLimit ?? options.cityLimit),
+          showFields: normalizeAmapShowFields(request.showFields || options.showFields)
+        }));
       }
       async function getApproxPosition(){
         try{
@@ -1322,7 +1436,7 @@
         return new Promise((resolve,reject)=>{
           const cb = `__amap_cb_${Date.now()}_${Math.random().toString(16).slice(2)}`;
           const url = new URL(endpoint);
-          Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
+          Object.entries(params).forEach(([k,v])=>{ if(v !== undefined && v !== null && v !== "") url.searchParams.set(k,v); });
           url.searchParams.set("callback", cb);
           const script = document.createElement("script");
           let timer = null;
@@ -1341,22 +1455,33 @@
         const business = poi.business || {};
         const [lng,lat] = String(poi.location || "").split(",").map(Number);
         const typeParts = String(poi.type || "").split(";");
-        return { id: poi.id || poi.name, name: poi.name, address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""), type: typeParts[typeParts.length-1] || typeParts[0] || "餐厅", distance: Number(poi.distance) || 0, rating: business.rating || "", cost: business.cost || "", image, searchKeyword: cleanRestaurantKeyword(poi.__searchKeyword || ""), location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null };
+        return { id: poi.id || poi.name, name: poi.name, address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""), type: typeParts[typeParts.length-1] || typeParts[0] || "餐厅", typecode: poi.typecode || "", area: [poi.cityname, poi.adname].filter(Boolean).join(" "), businessArea: business.business_area || business.businessArea || "", tag: business.tag || poi.tag || "", opentimeToday: business.opentime_today || business.opentimeToday || "", opentimeWeek: business.opentime_week || business.opentimeWeek || "", distance: Number(poi.distance) || 0, rating: business.rating || "", cost: business.cost || "", image, searchKeyword: cleanRestaurantKeyword(poi.__searchKeyword || ""), location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null };
       }
-      function isTargetCostPoi(poi){
-        const cost = readCostValue(poi?.cost);
-        return Number.isFinite(cost) && cost >= MIN_RESTAURANT_COST;
-      }
-      function filterRestaurantPois(pois, { minCost = 0, maxCost = 0 } = {}){
+      function filterRestaurantPois(pois, { minCost = 0, maxCost = 0, minRating = 0, mustKeywords = [], avoidKeywords = [] } = {}){
+        const must = normalizeSimpleKeywords(mustKeywords, 8).map(normalizeMatchText).filter(Boolean);
+        const avoid = normalizeSimpleKeywords(avoidKeywords, 8).map(normalizeMatchText).filter(Boolean);
         return (pois || []).filter((poi)=>{
           if(!poi?.name) return false;
-          if(!minCost && !maxCost) return true;
-          const cost = readCostValue(poi.cost);
-          if(!Number.isFinite(cost)) return false;
-          if(minCost && cost < minCost) return false;
-          if(maxCost && cost > maxCost) return false;
+          if(minCost || maxCost){
+            const cost = readCostValue(poi.cost);
+            if(!Number.isFinite(cost)) return false;
+            if(minCost && cost < minCost) return false;
+            if(maxCost && cost > maxCost) return false;
+          }
+          if(minRating && readRatingValue(poi.rating) < minRating) return false;
+          if(must.length || avoid.length){
+            const text = normalizeMatchText([poi.name, poi.type, poi.typecode, poi.address, poi.area, poi.businessArea, poi.tag, poi.searchKeyword].join(" "));
+            if(must.length && !must.some((keyword)=>text.includes(keyword))) return false;
+            if(avoid.some((keyword)=>text.includes(keyword))) return false;
+          }
           return true;
         });
+      }
+      function preferredRestaurantPois(pois, options = {}){
+        const strict = filterRestaurantPois(pois, options);
+        if(strict.length >= TOTAL || !normalizeSimpleKeywords(options.mustKeywords, 8).length) return strict;
+        const relaxed = filterRestaurantPois(pois, { ...options, mustKeywords: [] });
+        return uniquePois([...strict, ...relaxed]);
       }
       function readCostValue(value){
         const direct = Number(value);
@@ -1473,8 +1598,8 @@
         for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
         return arr.slice(0, count);
       }
-      function poisToCards(pois, { minCost = 0, maxCost = 0 } = {}){
-        const named = filterRestaurantPois(pois, { minCost, maxCost });
+      function poisToCards(pois, options = {}){
+        const named = preferredRestaurantPois(pois, options);
         return named.map((p,i)=>({ emoji: foodEmojiForPoi(p), name: p.name, art: ACCENTS[i % ACCENTS.length], image: foodImageForPoi(p, i), venueImage: p.image, reason: p.aiReason || poiReason(p), meta: [formatDistance(p.distance), p.rating ? `${p.rating}分` : "", p.cost ? `人均${formatCost(p.cost)}` : p.type].filter(Boolean).slice(0,3), theme: INFO_THEMES[i % INFO_THEMES.length], navUrl: amapNavigationUrl(p), orderUrl: `https://www.amap.com/search?query=${encodeURIComponent(p.name)}` })).slice(0,5);
       }
       function foodImageForPoi(p, index = 0){
