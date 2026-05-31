@@ -2,7 +2,7 @@ const MIN_DINNER_COST = 150;
 const POI_PAGE_SIZE = 25;
 const POI_SEARCH_PAGES = 4;
 const DINNER_PRICE_POOL_SIZE = 32;
-const DECIDE_POI_LIMIT = 12;
+const DECIDE_POI_LIMIT = 20;
 
 const poiConfigs = {
   dinner: {
@@ -406,7 +406,7 @@ function normalizeDecisionInput(body) {
     moduleId,
     moduleLabel: cleanText(body?.moduleLabel, 24),
     question: cleanText(body?.question, 160),
-    context: cleanText(body?.context, 900),
+    context: cleanText(body?.context, 1400),
     selectedConditions: normalizeStringList(body?.selectedConditions, 16, 24),
     customConditions: normalizeStringList(body?.customConditions, 8, 80),
     mode: cleanToken(body?.mode, 16) || "auto",
