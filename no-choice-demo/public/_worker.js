@@ -1,8 +1,8 @@
 const MIN_DINNER_COST = 150;
-const POI_PAGE_SIZE = 25;
+const POI_PAGE_SIZE = 20;
 const POI_SEARCH_PAGES = 6;
-const DINNER_PRICE_POOL_SIZE = 60;
-const DECIDE_POI_LIMIT = 20;
+const DINNER_PRICE_POOL_SIZE = 30;
+const DECIDE_POI_LIMIT = 30;
 
 const poiConfigs = {
   dinner: {
@@ -736,6 +736,12 @@ async function fetchAroundPois({ center, key, keyword, config }) {
   const pages = config.minCost ? POI_SEARCH_PAGES : 1;
   const pageSize = config.minCost ? POI_PAGE_SIZE : 8;
   const pois = [];
+  const hasEnoughDinnerCandidates = () =>
+    config.minCost &&
+    diverseRestaurantPois(
+      pois.map(normalizeAmapPoi).filter((poi) => isTargetPoi(poi, config)),
+      DINNER_PRICE_POOL_SIZE,
+    ).length >= DINNER_PRICE_POOL_SIZE;
 
   for (let page = 1; page <= pages; page += 1) {
     const url = new URL("https://restapi.amap.com/v5/place/around");
@@ -759,6 +765,9 @@ async function fetchAroundPois({ center, key, keyword, config }) {
 
     const pagePois = data.pois || [];
     pois.push(...pagePois);
+    if (hasEnoughDinnerCandidates()) {
+      break;
+    }
     if (pagePois.length < pageSize) {
       break;
     }
@@ -779,7 +788,7 @@ function normalizeAmapPoi(poi) {
   const [lng, lat] = String(poi.location || "")
     .split(",")
     .map(Number);
-  const image = Array.isArray(poi.photos) && poi.photos[0]?.url ? poi.photos[0].url : "";
+  const image = selectAmapPoiPhotoUrl(poi.photos);
   const typeParts = String(poi.type || "").split(";");
 
   return {
@@ -794,6 +803,72 @@ function normalizeAmapPoi(poi) {
     image,
     location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
   };
+}
+
+const AMAP_PHOTO_CATEGORY_SCORE = {
+  food: 400,
+  drink: 400,
+  interior: 300,
+  storefront: 200,
+  unknown: 100,
+};
+
+function selectAmapPoiPhotoUrl(photos) {
+  return (Array.isArray(photos) ? photos : [])
+    .map((photo, index) => {
+      const url = normalizeAmapPhotoUrl(photo?.url);
+      if (!url) {
+        return null;
+      }
+      const category = inferAmapPhotoCategory(photo, url);
+      const sourceBonus = url.includes("aos-comment.amap.com") ? 30 : 0;
+      return {
+        url,
+        score: (AMAP_PHOTO_CATEGORY_SCORE[category] || AMAP_PHOTO_CATEGORY_SCORE.unknown) + sourceBonus - index,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score)[0]?.url || "";
+}
+
+function normalizeAmapPhotoUrl(url) {
+  return String(url || "").replace(/^http:\/\//i, "https://");
+}
+
+function inferAmapPhotoCategory(photo, url) {
+  const text = normalizeAmapPhotoText([
+    photo?.category,
+    photo?.type,
+    photo?.imageCategory,
+    photo?.tag,
+    photo?.title,
+  ].filter(Boolean).join(" "));
+
+  if (/(饮品|饮料|咖啡|茶|酒|果汁|奶茶|饮|drink|beverage|coffee|tea|wine|cocktail|beer)/i.test(text)) {
+    return "drink";
+  }
+  if (/(菜品|菜|餐|饭|面|粉|粥|锅|肉|鱼|虾|蟹|小吃|甜品|蛋糕|点心|烧烤|火锅|寿司|刺身|food|dish|meal|dessert|snack|hotpot|sushi|noodle|rice|bbq|grill|cake)/i.test(text)) {
+    return "food";
+  }
+  if (/(环境|室内|店内|装修|包厢|座位|大厅|餐桌|吧台|露台|interior|inside|indoor|dining|seat|table|bar)/i.test(text)) {
+    return "interior";
+  }
+  if (/(门头|招牌|门面|外观|入口|店门|门店|店铺|档口|柜台|storefront|facade|entrance|signboard|shopfront|counter)/i.test(text)) {
+    return "storefront";
+  }
+
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes("aos-comment.amap.com")) {
+    return "food";
+  }
+  if (lowerUrl.includes("store.is.autonavi.com")) {
+    return "storefront";
+  }
+  return "unknown";
+}
+
+function normalizeAmapPhotoText(value) {
+  return String(value || "").toLowerCase();
 }
 
 function isTargetPoi(poi, config) {

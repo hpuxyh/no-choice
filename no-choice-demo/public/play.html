@@ -492,9 +492,9 @@
       const AMAP_WEB_SERVICE_KEY = "7f40078338209e23255e8f8e0ca8cc37";
       const DEFAULT_AMAP_CENTER = { lat: 39.904179, lng: 116.407387, amap: true, label: "北京" };
       const MIN_RESTAURANT_COST = 150;
-      const AMAP_RESTAURANT_LIMIT = 25;
+      const AMAP_RESTAURANT_LIMIT = 20;
       const AMAP_SEARCH_PAGES = 6;
-      const AMAP_PRICE_POOL_SIZE = 60;
+      const AMAP_PRICE_POOL_SIZE = 30;
       const ACCENTS = ["var(--red)", "var(--green)", "var(--yellow)", "var(--purple)", "var(--blue)"];
       const FOOD_CARD_IMAGES = [
         { keywords: ["火锅","川","湘","辣","麻辣","串串","烤鱼"], urls: [
@@ -1459,7 +1459,7 @@
         const center = coords.amap ? coords : await convertToAmap(coords);
         const pois = [];
         const searchRequests = restaurantAmapRequests(radius, keywords, options);
-        const minRequestsBeforeStop = Math.min(2, searchRequests.length);
+        const hasEnoughCandidates = () => diverseRestaurantPois(preferredRestaurantPois(pois.map(normalizeAmapPoi), options), AMAP_PRICE_POOL_SIZE).length >= AMAP_PRICE_POOL_SIZE;
         for(let requestIndex=0; requestIndex<searchRequests.length; requestIndex++){
           const request = searchRequests[requestIndex];
           for(let page=1; page<=AMAP_SEARCH_PAGES; page++){
@@ -1470,9 +1470,10 @@
             if(data.status !== "1") throw new Error(data.info || "高德附近餐厅查询失败");
             const pagePois = data.pois || [];
             pois.push(...pagePois.map((poi)=>({ ...poi, __searchKeyword: request.keyword })));
+            if(hasEnoughCandidates()) break;
             if(pagePois.length < AMAP_RESTAURANT_LIMIT) break;
           }
-          if(requestIndex + 1 >= minRequestsBeforeStop && diverseRestaurantPois(preferredRestaurantPois(pois.map(normalizeAmapPoi), options), AMAP_PRICE_POOL_SIZE).length >= AMAP_PRICE_POOL_SIZE) break;
+          if(hasEnoughCandidates()) break;
         }
         return diverseRestaurantPois(preferredRestaurantPois(pois.map(normalizeAmapPoi), options), AMAP_PRICE_POOL_SIZE);
       }
@@ -1542,11 +1543,38 @@
       function normalizeAmapPoi(poi){
         if(!poi || !poi.name) return null;
         const photos = Array.isArray(poi.photos) ? poi.photos : [];
-        const image = String(photos.find(p=>p && p.url)?.url || "").replace(/^http:\/\//i, "https://");
+        const image = selectAmapPoiPhotoUrl(photos);
         const business = poi.business || {};
         const [lng,lat] = String(poi.location || "").split(",").map(Number);
         const typeParts = String(poi.type || "").split(";");
         return { id: poi.id || poi.name, name: poi.name, address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""), type: typeParts[typeParts.length-1] || typeParts[0] || "餐厅", typecode: poi.typecode || "", area: [poi.cityname, poi.adname].filter(Boolean).join(" "), businessArea: business.business_area || business.businessArea || "", tag: business.tag || poi.tag || "", opentimeToday: business.opentime_today || business.opentimeToday || "", opentimeWeek: business.opentime_week || business.opentimeWeek || "", distance: Number(poi.distance) || 0, rating: business.rating || "", cost: business.cost || "", image, searchKeyword: cleanRestaurantKeyword(poi.__searchKeyword || ""), location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null };
+      }
+      const AMAP_PHOTO_CATEGORY_SCORE = { food: 400, drink: 400, interior: 300, storefront: 200, unknown: 100 };
+      function selectAmapPoiPhotoUrl(photos){
+        return (Array.isArray(photos) ? photos : []).map((photo,index)=>{
+          const url = normalizeAmapPhotoUrl(photo?.url);
+          if(!url) return null;
+          const category = inferAmapPhotoCategory(photo, url);
+          const sourceBonus = url.includes("aos-comment.amap.com") ? 30 : 0;
+          return { url, score: (AMAP_PHOTO_CATEGORY_SCORE[category] || AMAP_PHOTO_CATEGORY_SCORE.unknown) + sourceBonus - index };
+        }).filter(Boolean).sort((a,b)=>b.score-a.score)[0]?.url || "";
+      }
+      function normalizeAmapPhotoUrl(url){
+        return String(url || "").replace(/^http:\/\//i, "https://");
+      }
+      function inferAmapPhotoCategory(photo, url){
+        const text = normalizeAmapPhotoText([photo?.category, photo?.type, photo?.imageCategory, photo?.tag, photo?.title].filter(Boolean).join(" "));
+        if(/(饮品|饮料|咖啡|茶|酒|果汁|奶茶|饮|drink|beverage|coffee|tea|wine|cocktail|beer)/i.test(text)) return "drink";
+        if(/(菜品|菜|餐|饭|面|粉|粥|锅|肉|鱼|虾|蟹|小吃|甜品|蛋糕|点心|烧烤|火锅|寿司|刺身|food|dish|meal|dessert|snack|hotpot|sushi|noodle|rice|bbq|grill|cake)/i.test(text)) return "food";
+        if(/(环境|室内|店内|装修|包厢|座位|大厅|餐桌|吧台|露台|interior|inside|indoor|dining|seat|table|bar)/i.test(text)) return "interior";
+        if(/(门头|招牌|门面|外观|入口|店门|门店|店铺|档口|柜台|storefront|facade|entrance|signboard|shopfront|counter)/i.test(text)) return "storefront";
+        const lowerUrl = url.toLowerCase();
+        if(lowerUrl.includes("aos-comment.amap.com")) return "food";
+        if(lowerUrl.includes("store.is.autonavi.com")) return "storefront";
+        return "unknown";
+      }
+      function normalizeAmapPhotoText(value){
+        return String(value || "").toLowerCase();
       }
       function filterRestaurantPois(pois, { minCost = 0, maxCost = 0, minRating = 0, mustKeywords = [], avoidKeywords = [] } = {}){
         const must = normalizeSimpleKeywords(mustKeywords, 8).map(normalizeMatchText).filter(Boolean);

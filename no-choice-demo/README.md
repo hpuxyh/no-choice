@@ -34,16 +34,17 @@ http://127.0.0.1:5173/
 
 ## 发布扫码版
 
-二维码指向 GitHub Pages 的手机体验页：
+二维码指向 Cloudflare Pages 的手机体验页：
 
 ```text
-https://hpuxyh.github.io/no-choice/play.html
+https://no-choice.pages.dev/play.html
 ```
 
-推送到 `main` 后，仓库里的 GitHub Actions 会自动构建并发布到 GitHub Pages：
+发布最新版本前先登录 Wrangler，然后部署 `dist` 到 Cloudflare Pages：
 
-```text
-https://hpuxyh.github.io/no-choice/
+```bash
+npx wrangler login
+npm run deploy:pages
 ```
 
 ## POI 配置
