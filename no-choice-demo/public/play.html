@@ -367,6 +367,12 @@
                   <button class="chip" type="button" data-kind="need" data-tag="少排队">少排队</button>
                   <button class="chip" type="button" data-kind="need" data-tag="安静好聊">安静好聊</button>
                 </div>
+                <div class="quickTagRow" aria-label="偏好标签">
+                  <span class="quickTagLabel">偏好</span>
+                  <button class="chip" type="button" data-kind="need" data-tag="西餐">西餐</button>
+                  <button class="chip" type="button" data-kind="need" data-tag="火锅">火锅</button>
+                  <button class="chip" type="button" data-kind="need" data-tag="通宵熬夜">通宵熬夜</button>
+                </div>
               </div>
               <div class="thumbRow" id="choiceThumbs"></div>
               <div class="inputActions">
@@ -532,9 +538,13 @@
         "人均150+": [],
         "离我近": [],
         "少排队": [],
-        "安静好聊": ["安静餐厅", "咖啡", "西餐"]
+        "安静好聊": ["安静餐厅", "咖啡", "西餐"],
+        "西餐": ["西餐"],
+        "火锅": ["火锅"],
+        "通宵熬夜": ["夜宵", "烧烤", "火锅"]
       };
-      const FOOD_SEARCH_TERMS = ["火锅","烤肉","烧烤","日料","日本料理","寿司","韩餐","韩国料理","泰餐","西餐","牛排","意面","披萨","粤菜","川菜","湘菜","本帮菜","江浙菜","海鲜","素食","轻食","咖啡","甜品","brunch","早午餐","小酒馆","酒吧","烧鸟","居酒屋","麻辣烫","拉面","面馆","米粉","私房菜","中餐","餐厅"];
+      const PRIORITY_TAGS = new Set(["西餐", "火锅", "通宵熬夜"]);
+      const FOOD_SEARCH_TERMS = ["火锅","夜宵","烤肉","烧烤","日料","日本料理","寿司","韩餐","韩国料理","泰餐","西餐","牛排","意面","披萨","粤菜","川菜","湘菜","本帮菜","江浙菜","海鲜","素食","轻食","咖啡","甜品","brunch","早午餐","小酒馆","酒吧","烧鸟","居酒屋","麻辣烫","拉面","面馆","米粉","私房菜","中餐","餐厅"];
       // 上传照片后展示的预生成像素头像（demo：原图 → 像素图）
       const PIXEL_AVATAR = "avatars/me-pixel.jpg";
       const $ = (s) => document.querySelector(s);
@@ -1100,13 +1110,15 @@
       }
       function restaurantSearchKeywords(choice = getChoiceContext()){
         const raw = [];
-        choice.tags.forEach((tag)=>{
-          (TAG_SEARCH_KEYWORDS[tag] || [tag]).forEach((keyword)=>raw.push(keyword));
-        });
+        choice.tags.filter((tag)=>PRIORITY_TAGS.has(tag)).forEach(pushRestaurantTagKeywords);
+        choice.tags.filter((tag)=>!PRIORITY_TAGS.has(tag)).forEach(pushRestaurantTagKeywords);
         const text = [choice.question, choice.tags.join(" ")].join(" ");
         FOOD_SEARCH_TERMS.forEach((term)=>{ if(text.toLowerCase().includes(term.toLowerCase())) raw.push(term); });
         const cleaned = uniqueKeywords(raw.map(cleanRestaurantKeyword).filter(Boolean));
         return limitRestaurantKeywords(cleaned);
+        function pushRestaurantTagKeywords(tag){
+          (TAG_SEARCH_KEYWORDS[tag] || [tag]).forEach((keyword)=>raw.push(keyword));
+        }
       }
       function cleanRestaurantKeyword(keyword){
         const value = String(keyword || "").replace(/标签：.*/u, "").replace(/[，,。.!！?？；;:：]/g, " ").trim();
@@ -1121,7 +1133,7 @@
           return true;
         });
       }
-      function limitRestaurantKeywords(keywords, limit = 4){
+      function limitRestaurantKeywords(keywords, limit = 6){
         const unique = uniqueKeywords((keywords || []).map(cleanRestaurantKeyword).filter(Boolean));
         const specific = unique.filter((keyword)=>keyword !== RESTAURANT_KEYWORD_FALLBACK).slice(0, Math.max(0, limit - 1));
         return [...specific, RESTAURANT_KEYWORD_FALLBACK];
