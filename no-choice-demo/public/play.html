@@ -1063,9 +1063,8 @@
         const maxCost = searchOptions.maxCost;
         const radius = searchPlan.radiusMeters || 3500;
         if(!silent) toast(restaurantSearchToast(searchKeywords));
-        let pois = await searchNearbyRestaurants(searchCoords, radius, searchKeywords, searchOptions);
-        if(pois.length < 5) pois = await searchNearbyRestaurants(searchCoords, Math.max(radius, 8000), searchKeywords, searchOptions);
-        restaurantContext = { coords: searchCoords, userCoords: coords, pois: diverseRestaurantPois(pois, AMAP_PRICE_POOL_SIZE), searchKey, searchKeywords, searchPlan, searchOptions, minCost, maxCost, modeName, fetchedAt: Date.now() };
+        const result = await searchRestaurantsWithFallback(searchCoords, radius, searchKeywords, searchOptions);
+        restaurantContext = { coords: result.coords, userCoords: coords, pois: result.pois, searchKey, searchKeywords, searchPlan, searchOptions, minCost, maxCost, modeName, fetchedAt: Date.now() };
         if(!silent && restaurantContext.pois.length) toast(`已准备好 ${restaurantContext.pois.length} 家附近餐厅候选`);
         return restaurantContext;
       }
@@ -1078,9 +1077,9 @@
         const minCost = context.minCost ?? searchOptions.minCost;
         const maxCost = context.maxCost ?? searchOptions.maxCost;
         const radius = searchPlan.radiusMeters || 3500;
-        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? diverseRestaurantPois(preloadedPois, AMAP_PRICE_POOL_SIZE) : await searchNearbyRestaurants(coords, radius, searchKeywords, searchOptions);
+        let pois = Array.isArray(preloadedPois) && preloadedPois.length ? diverseRestaurantPois(preloadedPois, AMAP_PRICE_POOL_SIZE) : (await searchRestaurantsWithFallback(coords, radius, searchKeywords, searchOptions)).pois;
         let cards = restaurantCardsForMode(pois, { ...searchOptions, minCost, maxCost });
-        if(cards.length < TOTAL){ pois = await searchNearbyRestaurants(coords, Math.max(radius, 8000), searchKeywords, searchOptions); cards = restaurantCardsForMode(pois, { ...searchOptions, minCost, maxCost }); }
+        if(cards.length < TOTAL){ pois = (await searchRestaurantsWithFallback(coords, Math.max(radius, 8000), searchKeywords, searchOptions)).pois; cards = restaurantCardsForMode(pois, { ...searchOptions, minCost, maxCost }); }
         return cards.slice(0,TOTAL);
       }
       function restaurantCardsForMode(pois, options = {}){
@@ -1364,6 +1363,43 @@
       function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
       function safeStorageGet(key){ try { return sessionStorage.getItem(key); } catch { return ""; } }
       function safeStorageSet(key, value){ try { sessionStorage.setItem(key, value); } catch {} }
+      async function searchRestaurantsWithFallback(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK], options = {}){
+        const broadKeywords = limitRestaurantKeywords([...(Array.isArray(keywords) ? keywords : [keywords]), RESTAURANT_KEYWORD_FALLBACK], 6);
+        const relaxedOptions = relaxedRestaurantSearchOptions(options);
+        let activeCoords = coords;
+        let pois = await searchNearbyRestaurants(activeCoords, radius, keywords, options);
+        if(pois.length < TOTAL) pois = uniquePois([...pois, ...await searchNearbyRestaurants(activeCoords, Math.max(radius, 8000), keywords, options)]);
+        if(pois.length < TOTAL) pois = uniquePois([...pois, ...await searchNearbyRestaurants(activeCoords, Math.max(radius, 8000), broadKeywords, relaxedOptions)]);
+        if(pois.length < TOTAL){
+          const fallbackCoords = await getApproxPosition();
+          if(!sameRestaurantCoords(activeCoords, fallbackCoords)){
+            const fallbackPois = await searchNearbyRestaurants(fallbackCoords, 8000, broadKeywords, relaxedOptions);
+            if(fallbackPois.length > pois.length){
+              activeCoords = fallbackCoords;
+              pois = fallbackPois;
+            }else{
+              pois = uniquePois([...pois, ...fallbackPois]);
+            }
+          }
+        }
+        if(pois.length < TOTAL && !sameRestaurantCoords(activeCoords, DEFAULT_AMAP_CENTER)){
+          const defaultPois = await searchNearbyRestaurants(DEFAULT_AMAP_CENTER, 8000, broadKeywords, relaxedOptions);
+          if(defaultPois.length > pois.length){
+            activeCoords = DEFAULT_AMAP_CENTER;
+            pois = defaultPois;
+          }else{
+            pois = uniquePois([...pois, ...defaultPois]);
+          }
+        }
+        return { coords: activeCoords, pois: diverseRestaurantPois(pois, AMAP_PRICE_POOL_SIZE) };
+      }
+      function relaxedRestaurantSearchOptions(options = {}){
+        return { ...options, minCost: 0, maxCost: 0, minRating: 0, mustKeywords: [] };
+      }
+      function sameRestaurantCoords(a, b){
+        if(!a || !b) return false;
+        return Math.abs((Number(a.lat) || 0) - (Number(b.lat) || 0)) < 0.0005 && Math.abs((Number(a.lng) || 0) - (Number(b.lng) || 0)) < 0.0005;
+      }
       async function searchNearbyRestaurants(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK], options = {}){
         const center = coords.amap ? coords : await convertToAmap(coords);
         const pois = [];
@@ -1479,9 +1515,11 @@
       }
       function preferredRestaurantPois(pois, options = {}){
         const strict = filterRestaurantPois(pois, options);
-        if(strict.length >= TOTAL || !normalizeSimpleKeywords(options.mustKeywords, 8).length) return strict;
-        const relaxed = filterRestaurantPois(pois, { ...options, mustKeywords: [] });
-        return uniquePois([...strict, ...relaxed]);
+        if(strict.length >= TOTAL) return strict;
+        const relaxedMust = normalizeSimpleKeywords(options.mustKeywords, 8).length ? filterRestaurantPois(pois, { ...options, mustKeywords: [] }) : [];
+        if(uniquePois([...strict, ...relaxedMust]).length >= TOTAL) return uniquePois([...strict, ...relaxedMust]);
+        const relaxedCost = filterRestaurantPois(pois, relaxedRestaurantSearchOptions(options));
+        return uniquePois([...strict, ...relaxedMust, ...relaxedCost]);
       }
       function readCostValue(value){
         const direct = Number(value);
