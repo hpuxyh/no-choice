@@ -351,7 +351,7 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
             "任务：把用户自然语言、标签、位置理解成高德 Web 服务 v5 place/around 可执行的搜索计划。不要推荐餐厅，不要排序餐厅，不要编造 POI。",
             "高德原生可接收字段：keywords、types、location、radius、sortrule、region、city_limit、page_size、page_num、show_fields、output。location/page_size/page_num/output 由前端补，不要输出。",
             "高德不原生筛选但前端会后处理的字段：minCost、maxCost、minRating、mustKeywords、avoidKeywords、preferOpenLate、openAtHour。",
-            "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region/locationHint 为商圈/地标/行政区短文本，没有则空字符串；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 40 字以内。",
+            "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region/locationHint 为商圈/地标/行政区短文本，没有则空字符串；locationHints 为多人出发地数组，最多 4 个，例如“一个人在海淀区，一个在朝阳区”返回 [\"海淀区\",\"朝阳区\"]；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 40 字以内。",
             "关键词要能直接给高德搜，例如：西餐、火锅、夜宵、烧烤、日料、约会餐厅、安静餐厅、咖啡。不要输出长句作为 keyword。",
             "先判断用户是否已有明确餐厅指向：明确店名、品牌、菜系、菜品、地域口味、商圈位置都算明确。明确时不要随意改写或扩写，keywords 和 searchRequests 的第一项必须保留用户原始核心词，例如“想吃云南菜”保留 云南菜，“想吃牛肉面”保留 牛肉面，“海底捞”保留 海底捞。",
             "只有用户没有明确食物/餐厅指向时，才结合标签拆解成高德可搜关键词。例如“朋友聚餐、安静好聊”可拆成 聚餐、安静餐厅、西餐、咖啡；“不知道吃什么、少排队”可拆成 餐厅、简餐、小吃。不要只输出泛化的“餐厅”，除非输入确实没有明确意图。"
@@ -416,6 +416,7 @@ function normalizeRestaurantSearchPlanInput(body) {
     scenes: normalizeStringList(body?.scenes, 8, 24),
     needs: normalizeStringList(body?.needs, 8, 24),
     tags: selectedConditions,
+    locationHints: normalizeLocationHints(body?.locationHints),
     customConditions,
     location: normalizeInputLocation(body?.location),
   };
@@ -431,6 +432,7 @@ function normalizeRestaurantSearchPlan(plan, input) {
   const minRating = readRatingNumber(plan?.minRating ?? plan?.min_rating ?? plan?.ratingMin);
   const openAtHour = readHourNumber(plan?.openAtHour ?? plan?.open_at_hour ?? plan?.openAt);
   const radius = Number(plan?.radiusMeters || plan?.radius || plan?.radius_meters);
+  const locationHints = normalizeLocationHints(plan?.locationHints || plan?.locations || plan?.participantLocations || plan?.meetingLocations);
   const fallbackMinCost = input.tags.includes("人均150+") || /人均\s*150|150\+|150以上/.test(input.question)
     ? MIN_DINNER_COST
     : null;
@@ -451,6 +453,7 @@ function normalizeRestaurantSearchPlan(plan, input) {
     mustKeywords: normalizeSearchKeywords(plan?.mustKeywords || plan?.includeKeywords || plan?.requiredKeywords, 8),
     avoidKeywords: normalizeSearchKeywords(plan?.avoidKeywords || plan?.excludeKeywords || plan?.negativeKeywords, 8),
     locationHint: cleanText(plan?.locationHint || plan?.area || plan?.landmark, 40),
+    locationHints: uniqueStrings([...locationHints, ...input.locationHints], 4, 40),
     explanation: cleanText(plan?.explanation || plan?.reason, 80),
   };
 
@@ -699,6 +702,28 @@ function normalizeStringList(list, limit, itemLength) {
     return [];
   }
   return list.map((item) => cleanText(item, itemLength)).filter(Boolean).slice(0, limit);
+}
+
+function normalizeLocationHints(value) {
+  const list = Array.isArray(value) ? value : String(value || "").split(/[、,，;；/|]+/);
+  return uniqueStrings(list.map((item) => cleanText(typeof item === "string" ? item : (item?.name || item?.label || item?.location || item?.area), 40)), 4, 40)
+    .filter((item) => item && !/^(附近|周边|当前位置|当前城市|中间|中间点|折中)$/.test(item));
+}
+
+function uniqueStrings(list, limit, itemLength) {
+  const seen = new Set();
+  return (Array.isArray(list) ? list : [])
+    .map((item) => cleanText(item, itemLength))
+    .filter(Boolean)
+    .filter((item) => {
+      const key = item.toLowerCase().replace(/\s+/g, "");
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit);
 }
 
 function accentForModule(moduleId, index) {
