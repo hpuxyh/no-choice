@@ -6,9 +6,22 @@
 
 ## Demo
 
-- 手机优先演示：https://no-choice.pages.dev/
+- 游戏版：https://no-choice.pages.dev/play.html
+- 简洁版：https://no-choice-lite.pages.dev/play.html
+- 原始版：https://no-choice.pages.dev/
 - GitHub Pages 镜像：https://hpuxyh.github.io/no-choice/
 - 本地 demo 网站：http://127.0.0.1:5173/
+
+## 版本命名
+
+以后项目里严格按这三个名字区分：
+
+| 版本 | 代码位置 | 线上地址 | 说明 |
+| --- | --- | --- | --- |
+| 游戏版 | `no-choice-demo/public/play.html` | https://no-choice.pages.dev/play.html | 像素/抽卡/模式卡片风格，对应“霸总模式 / AI 模式 / 玄学模式”的游戏化入口。 |
+| 简洁版 | `no-choice-lite/public/play.html` | https://no-choice-lite.pages.dev/play.html | 克制、工具化移动端样式，复用游戏版 API。 |
+| 原始版 | `no-choice-demo/src` 与 `no-choice-demo/index.html` | https://no-choice.pages.dev/ | 最早的 React + Vite Web 原型，用于验证四模块和基础拍板流程。 |
+| iOS 原型 | `NoChoiceMobile/` | 本地 Xcode/模拟器 | 原生 SwiftUI 原型，不纳入上面三个 Web 版本命名。 |
 
 ## 核心体验
 
@@ -47,7 +60,8 @@
 
 ## Project Structure
 
-- `no-choice-demo/`：React + Vite 网页版原型
+- `no-choice-demo/`：包含原始版 React + Vite Web 原型，以及 `public/play.html` 游戏版
+- `no-choice-lite/`：简洁版 Web
 - `NoChoiceMobile/`：SwiftUI 原生 iOS 原型
 - `screenshots/`：演示截图
 - `.github/workflows/deploy-demo.yml`：GitHub Pages 自动部署流程

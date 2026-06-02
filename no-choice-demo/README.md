@@ -1,6 +1,13 @@
-# 不做选择 Web
+# 不做选择 Web：游戏版 + 原始版
 
-不做选择的 React + Vite 网页原型，用来验证“输入问题 -> 补充条件 -> 生成候选 -> 滑卡拍板”的核心体验。当前重点是今晚吃什么、周末去哪、送什么礼物和通用拍板四个模块。
+这个仓库是 `no-choice` 主项目，里面同时放了两个 Web 版本：
+
+| 版本 | 文件入口 | 线上地址 | 说明 |
+| --- | --- | --- | --- |
+| 游戏版 | `public/play.html` | https://no-choice.pages.dev/play.html | 像素/抽卡/模式卡片风格，对应“霸总模式 / AI 模式 / 玄学模式”。用户说“游戏版”时，默认改这里。 |
+| 原始版 | `src` + `index.html` | https://no-choice.pages.dev/ | React + Vite 原始 Web 原型，用来验证“输入问题 -> 补充条件 -> 生成候选 -> 滑卡拍板”的基础体验。 |
+
+不要把这个仓库和 `no-choice-lite` 混淆；`no-choice-lite` 是独立的“简洁版”项目。
 
 ## 功能
 
@@ -13,7 +20,9 @@
 
 ## Demo 网站
 
-- 手机优先演示：https://no-choice.pages.dev/
+- 游戏版：https://no-choice.pages.dev/play.html
+- 原始版：https://no-choice.pages.dev/
+- 简洁版独立项目：https://no-choice-lite.pages.dev/play.html
 - GitHub Pages 镜像：https://hpuxyh.github.io/no-choice/
 - 本地预览：http://127.0.0.1:5173/
 - 扫码体验图：`public/no-choice-play-qr.png`
@@ -39,6 +48,8 @@ http://127.0.0.1:5173/
 ```text
 https://no-choice.pages.dev/play.html
 ```
+
+这就是“游戏版”，不是“简洁版”。
 
 发布最新版本前先登录 Wrangler，然后部署 `dist` 到 Cloudflare Pages：
 
