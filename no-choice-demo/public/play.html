@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>CHOICE OVER · 抽卡预览</title>
     <style>
+      @font-face {
+        font-family: "Press Start 2P";
+        src: url("./fonts/press-start-2p.woff2") format("woff2");
+        font-weight: 400; font-style: normal; font-display: swap;
+      }
       :root {
         --paper: #f3ecdd; --ink: #1a1714; --red: #ff5a4d; --purple: #6c5ce7;
         --yellow: #f6c518; --green: #28c76f; --blue: #3d6bff; --card: #fffdf6;
@@ -261,7 +266,7 @@
       .gcard.flip { animation: flipReveal .52s cubic-bezier(.3,.7,.4,1); transform-origin: center; backface-visibility: hidden; }
       @keyframes flipReveal { 0% { transform: rotateY(-88deg) scale(.9); } 55% { transform: rotateY(10deg) scale(1.03); } 100% { transform: rotateY(0) scale(1); } }
 
-      .stamp { position: absolute; top: 18px; padding: 6px 11px; border: 4px solid; border-radius: 9px; font-size: 19px; font-weight: 950; opacity: 0; z-index: 6; pointer-events: none; }
+      .stamp { position: absolute; top: 18px; padding: 6px 11px; border: 4px solid; border-radius: 9px; font-family: "Press Start 2P", ui-monospace, monospace; font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: uppercase; opacity: 0; z-index: 6; pointer-events: none; }
       .stamp.s-r { right: 14px; color: var(--green); transform: rotate(12deg); }
       .stamp.s-l { left: 14px; color: #c79100; transform: rotate(-12deg); }
       .stamp.s-d { left: 50%; bottom: 16px; top: auto; transform: translateX(-50%); color: var(--red); }
@@ -271,7 +276,7 @@
       .deckControls { display: flex; align-items: flex-end; justify-content: center; gap: 12px; flex: none; margin: 2px -16px -14px; }
       .ctrlSide { flex: none; width: 82px; height: 54px; border: 3px solid var(--ink); border-radius: 14px; box-shadow: var(--shadow-sm); font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; margin-bottom: 8px; transition: transform .08s, box-shadow .08s, filter .12s; }
       .ctrlSide:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
-      .ctrlSide .big { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 15px; font-weight: 700; line-height: 1.15; letter-spacing: .5px; }
+      .ctrlSide .big { font-family: "Press Start 2P", ui-monospace, monospace; font-size: 11px; font-weight: 400; line-height: 1.15; letter-spacing: 0; text-transform: uppercase; }
       .ctrlSide .sm { font-size: 9.5px; font-weight: 800; opacity: .9; }
       .ctrlSide.no { background: var(--red); color: #fffaf2; }
       .ctrlSide.pick { background: var(--blue); color: #fffaf2; }
@@ -283,7 +288,7 @@
       .pipeBtn[disabled] { opacity: .55; filter: grayscale(.2); cursor: default; }
       .pipeBtn .rim { height: 30px; width: 128px; border: 3px solid var(--ink); border-radius: 8px; display: grid; place-items: center;
         background: linear-gradient(90deg, var(--pipe-d) 0 12%, var(--pipe-l) 12% 26%, var(--pipe) 26% 100%); box-shadow: var(--shadow-sm); }
-      .pipeBtn .plabel { position: relative; z-index: 1; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 15px; font-weight: 700; color: #fffaf2; text-shadow: 1px 1px 0 rgba(0,0,0,.5); letter-spacing: .5px; }
+      .pipeBtn .plabel { position: relative; z-index: 1; font-family: "Press Start 2P", ui-monospace, monospace; font-size: 9px; font-weight: 400; color: #fffaf2; text-shadow: 1px 1px 0 rgba(0,0,0,.5); letter-spacing: 0; text-transform: uppercase; }
       .pipeBtn .body { position: relative; height: 50px; width: 104px; margin: -3px auto 0; border: 3px solid var(--ink); border-top: none;
         background: linear-gradient(90deg, var(--pipe-d) 0 14%, var(--pipe-l) 14% 30%, var(--pipe) 30% 100%); }
       .pipeBtn .mouth { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); width: 104px; height: 11px; background: rgba(0,0,0,.55); border-radius: 50%; }
