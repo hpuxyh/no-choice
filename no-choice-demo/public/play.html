@@ -4004,8 +4004,10 @@
       function restaurantRouteStatTexts(route = {}, { prefixDistance = false } = {}){
         const distanceMeters = restaurantRouteDisplayDistanceMeters(route);
         const distance = formatDistance(distanceMeters);
-        const walkingDistance = formatDistance(route.walkingDistanceMeters);
-        const walkingTime = formatDuration(route.walkingDurationSeconds);
+        const walkingMeters = Number(route.walkingDistanceMeters);
+        const showWalking = !Number.isFinite(walkingMeters) || walkingMeters <= 0 || walkingMeters <= 1000;
+        const walkingDistance = showWalking ? formatDistance(route.walkingDistanceMeters) : "";
+        const walkingTime = showWalking ? formatDuration(route.walkingDurationSeconds) : "";
         const drivingDistance = formatDistance(route.drivingDistanceMeters);
         const drivingTime = formatDuration(route.drivingDurationSeconds);
         const subwayDistance = formatDistance(route.subwayDistanceMeters);
