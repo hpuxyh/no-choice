@@ -46,6 +46,10 @@ export default {
       return handleRestaurantSearchPlanRequest(request, env);
     }
 
+    if (url.pathname === "/api/wechat-js-config") {
+      return handleWechatJsConfigRequest(url, env);
+    }
+
     if (url.pathname === "/api/comic-image") {
       return handleComicImageRequest(request, env);
     }
@@ -53,6 +57,53 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
+
+async function handleWechatJsConfigRequest(url, env) {
+  const appId = env.WECHAT_APP_ID || env.WECHAT_MP_APP_ID || env.WECHAT_OFFICIAL_ACCOUNT_APP_ID || "";
+  const appSecret = env.WECHAT_APP_SECRET || env.WECHAT_MP_APP_SECRET || env.WECHAT_OFFICIAL_ACCOUNT_APP_SECRET || "";
+  const pageUrl = cleanWechatSignatureUrl(url.searchParams.get("url"));
+
+  if (!appId || !appSecret) {
+    return json(
+      {
+        ok: false,
+        needsConfig: true,
+        message: "Cloudflare 还没有配置 WECHAT_APP_ID / WECHAT_APP_SECRET",
+      },
+      501,
+    );
+  }
+
+  if (!pageUrl) {
+    return json({ ok: false, message: "缺少有效的微信 JS-SDK 签名 URL" }, 400);
+  }
+
+  try {
+    const ticket = await getWechatJsapiTicket({ appId, appSecret });
+    const nonceStr = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = await sha1Hex(
+      `jsapi_ticket=${ticket}&noncestr=${nonceStr}&timestamp=${timestamp}&url=${pageUrl}`,
+    );
+
+    return json({
+      ok: true,
+      appId,
+      timestamp,
+      nonceStr,
+      signature,
+      jsApiList: [
+        "checkJsApi",
+        "updateAppMessageShareData",
+        "updateTimelineShareData",
+        "onMenuShareAppMessage",
+        "onMenuShareTimeline",
+      ],
+    });
+  } catch (error) {
+    return json({ ok: false, message: error.message || "微信 JS-SDK 签名失败" }, 502);
+  }
+}
 
 async function handlePoiRequest(url, env) {
   const key = env.AMAP_WEB_SERVICE_KEY || env.AMAP_KEY || "";
@@ -352,9 +403,12 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
             "任务：把用户自然语言、标签、位置理解成高德 Web 服务 v5 place/around 可执行的搜索计划。你要像产品里的搜索意图分析器：先拆场景和限制，再给高德关键词、价格、位置、街道/商圈、餐厅类型和搜索半径。不要推荐餐厅，不要排序餐厅，不要编造 POI。",
             "高德原生可接收字段：keywords、types、location、radius、sortrule、region、city_limit、page_size、page_num、show_fields、output。location/page_size/page_num/output 由前端补，不要输出。",
             "高德不原生筛选但前端会后处理的字段：minCost、maxCost、minRating、mustKeywords、avoidKeywords、preferOpenLate、openAtHour。",
-            "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region 为商圈/行政区/街道短文本；locationHint 为用户确认的目的地/搜索中心，例如“定在三里屯附近”返回“三里屯”，没有则空字符串；locationHints 为多人出发地数组，最多 4 个，例如“一个人在海淀区，一个在朝阳区”返回 [\"海淀区\",\"朝阳区\"]；如果同时有目的地和出发地，locationHint 优先表达目的地，locationHints 只放出发地；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 60 字以内。",
-            "还必须返回意图拆解字段：sceneIntent 对象，包含 primaryScenario、companions、decisionNeed、constraints、searchImplication；keywordStrategy 数组，解释每个高德 keyword 为什么选、适合什么场景、优先级；priceIntent 对象，说明价格段位 tier、minCost、maxCost、reason；locationIntent 对象，说明目的地、地区/商圈、街道、多人出发地、搜索策略 midpoint/destination/current、radiusReason；restaurantTypeIntent 对象，说明餐厅类型、是否必须是餐厅、要排除的非餐饮类型和理由。",
-            "严格 schema：sceneIntent={primaryScenario,companions,decisionNeed,constraints,searchImplication}; keywordStrategy=[{keyword,purpose,scenario,priority}]; priceIntent={tier,minCost,maxCost,reason}; locationIntent={destination,region,street,participantLocations,strategy,radiusReason}; restaurantTypeIntent={types,categories,restaurantOnly,avoidNonRestaurantReason}。这些字段不得省略，即使信息不足也要用空字符串、空数组或合理推断。",
+            "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region 为商圈/行政区/街道短文本；locationHint 为用户确认的目的地/搜索中心，例如“定在三里屯附近”返回“三里屯”，没有则空字符串；locationHints 为多人出发地数组，最多 4 个，只放需要地理编码的文本地点，不要放“当前位置”；includeCurrentLocationInMeetup boolean，表示是否要把输入里的当前定位作为“你”的出发地一起参与折中；如果同时有目的地和出发地，locationHint 优先表达目的地，locationHints 只放出发地；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 60 字以内。",
+            "人数/地点审计规则：输入里的 currentLocationLabel/currentLocationDetail/location 是用户本人“你”的当前定位。先抽取文本中出现的参与人、人物关系、地点，再把当前定位作为“你”的候选地点一起判断。sceneIntent.companions 只能表达角色和人数，例如“你 + 2位朋友，共3人”或“共3人”，不要把地点名、POI 名、同伴编号写进 companions；“同伴2”只是第二个同伴标签，不代表 12 人或 2 人。没有明确人数时，用参与人描述和地点分配推断，不要把一个地点当成人。",
+            "当前定位参与规则：如果用户说“我/我们/咱们/和朋友/跟对象/同事聚餐”等，通常包含“你”这个参与人；若文本没有给“你”的明确出发地，则 includeCurrentLocationInMeetup=true，并在 locationIntent.participantAudit 中把“你”标为 source=currentLocation。若文本已经说“我在X/我从X出发”，用文本地点 X，不要再额外加入当前定位。若文本说“我们俩一个人在A一个人在B”，总人数是2，总地点是A/B两处；此时 currentLocation 只能帮助判断 A/B 哪个更像“你”的位置或纠正语音误字，不要把当前定位算成第三个地点。",
+            "语音纠错规则：如果文本地点疑似语音错字，但 currentLocationLabel/currentLocationDetail 显示附近有更合理的北京地名，应优先纠错；例如“海边”在北京吃饭语境且当前定位/上下文指向海淀时，按“海淀”理解。常见北京地名如海淀、劲松、苏州街、故宫、朝阳、三元桥、望京等要优先识别为地点。",
+            "还必须返回意图拆解字段：sceneIntent 对象，包含 primaryScenario、companions、decisionNeed、constraints、searchImplication；keywordStrategy 数组，解释每个高德 keyword 为什么选、适合什么场景、优先级；priceIntent 对象，说明价格段位 tier、minCost、maxCost、reason；locationIntent 对象，说明目的地、地区/商圈、街道、多人出发地、搜索策略 midpoint/destination/current、radiusReason、participantAudit、textParticipantCount、textLocationCount、totalParticipantCount、totalLocationCount；restaurantTypeIntent 对象，说明餐厅类型、是否必须是餐厅、要排除的非餐饮类型和理由。",
+            "严格 schema：sceneIntent={primaryScenario,companions,decisionNeed,constraints,searchImplication}; keywordStrategy=[{keyword,purpose,scenario,priority}]; priceIntent={tier,minCost,maxCost,reason}; locationIntent={destination,region,street,participantLocations,strategy,radiusReason,participantAudit,textParticipantCount,textLocationCount,totalParticipantCount,totalLocationCount}; restaurantTypeIntent={types,categories,restaurantOnly,avoidNonRestaurantReason}。participantAudit 数组每项为 {role,location,source,confidence,note}，source 只能 text/currentLocation/inferred。这些字段不得省略，即使信息不足也要用空字符串、空数组、0 或合理推断。",
             "拆关键词方法：优先保留用户明确菜系/菜品/品牌/地域口味；其次补场景型关键词，如约会餐厅、安静餐厅、朋友聚餐、夜宵；再补兜底餐厅关键词。关键词必须短、能直接给高德搜，不要用长句。searchRequests 应从精准到宽泛分层，第一层匹配明确意图，后面用于召回足够候选。",
             "价格和位置方法：用户说人均/贵/便宜/请客/约会时要推断 minCost/maxCost；用户说目的地、附近、街道、商圈时写入 locationHint/region/street；多人不同位置时写 locationHints 并说明折中策略；只有当前位置时不要编造街道。",
             "餐厅类型方法：餐饮默认 types=050000；只有明确咖啡、酒吧、甜品等可考虑更具体但仍要保证能召回吃饭选择；如果用户是在吃饭场景，不要把景点、商场、娱乐设施当成主要关键词。场景信息要拆清楚，说明这些关键词在什么场景下应该被选。",
@@ -415,6 +469,8 @@ function normalizeDecisionInput(body) {
 function normalizeRestaurantSearchPlanInput(body) {
   const selectedConditions = normalizeStringList(body?.selectedConditions || body?.tags, 16, 24);
   const customConditions = normalizeStringList(body?.customConditions, 8, 80);
+  const currentLocationLabel = cleanText(body?.currentLocationLabel || body?.location?.label, 120);
+  const currentLocationDetail = cleanText(body?.currentLocationDetail || body?.location?.addressMeta || body?.location?.detail, 220);
 
   return {
     moduleId: cleanToken(body?.moduleId, 24) || "dinner",
@@ -425,7 +481,12 @@ function normalizeRestaurantSearchPlanInput(body) {
     locationHint: normalizeLocationHint(body?.locationHint || body?.destinationHint || body?.destination),
     locationHints: normalizeLocationHints(body?.locationHints),
     customConditions,
-    location: normalizeInputLocation(body?.location),
+    location: normalizeInputLocation(body?.location, { label: currentLocationLabel, detail: currentLocationDetail }),
+    currentLocationLabel,
+    currentLocationDetail,
+    conversationHistory: normalizeConversationHistory(body?.conversationHistory),
+    intentConfirmed: Boolean(body?.intentConfirmed),
+    confirmedIntent: normalizePlanInsight(body?.confirmedIntent),
   };
 }
 
@@ -463,6 +524,7 @@ function normalizeRestaurantSearchPlan(plan, input) {
     avoidKeywords: normalizeSearchKeywords(plan?.avoidKeywords || plan?.excludeKeywords || plan?.negativeKeywords, 8),
     locationHint: locationHint || input.locationHint,
     locationHints: uniqueStrings([...locationHints, ...input.locationHints], 4, 40),
+    includeCurrentLocationInMeetup: Boolean(plan?.includeCurrentLocationInMeetup || plan?.include_current_location_in_meetup || plan?.locationIntent?.includeCurrentLocationInMeetup),
     sceneIntent: normalizePlanInsight(plan?.sceneIntent || plan?.scenarioIntent || plan?.sceneAnalysis || plan?.scenarioAnalysis),
     keywordStrategy: normalizeKeywordStrategy(plan?.keywordStrategy || plan?.keywordBreakdown || plan?.keywordAnalysis),
     priceIntent: normalizePlanInsight(plan?.priceIntent || plan?.priceAnalysis || plan?.budgetIntent),
@@ -708,8 +770,9 @@ function normalizePlanInsight(value) {
 function fallbackSceneIntent(input, plan) {
   const primaryScenario = input.scenes[0] || input.tags.find((tag) => /约饭|聚餐|约会|一人食|夜宵/.test(tag)) || "吃饭选择";
   const constraints = uniqueStrings([...input.needs, ...input.tags], 8, 40);
-  const companions = plan.locationHints.length >= 2
-    ? "两人/多人"
+  const participantCount = plan.locationHints.length + (plan.includeCurrentLocationInMeetup ? 1 : 0);
+  const companions = participantCount >= 2
+    ? (plan.includeCurrentLocationInMeetup ? `你 + ${participantCount - 1}位同伴，共${participantCount}人` : `共${participantCount}人`)
     : (/一个人|一人食|solo/i.test(input.question)
     ? "一人食"
     : (/朋友|同事|聚餐/.test(input.question) ? "朋友/多人" : (/约会|对象|情侣/.test(input.question) ? "约会对象" : "")));
@@ -745,7 +808,27 @@ function fallbackPriceIntent(plan) {
 }
 
 function fallbackLocationIntent(input, plan) {
-  const strategy = plan.locationHint ? "destination" : (plan.locationHints.length >= 2 ? "midpoint" : "current");
+  const participantCount = plan.locationHints.length + (plan.includeCurrentLocationInMeetup ? 1 : 0);
+  const strategy = plan.locationHint ? "destination" : (participantCount >= 2 ? "midpoint" : "current");
+  const participantAudit = [];
+  if (plan.includeCurrentLocationInMeetup) {
+    participantAudit.push({
+      role: "你",
+      location: input.currentLocationLabel || input.currentLocationDetail || "当前位置",
+      source: "currentLocation",
+      confidence: 0.9,
+      note: "文本包含用户本人，且未给出你的明确出发地，使用当前定位参与折中。",
+    });
+  }
+  plan.locationHints.forEach((location, index) => {
+    participantAudit.push({
+      role: `同伴${index + 1}`,
+      location,
+      source: "text",
+      confidence: 0.8,
+      note: "从用户文本或标签中识别的出发地点。",
+    });
+  });
   return {
     destination: plan.locationHint || "",
     region: plan.region || "",
@@ -753,7 +836,12 @@ function fallbackLocationIntent(input, plan) {
     participantLocations: plan.locationHints,
     strategy,
     radiusReason: `${plan.radiusMeters} 米半径用于平衡召回数量和到达成本。`,
-    currentLocation: input.location?.label || "",
+    currentLocation: input.currentLocationLabel || input.location?.label || "",
+    participantAudit,
+    textParticipantCount: plan.locationHints.length,
+    textLocationCount: plan.locationHints.length,
+    totalParticipantCount: participantCount || 1,
+    totalLocationCount: participantCount || (plan.locationHint ? 1 : 0),
   };
 }
 
@@ -785,7 +873,21 @@ function normalizeInputPoi(poi) {
   };
 }
 
-function normalizeInputLocation(location) {
+function normalizeConversationHistory(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item) => ({
+      role: cleanToken(item?.role, 16) === "assistant" ? "assistant" : "user",
+      source: cleanToken(item?.source, 24),
+      content: cleanText(item?.content, 420),
+    }))
+    .filter((item) => item.content)
+    .slice(-8);
+}
+
+function normalizeInputLocation(location, extras = {}) {
   const lat = Number(location?.lat);
   const lng = Number(location?.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -795,6 +897,8 @@ function normalizeInputLocation(location) {
     lat: Number(lat.toFixed(6)),
     lng: Number(lng.toFixed(6)),
     accuracy: Number(location?.accuracy) || 0,
+    label: cleanText(location?.label || extras.label, 120),
+    addressMeta: cleanText(location?.addressMeta || location?.detail || extras.detail, 220),
   };
 }
 
@@ -1220,6 +1324,89 @@ function restaurantCandidateScore(poi) {
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
+}
+
+function cleanWechatSignatureUrl(value) {
+  const text = cleanText(value, 1000);
+  if (!/^https?:\/\//.test(text)) {
+    return "";
+  }
+  try {
+    const url = new URL(text);
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+async function getWechatJsapiTicket({ appId, appSecret }) {
+  const ticketCacheKey = `https://choice-over.internal/wechat-jsapi-ticket/${encodeURIComponent(appId)}`;
+  const cachedTicket = await readWorkerCache(ticketCacheKey);
+  if (cachedTicket?.ticket) {
+    return cachedTicket.ticket;
+  }
+
+  const token = await getWechatAccessToken({ appId, appSecret });
+  const response = await fetch(
+    `https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=${encodeURIComponent(token)}&type=jsapi`,
+  );
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data || data.errcode) {
+    throw new Error(data?.errmsg || "微信 jsapi_ticket 获取失败");
+  }
+
+  const expiresIn = Math.max(300, Number(data.expires_in) || 7200);
+  await writeWorkerCache(ticketCacheKey, { ticket: data.ticket }, Math.max(60, expiresIn - 300));
+  return data.ticket;
+}
+
+async function getWechatAccessToken({ appId, appSecret }) {
+  const tokenCacheKey = `https://choice-over.internal/wechat-access-token/${encodeURIComponent(appId)}`;
+  const cachedToken = await readWorkerCache(tokenCacheKey);
+  if (cachedToken?.accessToken) {
+    return cachedToken.accessToken;
+  }
+
+  const response = await fetch(
+    `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${encodeURIComponent(appId)}&secret=${encodeURIComponent(appSecret)}`,
+  );
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data || data.errcode) {
+    throw new Error(data?.errmsg || "微信 access_token 获取失败");
+  }
+
+  const expiresIn = Math.max(300, Number(data.expires_in) || 7200);
+  await writeWorkerCache(tokenCacheKey, { accessToken: data.access_token }, Math.max(60, expiresIn - 300));
+  return data.access_token;
+}
+
+async function readWorkerCache(cacheKey) {
+  const response = await caches.default.match(new Request(cacheKey));
+  if (!response) {
+    return null;
+  }
+  return response.json().catch(() => null);
+}
+
+async function writeWorkerCache(cacheKey, body, maxAge) {
+  await caches.default.put(
+    new Request(cacheKey),
+    new Response(JSON.stringify(body), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": `public, max-age=${Math.max(1, Math.floor(maxAge))}`,
+      },
+    }),
+  );
+}
+
+async function sha1Hex(text) {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-1", data);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function readCoord(value) {
