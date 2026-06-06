@@ -378,7 +378,8 @@
       .gcard p { font-size: 12px; font-weight: 700; color: var(--info-muted, #5f574a); line-height: 1.45; overflow: hidden; }
       .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
       .mtag { max-width: 100%; overflow-wrap: anywhere; line-height: 1.25; font-size: 10px; font-weight: 800; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--tag-bg, var(--paper)); color: var(--tag-fg, var(--ink)); }
-      .mtag.route { flex: 1 1 100%; font-size: 9.5px; line-height: 1.3; padding: 5px 7px; white-space: normal; }
+      .mtag.route { flex: 1 1 calc(50% - 3px); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9.5px; line-height: 1.3; padding: 5px 7px; }
+      .mtag.route.long { flex-basis: 100%; min-width: 100%; white-space: normal; overflow-wrap: anywhere; }
       .meetupPanel { display: flex; flex-direction: column; gap: 5px; padding: 6px; border: 2px solid rgba(26,23,20,.78); border-radius: 9px; background: rgba(255,250,242,.78); color: var(--ink); }
       .meetupSummary { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
       .meetupSummary span { flex: 1 1 auto; min-width: 0; padding: 3px 5px; border: 1.5px solid rgba(26,23,20,.42); border-radius: 999px; background: #fffdf6; font-size: 9px; line-height: 1.15; font-weight: 950; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4537,7 +4538,8 @@
           const text = metaTagText(item);
           if(!text) return "";
           const kind = typeof item === "string" ? "" : String(item?.kind || "").replace(/[^a-z0-9_-]/gi, "").slice(0, 16);
-          return `<span class="mtag${kind ? ` ${kind}` : ""}">${escapeHTML(text)}</span>`;
+          const extra = kind === "route" && (text.length > 12 || /[：:·/，,、]/.test(text)) ? " long" : "";
+          return `<span class="mtag${kind ? ` ${kind}` : ""}${extra}">${escapeHTML(text)}</span>`;
         }).join("");
       }
       function escapeHTML(value){ return String(value ?? "").replace(/[&<>"']/g, (ch)=>({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch])); }
