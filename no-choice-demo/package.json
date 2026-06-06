@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy:pages": "npm run build && npx --yes wrangler pages deploy dist --project-name no-choice",
-    "seedream:proxy": "node scripts/local-seedream-proxy.mjs"
+    "seedream:proxy": "node scripts/local-seedream-proxy.mjs",
+    "test:intent": "node scripts/run-intent-cases.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

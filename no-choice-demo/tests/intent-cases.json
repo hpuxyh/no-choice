@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "project": "no-choice",
+  "target": "/api/restaurant-search-plan",
+  "defaultBaseUrl": "https://no-choice.pages.dev",
+  "defaultLocation": {
+    "lat": 39.97568,
+    "lng": 116.30632,
+    "accuracy": 80,
+    "label": "北京市海淀区苏州街地铁站附近",
+    "addressMeta": "北京市海淀区苏州街地铁站附近，靠近海淀黄庄/中关村"
+  },
+  "cases": [
+    {
+      "id": "asr-haibian-jinsong-two-people",
+      "title": "语音把海淀听成海边时，两个人只算两处出发地",
+      "question": "你好你好我跟曹军航我们俩一个人在海边一个人在劲松，想吃烤肉",
+      "scenes": ["朋友聚餐"],
+      "needs": ["取中间点", "北京地区"],
+      "tags": ["烤肉"],
+      "expect": {
+        "keywordsAny": ["烤肉", "烧烤", "韩式烤肉", "日式烤肉"],
+        "locationsInclude": ["海淀", "劲松"],
+        "locationHintsInclude": ["海淀", "劲松"],
+        "locationsExclude": ["海边"],
+        "includeCurrentLocationInMeetup": false,
+        "strategy": "midpoint",
+        "totalParticipantCount": 2,
+        "totalLocationCount": 2,
+        "companionsMatchesAny": ["2人", "两人", "我们俩", "共2人"]
+      }
+    },
+    {
+      "id": "current-plus-one-friend-midpoint",
+      "title": "我和一个朋友，文本只有朋友位置时，当前位置要参与折中",
+      "question": "我有一个朋友在劲松，我们想找个折中的地方吃日料",
+      "scenes": ["朋友聚餐"],
+      "needs": ["取中间点", "少走冤枉路"],
+      "tags": ["日料"],
+      "expect": {
+        "keywordsAny": ["日料", "日本料理", "寿司", "居酒屋"],
+        "locationsInclude": ["劲松"],
+        "locationHintsInclude": ["劲松"],
+        "includeCurrentLocationInMeetup": true,
+        "strategy": "midpoint",
+        "totalParticipantCount": 2,
+        "totalLocationCount": 2,
+        "participantSourcesInclude": ["currentLocation", "text"],
+        "companionsMatchesAny": ["2人", "两人", "你 + 1", "共2人"]
+      }
+    },
+    {
+      "id": "three-people-explicit-my-location",
+      "title": "两个朋友加我，且我在文本里有位置时，不要额外加入当前定位",
+      "question": "我想和朋友去吃饭，一个朋友住故宫，一个朋友在苏州街，还有我，我在劲松，然后我们想吃烤肉",
+      "scenes": ["朋友聚餐"],
+      "needs": ["取中间点"],
+      "tags": ["烤肉"],
+      "expect": {
+        "keywordsAny": ["烤肉", "烧烤", "韩式烤肉", "日式烤肉"],
+        "locationsInclude": ["故宫", "苏州街", "劲松"],
+        "locationHintsInclude": ["故宫", "苏州街", "劲松"],
+        "includeCurrentLocationInMeetup": false,
+        "strategy": "midpoint",
+        "totalParticipantCount": 3,
+        "totalLocationCount": 3,
+        "companionsMatchesAny": ["3人", "三人", "共3人"],
+        "companionsExclude": ["12人"]
+      }
+    },
+    {
+      "id": "asr-noisy-friend-count-not-twelve",
+      "title": "语音里有同伴/朋友编号噪声时，不要把同伴2解析成12人",
+      "question": "我想和朋友去吃饭，一个朋友住故宫，一个朋友在苏州街我还有我，我在劲松，然后我们想吃烤肉",
+      "scenes": ["朋友聚餐"],
+      "needs": ["取中间点"],
+      "tags": ["烤肉"],
+      "expect": {
+        "locationsInclude": ["故宫", "苏州街", "劲松"],
+        "locationHintsInclude": ["故宫", "苏州街", "劲松"],
+        "includeCurrentLocationInMeetup": false,
+        "strategy": "midpoint",
+        "totalParticipantCount": 3,
+        "companionsExclude": ["12人", "共12人"]
+      }
+    },
+    {
+      "id": "two-text-locations-no-current-extra",
+      "title": "我和朋友都在文本里给了位置时，当前位置只做纠错参考",
+      "question": "我在劲松，朋友在苏州街，我们想吃火锅，帮我们找中间点",
+      "scenes": ["朋友聚餐"],
+      "needs": ["取中间点"],
+      "tags": ["火锅"],
+      "expect": {
+        "keywordsAny": ["火锅", "川味火锅", "重庆火锅"],
+        "locationsInclude": ["劲松", "苏州街"],
+        "locationHintsInclude": ["劲松", "苏州街"],
+        "includeCurrentLocationInMeetup": false,
+        "strategy": "midpoint",
+        "totalParticipantCount": 2,
+        "totalLocationCount": 2
+      }
+    },
+    {
+      "id": "five-people-multi-district-midpoint",
+      "title": "五个人分布在不同城区时，人数和折中策略要稳定",
+      "question": "我们五个人聚餐，一个在望京，一个在三元桥，一个在海淀，一个在国贸，我在劲松，想吃烧烤",
+      "scenes": ["多人聚餐"],
+      "needs": ["照顾每个人距离", "取中间点"],
+      "tags": ["烧烤"],
+      "expect": {
+        "keywordsAny": ["烧烤", "烤肉", "串", "韩式烤肉"],
+        "locationsInclude": ["望京", "三元桥", "海淀", "国贸", "劲松"],
+        "includeCurrentLocationInMeetup": false,
+        "strategy": "midpoint",
+        "totalParticipantCount": 5,
+        "companionsMatchesAny": ["5人", "五人", "共5人"],
+        "companionsExclude": ["15人"]
+      }
+    },
+    {
+      "id": "explicit-destination-beats-midpoint",
+      "title": "用户明确说定在国贸时，目的地优先于出发地折中",
+      "question": "我朋友在五道口，但是我们想定在国贸附近吃西餐，不用取中间点",
+      "scenes": ["朋友聚餐"],
+      "needs": ["目的地优先"],
+      "tags": ["西餐"],
+      "expect": {
+        "keywordsAny": ["西餐", "牛排", "意餐", "约会餐厅"],
+        "locationsInclude": ["国贸", "五道口"],
+        "locationHintIncludes": ["国贸"],
+        "strategy": "destination"
+      }
+    },
+    {
+      "id": "single-nearby-beef-noodles",
+      "title": "一个人在附近吃牛肉面时，不要误判成多人折中",
+      "question": "我一个人想在附近吃牛肉面，别太贵",
+      "scenes": ["一人食"],
+      "needs": ["离我近", "便宜"],
+      "tags": ["牛肉面"],
+      "expect": {
+        "keywordsAny": ["牛肉面", "面馆", "兰州牛肉面"],
+        "locationHintsLength": 0,
+        "includeCurrentLocationInMeetup": false,
+        "strategy": "current",
+        "totalParticipantCount": 1,
+        "companionsMatchesAny": ["1人", "一人", "一人食", "一个人"]
+      }
+    },
+    {
+      "id": "same-area-group-price-quiet",
+      "title": "四个人在同一商圈附近时，望京是搜索区域不是四个出发地",
+      "question": "四个人在望京附近吃日料，人均200左右，安静一点",
+      "scenes": ["朋友聚餐"],
+      "needs": ["安静好聊", "人均200左右"],
+      "tags": ["日料", "安静"],
+      "expect": {
+        "keywordsAny": ["日料", "日本料理", "寿司", "居酒屋"],
+        "locationsInclude": ["望京"],
+        "strategy": "destination",
+        "totalParticipantCount": 4,
+        "maxCostBetween": [160, 260],
+        "companionsMatchesAny": ["4人", "四人", "共4人"]
+      }
+    },
+    {
+      "id": "confirmed-intent-overrides-raw-question",
+      "title": "用户确认/修改后的解析应优先于原始输入",
+      "question": "随便找个附近能吃的地方",
+      "scenes": ["吃饭选择"],
+      "needs": ["以确认信息为准"],
+      "tags": ["餐厅"],
+      "requestOverrides": {
+        "intentConfirmed": true,
+        "confirmedIntent": {
+          "intent": "夜宵",
+          "scene": "夜宵局",
+          "peopleText": "你 + 1位朋友，共2人",
+          "peopleCount": 2,
+          "middlePoint": "取中间点",
+          "locationStrategy": "midpoint",
+          "restaurantTypes": ["夜宵", "烧烤"],
+          "budget": "人均80-160元",
+          "locationDistance": "你在海淀，朋友在劲松，取中间点"
+        }
+      },
+      "expect": {
+        "keywordsAny": ["夜宵", "烧烤", "烤肉"],
+        "locationsInclude": ["海淀", "劲松"],
+        "includeCurrentLocationInMeetup": true,
+        "strategy": "midpoint",
+        "totalParticipantCount": 2,
+        "companionsMatchesAny": ["2人", "两人", "你 + 1", "共2人"]
+      }
+    }
+  ]
+}
