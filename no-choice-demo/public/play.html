@@ -4047,7 +4047,7 @@
             carouselImages,
             fallbackImage,
             venueImage: p.image,
-            reason: cleanRestaurantCardReason(p.aiReason) || poiReason(p, options),
+            reason: p.meetup ? poiReason(p, options) : (cleanRestaurantCardReason(p.aiReason) || poiReason(p, options)),
             meta: restaurantPoiMeta(p, options),
             theme: INFO_THEMES[i % INFO_THEMES.length],
             navUrl: amapNavigationUrl(p),
