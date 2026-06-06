@@ -406,7 +406,7 @@ async function askDeepSeekRestaurantSearchPlan({ key, model, input }) {
             "必须返回 {\"plan\":{...}}。plan 字段：keywords 中文短关键词数组 2 到 6 个；searchRequests 数组 2 到 8 个，每项包含 keyword、types、radiusMeters、sortrule、region、cityLimit、priority；types 默认 050000，除非你确定高德 6 位 POI 分类码；sortrule 只能 distance 或 weight；radiusMeters 1000 到 10000；region 为商圈/行政区/街道短文本；locationHint 为用户确认的目的地/搜索中心，例如“定在三里屯附近”返回“三里屯”，没有则空字符串；locationHints 为多人出发地数组，最多 4 个，只放需要地理编码的文本地点，不要放“当前位置”；includeCurrentLocationInMeetup boolean，表示是否要把输入里的当前定位作为“你”的出发地一起参与折中；如果同时有目的地和出发地，locationHint 优先表达目的地，locationHints 只放出发地；cityLimit boolean；showFields 固定 business,photos；minCost/maxCost/minRating 为数字或 null；preferOpenLate boolean；openAtHour 为 0 到 29 的小时或 null；mustKeywords/avoidKeywords 为短词数组；explanation 中文 60 字以内。",
             "人数/地点审计规则：输入里的 currentLocationLabel/currentLocationDetail/location 是用户本人“你”的当前定位。先抽取文本中出现的参与人、人物关系、地点，再把当前定位作为“你”的候选地点一起判断。sceneIntent.companions 只能表达角色和人数，例如“你 + 2位朋友，共3人”或“共3人”，不要把地点名、POI 名、同伴编号写进 companions；“同伴2”只是第二个同伴标签，不代表 12 人或 2 人。没有明确人数时，用参与人描述和地点分配推断，不要把一个地点当成人。",
             "当前定位参与规则：如果用户说“我/我们/咱们/和朋友/跟对象/同事聚餐”等，通常包含“你”这个参与人；若文本没有给“你”的明确出发地，则 includeCurrentLocationInMeetup=true，并在 locationIntent.participantAudit 中把“你”标为 source=currentLocation。若文本已经说“我在X/我从X出发”，用文本地点 X，不要再额外加入当前定位。若文本说“我们俩一个人在A一个人在B”，总人数是2，总地点是A/B两处；此时 currentLocation 只能帮助判断 A/B 哪个更像“你”的位置或纠正语音误字，不要把当前定位算成第三个地点。",
-            "语音纠错规则：如果文本地点疑似语音错字，但 currentLocationLabel/currentLocationDetail 显示附近有更合理的北京地名，应优先纠错；例如“海边”在北京吃饭语境且当前定位/上下文指向海淀时，按“海淀”理解。常见北京地名如海淀、劲松、苏州街、故宫、朝阳、三元桥、望京等要优先识别为地点。",
+            "语音纠错规则：如果文本地点疑似语音错字，但 currentLocationLabel/currentLocationDetail 显示附近有更合理的北京地名，应优先纠错；例如“海边”在北京吃饭语境且当前定位/上下文指向海淀时，按“海淀”理解。常见北京地名如海淀、劲松、苏州街、故宫、朝阳、三元桥、望京等要优先识别为地点。常见语音错字：“猫和我的两个朋友/猫跟我的两个朋友”通常是“我和我的两个朋友”，表示你+两个朋友，共3人；“一个一个是在X”通常是“另一个在X”。",
             "还必须返回意图拆解字段：sceneIntent 对象，包含 primaryScenario、companions、decisionNeed、constraints、searchImplication；keywordStrategy 数组，解释每个高德 keyword 为什么选、适合什么场景、优先级；priceIntent 对象，说明价格段位 tier、minCost、maxCost、reason；locationIntent 对象，说明目的地、地区/商圈、街道、多人出发地、搜索策略 midpoint/destination/current、radiusReason、participantAudit、textParticipantCount、textLocationCount、totalParticipantCount、totalLocationCount；restaurantTypeIntent 对象，说明餐厅类型、是否必须是餐厅、要排除的非餐饮类型和理由。",
             "严格 schema：sceneIntent={primaryScenario,companions,decisionNeed,constraints,searchImplication}; keywordStrategy=[{keyword,purpose,scenario,priority}]; priceIntent={tier,minCost,maxCost,reason}; locationIntent={destination,region,street,participantLocations,strategy,radiusReason,participantAudit,textParticipantCount,textLocationCount,totalParticipantCount,totalLocationCount}; restaurantTypeIntent={types,categories,restaurantOnly,avoidNonRestaurantReason}。participantAudit 数组每项为 {role,location,source,confidence,note}，source 只能 text/currentLocation/inferred。这些字段不得省略，即使信息不足也要用空字符串、空数组、0 或合理推断。",
             "拆关键词方法：优先保留用户明确菜系/菜品/品牌/地域口味；其次补场景型关键词，如约会餐厅、安静餐厅、朋友聚餐、夜宵；再补兜底餐厅关键词。关键词必须短、能直接给高德搜，不要用长句。searchRequests 应从精准到宽泛分层，第一层匹配明确意图，后面用于召回足够候选。",
@@ -474,7 +474,7 @@ function normalizeRestaurantSearchPlanInput(body) {
 
   return {
     moduleId: cleanToken(body?.moduleId, 24) || "dinner",
-    question: cleanText(body?.question, 220),
+    question: normalizeRestaurantQuestionText(body?.question),
     scenes: normalizeStringList(body?.scenes, 8, 24),
     needs: normalizeStringList(body?.needs, 8, 24),
     tags: selectedConditions,
@@ -540,6 +540,7 @@ function normalizeRestaurantSearchPlan(plan, input) {
   resolvedPlan.priceIntent ||= fallbackPriceIntent(resolvedPlan);
   resolvedPlan.locationIntent ||= fallbackLocationIntent(input, resolvedPlan);
   resolvedPlan.restaurantTypeIntent ||= fallbackRestaurantTypeIntent(resolvedPlan);
+  repairRestaurantMeetupPlan(resolvedPlan, input);
 
   return {
     ...resolvedPlan,
@@ -765,6 +766,269 @@ function normalizePlanInsight(value) {
   }
 
   return null;
+}
+
+function normalizeRestaurantQuestionText(value) {
+  return cleanText(value, 220)
+    .replace(/(^|[，,。！？；;\s])猫([和跟与同])我的([一二两俩三四五六七八九十\d]+)\s*(个|位)?(朋友|同伴|同事|同学|闺蜜|兄弟|姐妹)/gu, "$1我$2我的$3$4$5")
+    .replace(/一个一个是?在/gu, "另一个在")
+    .replace(/一个一个住在/gu, "另一个住在");
+}
+
+function repairRestaurantMeetupPlan(plan, input) {
+  const inferred = inferRestaurantMeetupFromQuestion(input, plan);
+  if (!inferred || inferred.totalParticipantCount < 2) {
+    return plan;
+  }
+
+  plan.locationHints = uniqueStrings([...plan.locationHints, ...inferred.locationHints], 4, 40);
+  if (inferred.includeCurrentLocationInMeetup) {
+    plan.includeCurrentLocationInMeetup = true;
+  }
+
+  const participantCount = inferred.strongCount
+    ? inferred.totalParticipantCount
+    : maxFiniteCount(readCountValue(plan.locationIntent?.totalParticipantCount), inferred.totalParticipantCount);
+  const locationCount = maxFiniteCount(
+    readCountValue(plan.locationIntent?.totalLocationCount),
+    plan.locationHints.length + (plan.includeCurrentLocationInMeetup ? 1 : 0),
+  );
+  const hasDestination = Boolean(plan.locationHint || plan.locationIntent?.destination);
+  const participantAudit = buildRestaurantParticipantAudit(plan, input);
+
+  plan.sceneIntent = {
+    ...(plan.sceneIntent && typeof plan.sceneIntent === "object" ? plan.sceneIntent : {}),
+    companions: plan.includeCurrentLocationInMeetup
+      ? `你 + ${Math.max(1, participantCount - 1)}位同伴，共${participantCount}人`
+      : `共${participantCount}人`,
+  };
+
+  plan.locationIntent = {
+    ...(plan.locationIntent && typeof plan.locationIntent === "object" ? plan.locationIntent : {}),
+    destination: hasDestination ? cleanText(plan.locationIntent?.destination || plan.locationHint, 40) : "",
+    participantLocations: plan.locationHints,
+    strategy: hasDestination ? (plan.locationIntent?.strategy || "destination") : "midpoint",
+    currentLocation: input.currentLocationLabel || input.location?.label || "",
+    participantAudit,
+    textParticipantCount: inferred.textParticipantCount || participantCount,
+    textLocationCount: plan.locationHints.length,
+    totalParticipantCount: participantCount,
+    totalLocationCount: locationCount || participantCount,
+  };
+
+  if (!hasDestination) {
+    plan.locationHint = "";
+  }
+
+  return plan;
+}
+
+function inferRestaurantMeetupFromQuestion(input, plan) {
+  const question = normalizeRestaurantQuestionText(input.question);
+  const textLocationHints = extractRestaurantTextLocationHints(question);
+  const locationHints = uniqueStrings([...plan.locationHints, ...input.locationHints, ...textLocationHints], 4, 40);
+  const companionCount = inferCompanionCount(question);
+  const explicitTotal = inferExplicitPeopleCount(question);
+  const selfIncluded = hasSelfParticipantReference(question);
+  const selfHasTextLocation = hasExplicitSelfLocation(question);
+  const socialMeal = /朋友|同伴|同事|同学|聚餐|一块|一起|我们|咱们|约饭|吃饭|去吃/u.test(question);
+
+  let totalParticipantCount = explicitTotal;
+  let strongCount = Number.isFinite(explicitTotal) && explicitTotal >= 2;
+
+  if (selfIncluded && Number.isFinite(companionCount) && companionCount >= 1) {
+    totalParticipantCount = companionCount + 1;
+    strongCount = true;
+  }
+
+  let includeCurrentLocationInMeetup = false;
+  if (selfIncluded && !selfHasTextLocation && locationHints.length >= 1) {
+    includeCurrentLocationInMeetup =
+      (Number.isFinite(companionCount) && companionCount >= locationHints.length) ||
+      (Number.isFinite(totalParticipantCount) && totalParticipantCount > locationHints.length) ||
+      (/朋友|同伴|同事|同学|一块|一起|我们|咱们/u.test(question) && locationHints.length === 1);
+  }
+
+  const inferredTotal = Math.max(
+    Number.isFinite(totalParticipantCount) ? totalParticipantCount : 0,
+    locationHints.length + (includeCurrentLocationInMeetup ? 1 : 0),
+  );
+
+  if (inferredTotal < 2 && !(socialMeal && locationHints.length >= 1)) {
+    return null;
+  }
+
+  return {
+    locationHints,
+    includeCurrentLocationInMeetup,
+    strongCount,
+    textParticipantCount: Number.isFinite(totalParticipantCount) ? totalParticipantCount : inferredTotal,
+    totalParticipantCount: inferredTotal || (socialMeal ? 2 : 1),
+  };
+}
+
+function buildRestaurantParticipantAudit(plan, input) {
+  const audit = [];
+  if (plan.includeCurrentLocationInMeetup) {
+    audit.push({
+      role: "你",
+      location: input.currentLocationLabel || input.currentLocationDetail || "当前位置",
+      source: "currentLocation",
+      confidence: 0.9,
+      note: "文本包含用户本人，且没有给出你的明确出发地，使用当前定位参与折中。",
+    });
+  }
+  plan.locationHints.forEach((location, index) => {
+    audit.push({
+      role: `同伴${index + 1}`,
+      location,
+      source: "text",
+      confidence: 0.85,
+      note: "从用户文本中识别的同伴出发地。",
+    });
+  });
+  return audit;
+}
+
+function extractRestaurantTextLocationHints(question) {
+  const locations = [];
+  const patterns = [
+    /(?:一个人|一人|一个|一位|另一(?:个人)?|另一个|还有一个|同伴\d*|朋友\d*|我|本人|自己)(?:是?在|在|住在|住|从|位于)([^，,。；;、]+?)(?:附近|周边|那边|这边)?(?=，|,|。|；|;|、|然后|$)/gu,
+  ];
+
+  patterns.forEach((pattern) => {
+    let match;
+    while ((match = pattern.exec(question))) {
+      locations.push(match[1]);
+    }
+  });
+
+  const knownBeijingLocations = [
+    "故宫",
+    "苏州街",
+    "劲松",
+    "望京",
+    "三元桥",
+    "海淀",
+    "朝阳",
+    "国贸",
+    "五道口",
+    "三里屯",
+    "中关村",
+    "西二旗",
+    "东直门",
+    "西直门",
+    "清河",
+    "酒仙桥",
+    "亦庄",
+    "大望路",
+    "潘家园",
+    "双井",
+    "亮马桥",
+    "王府井",
+    "西单",
+    "前门",
+  ];
+  knownBeijingLocations.forEach((location) => {
+    if (question.includes(location)) {
+      locations.push(location);
+    }
+  });
+
+  return normalizeLocationHints(locations).filter((location) => !/吃|烤肉|火锅|日料|西餐|餐厅|饭|我们|朋友/u.test(location));
+}
+
+function inferCompanionCount(question) {
+  const patterns = [
+    /(?:我|我们|咱们)(?:和|跟|与|同|带|叫上|约了|还有|有)?(?:我的)?([一二两俩三四五六七八九十\d]+)\s*(?:个|位)?(?:朋友|同伴|同事|同学|闺蜜|兄弟|姐妹)/u,
+    /(?:我的)([一二两俩三四五六七八九十\d]+)\s*(?:个|位)?(?:朋友|同伴|同事|同学|闺蜜|兄弟|姐妹)/u,
+  ];
+  for (const pattern of patterns) {
+    const match = question.match(pattern);
+    const count = readSmallCount(match?.[1]);
+    if (Number.isFinite(count)) {
+      return count;
+    }
+  }
+  return Number.NaN;
+}
+
+function inferExplicitPeopleCount(question) {
+  const patterns = [
+    /(?:我们|咱们)([一二两俩三四五六七八九十\d]+)\s*(?:个)?人/u,
+    /([一二两俩三四五六七八九十\d]+)\s*(?:个)?人(?:一块|一起|聚餐|去吃|吃饭|约饭)/u,
+    /(?:共|总共|一共)\s*([一二两俩三四五六七八九十\d]+)\s*(?:个)?人/u,
+  ];
+  for (const pattern of patterns) {
+    const match = question.match(pattern);
+    const count = readSmallCount(match?.[1]);
+    if (Number.isFinite(count)) {
+      return count;
+    }
+  }
+  if (/我们俩|咱们俩/u.test(question)) {
+    return 2;
+  }
+  return Number.NaN;
+}
+
+function hasSelfParticipantReference(question) {
+  return /(?:^|[，,。！？；;\s])(?:我|我们|咱们)(?:和|跟|与|同|带|叫上|约了|还有|有|想|要|准备|打算)|(?:我们|咱们)(?:要|想|准备|打算)?(?:一块|一起)|我和我的/u.test(question);
+}
+
+function hasExplicitSelfLocation(question) {
+  return /(?:^|[，,。！？；;\s])(?:我|本人|自己)(?:现在)?(?:在|住在|住|从|位于|出发)/u.test(question);
+}
+
+function readCountValue(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  const match = String(value || "").match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : Number.NaN;
+}
+
+function maxFiniteCount(...values) {
+  const nums = values.filter((value) => Number.isFinite(value));
+  return nums.length ? Math.max(...nums) : Number.NaN;
+}
+
+function readSmallCount(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return Number.NaN;
+  }
+  const direct = Number(text);
+  if (Number.isFinite(direct)) {
+    return direct;
+  }
+  const map = {
+    一: 1,
+    二: 2,
+    两: 2,
+    俩: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+    十: 10,
+  };
+  if (map[text]) {
+    return map[text];
+  }
+  if (text.length === 2 && text[0] === "十" && map[text[1]]) {
+    return 10 + map[text[1]];
+  }
+  if (text.length === 2 && text[1] === "十" && map[text[0]]) {
+    return map[text[0]] * 10;
+  }
+  if (text.length === 3 && text[1] === "十" && map[text[0]] && map[text[2]]) {
+    return map[text[0]] * 10 + map[text[2]];
+  }
+  return Number.NaN;
 }
 
 function fallbackSceneIntent(input, plan) {

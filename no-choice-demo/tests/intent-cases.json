@@ -119,6 +119,26 @@
       }
     },
     {
+      "id": "asr-mao-two-friends-current-plus-two",
+      "title": "语音把我和听成猫和时，我加两个朋友应按三个人折中",
+      "question": "猫和我的两个朋友去吃饭，一个人在故宫，一个一个是在苏州街附近，然后我们要一块儿去吃烤肉。",
+      "scenes": ["朋友聚餐"],
+      "needs": ["取中间点"],
+      "tags": ["烤肉"],
+      "expect": {
+        "keywordsAny": ["烤肉", "烧烤", "韩式烤肉", "日式烤肉"],
+        "locationsInclude": ["故宫", "苏州街"],
+        "locationHintsInclude": ["故宫", "苏州街"],
+        "includeCurrentLocationInMeetup": true,
+        "strategy": "midpoint",
+        "totalParticipantCount": 3,
+        "totalLocationCount": 3,
+        "participantSourcesInclude": ["currentLocation", "text"],
+        "companionsMatchesAny": ["3人", "三人", "你 + 2", "共3人"],
+        "companionsExclude": ["1人"]
+      }
+    },
+    {
       "id": "explicit-destination-beats-midpoint",
       "title": "用户明确说定在国贸时，目的地优先于出发地折中",
       "question": "我朋友在五道口，但是我们想定在国贸附近吃西餐，不用取中间点",
