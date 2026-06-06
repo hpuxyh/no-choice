@@ -376,7 +376,8 @@
       .gcard h3 { font-size: 21px; font-weight: 900; line-height: 1.1; }
       .gameSlogan { font-size: 10.5px; font-weight: 900; line-height: 1.35; color: var(--info-fg, var(--ink)); opacity: .94; padding-left: 7px; border-left: 3px solid var(--tag-bg, rgba(255,255,255,.7)); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       .gcard p { font-size: 12px; font-weight: 700; color: var(--info-muted, #5f574a); line-height: 1.45; overflow: hidden; }
-      .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
+      .gcard .metaRow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 0; }
+      .gcard .metaRow:empty { display: none; }
       .mtag { max-width: 100%; overflow-wrap: anywhere; line-height: 1.25; font-size: 10px; font-weight: 800; padding: 4px 7px; border: 2px solid var(--ink); border-radius: 7px; background: var(--tag-bg, var(--paper)); color: var(--tag-fg, var(--ink)); }
       .mtag.route { flex: 1 1 calc(50% - 3px); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9.5px; line-height: 1.3; padding: 5px 7px; }
       .mtag.route.long { flex-basis: 100%; min-width: 100%; white-space: normal; overflow-wrap: anywhere; }
@@ -386,7 +387,7 @@
       .meetupRoles { display: flex; flex-wrap: wrap; gap: 4px; }
       .meetupRole { flex: 1 1 54px; min-width: 0; min-height: 24px; padding: 3px 5px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--tag-bg, var(--paper)); color: var(--tag-fg, var(--ink)); font: inherit; font-size: 9.5px; font-weight: 950; line-height: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; touch-action: manipulation; }
       .meetupRole.active { background: var(--ink); color: var(--paper); }
-      .meetupDetail { min-height: 24px; padding: 5px 6px; border-radius: 7px; background: rgba(26,23,20,.1); color: var(--ink); font-size: 9.3px; font-weight: 900; line-height: 1.3; overflow-wrap: anywhere; }
+      .meetupDetail { min-height: 24px; max-height: 43px; padding: 5px 6px; border-radius: 7px; background: rgba(26,23,20,.1); color: var(--ink); font-size: 9.3px; font-weight: 900; line-height: 1.3; overflow: hidden; overflow-wrap: anywhere; }
       .winCard .face.photo { background-size: cover; background-position: center; color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.45); filter: saturate(1.35) contrast(1.12); }
       /* 加载牌（真实餐厅管线）*/
       .loadingCard { align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 18px; }
@@ -399,7 +400,7 @@
       @keyframes spin { to { transform: rotate(360deg); } }
       .navMini { flex: none; width: 100%; min-height: 40px; border: 3px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm); font: inherit; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; text-decoration: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       .navMini:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
-      .cardActions { flex: none; display: grid; grid-template-columns: minmax(78px, .72fr) minmax(0, 1.28fr); gap: 7px; margin-top: 7px; }
+      .cardActions { flex: none; display: grid; grid-template-columns: minmax(78px, .72fr) minmax(0, 1.28fr); gap: 7px; margin-top: auto; padding-top: 7px; }
       .cardActions.solo { grid-template-columns: 1fr; }
       .cardActions .navMini { margin-top: 0; min-height: 40px; font-size: 13px; }
       .cardActionMini { width: 100%; min-width: 0; min-height: 40px; border: 3px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -1093,7 +1094,7 @@
             <div class="cnum pixel">NO.${c.no} / ${TOTAL} · 附近真实餐厅</div>
             <h3>${escapeHTML(c.name)}</h3>
             <p>${escapeHTML(c.reason)}</p>
-            <div class="metaRow">${renderMetaTags(c.meta)}</div>
+            <div class="metaRow">${renderMetaTags(c.meta, { hideRoute: Boolean(meetup) })}</div>
             ${meetup}
             ${actions}
           </div>` + (withStamps ? `
@@ -4533,11 +4534,13 @@
       function metaTagText(item){
         return String(typeof item === "string" ? item : (item?.text || "")).trim();
       }
-      function renderMetaTags(meta = []){
+      function renderMetaTags(meta = [], options = {}){
+        const hideRoute = Boolean(options.hideRoute);
         return (meta || []).map((item)=>{
           const text = metaTagText(item);
           if(!text) return "";
           const kind = typeof item === "string" ? "" : String(item?.kind || "").replace(/[^a-z0-9_-]/gi, "").slice(0, 16);
+          if(hideRoute && kind === "route") return "";
           const extra = kind === "route" && (text.length > 12 || /[：:·/，,、]/.test(text)) ? " long" : "";
           return `<span class="mtag${kind ? ` ${kind}` : ""}${extra}">${escapeHTML(text)}</span>`;
         }).join("");
