@@ -50,6 +50,111 @@
       }
     },
     {
+      "id": "tagged-bbq-friend-at-suzhoujie-current-midpoint",
+      "title": "标签和输入同句出现时，烧烤是菜品标签，朋友位置要参与折中",
+      "question": "标签：烧烤 我朋友在苏州街",
+      "scenes": [],
+      "needs": [],
+      "tags": ["烧烤"],
+      "currentLocation": {
+        "lat": 39.88443,
+        "lng": 116.45511,
+        "accuracy": 80,
+        "label": "北京市朝阳区劲松街道方丹小街劲松西社区",
+        "addressMeta": "北京市朝阳区劲松街道方丹小街劲松西社区"
+      },
+      "expect": {
+        "keywordsAny": ["烧烤", "烤肉", "串"],
+        "locationsInclude": ["苏州街", "劲松"],
+        "locationHintsInclude": ["苏州街"],
+        "includeCurrentLocationInMeetup": true,
+        "strategy": "midpoint",
+        "totalParticipantCount": 2,
+        "totalLocationCount": 2,
+        "participantSourcesInclude": ["currentLocation", "text"],
+        "companionsMatchesAny": ["2人", "两人", "你 + 1", "共2人"]
+      }
+    },
+    {
+      "id": "friend-gathering-another-friend-suzhoujie-current-midpoint",
+      "title": "朋友聚餐只说另一个朋友在苏州街时，当前位置参与折中但不重复成两个劲松",
+      "question": "朋友聚餐 我的另外一个朋友在苏州街",
+      "scenes": ["朋友聚餐"],
+      "needs": ["取中间点"],
+      "tags": ["朋友聚餐"],
+      "currentLocation": {
+        "lat": 39.88443,
+        "lng": 116.45511,
+        "accuracy": 80,
+        "label": "北京市朝阳区劲松街道方丹小街劲松西社区",
+        "addressMeta": "北京市朝阳区劲松街道方丹小街劲松西社区"
+      },
+      "expect": {
+        "keywordsAny": ["朋友聚餐", "餐厅"],
+        "locationsInclude": ["苏州街", "劲松"],
+        "locationHintsInclude": ["苏州街"],
+        "locationHintsLength": 1,
+        "includeCurrentLocationInMeetup": true,
+        "strategy": "midpoint",
+        "totalParticipantCount": 2,
+        "totalLocationCount": 2,
+        "participantSourcesInclude": ["currentLocation", "text"],
+        "companionsMatchesAny": ["2人", "两人", "你 + 1", "共2人"]
+      }
+    },
+    {
+      "id": "date-one-at-suzhoujie-current-midpoint",
+      "title": "约会场景只说一个人在苏州街时，当前位置要作为另一个人参与折中",
+      "question": "标签：约会吃饭 一个在苏州街",
+      "scenes": ["约会吃饭"],
+      "needs": ["取中间点"],
+      "tags": ["约会吃饭"],
+      "currentLocation": {
+        "lat": 39.88443,
+        "lng": 116.45511,
+        "accuracy": 80,
+        "label": "北京市朝阳区劲松街道方丹小街劲松西社区",
+        "addressMeta": "北京市朝阳区劲松街道方丹小街劲松西社区"
+      },
+      "expect": {
+        "keywordsAny": ["约会餐厅", "西餐", "日料", "餐厅"],
+        "locationsInclude": ["苏州街", "劲松"],
+        "locationHintsInclude": ["苏州街"],
+        "includeCurrentLocationInMeetup": true,
+        "strategy": "midpoint",
+        "totalParticipantCount": 2,
+        "totalLocationCount": 2,
+        "participantSourcesInclude": ["currentLocation", "text"],
+        "companionsMatchesAny": ["2人", "两人", "你 + 1", "共2人"]
+      }
+    },
+    {
+      "id": "tagged-date-girlfriend-at-guomao-current-midpoint",
+      "title": "标签和位置同句出现时，女朋友在国贸应按当前位置加对方位置折中",
+      "question": "标签：约会吃饭 女朋友在国贸",
+      "scenes": ["约会吃饭"],
+      "needs": ["取中间点"],
+      "tags": ["约会吃饭"],
+      "currentLocation": {
+        "lat": 39.88443,
+        "lng": 116.45511,
+        "accuracy": 80,
+        "label": "北京市朝阳区劲松街道方丹小街劲松西社区",
+        "addressMeta": "北京市朝阳区劲松街道方丹小街劲松西社区"
+      },
+      "expect": {
+        "keywordsAny": ["约会餐厅", "西餐", "日料", "浪漫", "餐厅"],
+        "locationsInclude": ["国贸", "劲松"],
+        "locationHintsInclude": ["国贸"],
+        "includeCurrentLocationInMeetup": true,
+        "strategy": "midpoint",
+        "totalParticipantCount": 2,
+        "totalLocationCount": 2,
+        "participantSourcesInclude": ["currentLocation", "text"],
+        "companionsMatchesAny": ["2人", "两人", "你 + 1", "共2人"]
+      }
+    },
+    {
       "id": "three-people-explicit-my-location",
       "title": "两个朋友加我，且我在文本里有位置时，不要额外加入当前定位",
       "question": "我想和朋友去吃饭，一个朋友住故宫，一个朋友在苏州街，还有我，我在劲松，然后我们想吃烤肉",
