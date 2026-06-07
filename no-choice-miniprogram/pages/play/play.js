@@ -104,6 +104,21 @@ function normalizeCardPhotoItems(card, limit = 6) {
   return items.slice(0, limit);
 }
 
+function stripDuplicateCardReason(reason) {
+  const text = String(reason || "").trim();
+  if (!text) return "";
+  const parts = text.match(/[^。！？!?]+[。！？!?]?/g) || [text];
+  const kept = parts.filter((part, index) => {
+    if (index > 1) return true;
+    const value = String(part || "").trim();
+    if (!value) return false;
+    const hasMetric = /(?:离你|步行\d|驾车\d|地铁\d|距地铁|平均\d|最远|评分\s*\d|人均\s*\d|[0-9.]+\s*(?:km|公里|m|米))/i.test(value);
+    const hasRouteVerb = /(?:步行|驾车|地铁|距离|离你|评分|人均)/.test(value);
+    return !(hasMetric && hasRouteVerb);
+  }).join("").trim();
+  return kept || "";
+}
+
 function decorateCard(card, index) {
   const theme = themeFor(index);
   const artTheme = DEFAULT_ART_THEMES[index % DEFAULT_ART_THEMES.length];
@@ -118,6 +133,7 @@ function decorateCard(card, index) {
     image: visibleImage,
     photoGallery,
     photoSlides,
+    reason: stripDuplicateCardReason(card.reason),
     slogan: card.slogan || randomSlogan(),
     artBg: card.artBg || card.art || artTheme.bg,
     artAccent: card.artAccent || artTheme.accent,
@@ -295,6 +311,8 @@ function planSceneText(choice) {
 }
 
 function planPeopleText(choice) {
+  const partySize = Number(choice.partySize) || 0;
+  if (partySize > 0) return partySize === 1 ? "1人" : `共${partySize}人`;
   const text = `${choice.question || ""} ${(choice.tags || []).join(" ")}`;
   if (/一人食|一个人|自己吃/.test(text)) return "1人";
   if (/约会|对象|男朋友|女朋友|男友|女友|暧昧/.test(text)) return "你 + 约会对象，共2人";
@@ -370,6 +388,8 @@ Page({
     moreTags: makeTags(MORE_TAGS),
     problem: "",
     problemPlaceholder: "例如：和朋友吃火锅，人均150以内\n也可以说：下班想在附近吃点清淡的",
+    partySize: 2,
+    budgetPerPerson: 150,
     choiceHasInput: false,
     choiceNextText: "用标签让 AI 理解",
     showVoiceInsight: false,
@@ -582,6 +602,8 @@ Page({
   toggleTag(e) {
     const group = e.currentTarget.dataset.group;
     const index = Number(e.currentTarget.dataset.index);
+    const toggled = this.data[group][index] || {};
+    const willSelect = !toggled.selected;
     const tags = this.data[group].map((item, idx) => idx === index ? { ...item, selected: !item.selected } : item);
     const next = { [group]: tags };
     const selected = selectedTagTexts([
@@ -591,7 +613,22 @@ Page({
     ]);
     next.problem = withTagLine(this.data.problem, selected);
     next.showVoiceInsight = false;
+    if (willSelect && toggled.text === "一人食") next.partySize = 1;
+    if (willSelect && (toggled.text === "朋友聚餐" || toggled.text === "约会吃饭") && this.data.partySize < 2) next.partySize = 2;
     this.setData(next, () => this.updateChoiceNextAction());
+    this.invalidateRestaurantContext();
+  },
+
+  onPartySizeChange(e) {
+    const value = Math.max(1, Math.min(8, Math.round(Number(e.detail.value) || 2)));
+    this.setData({ partySize: value, showVoiceInsight: false }, () => this.updateChoiceNextAction());
+    this.invalidateRestaurantContext();
+  },
+
+  onBudgetChange(e) {
+    const raw = Math.round((Number(e.detail.value) || 150) / 10) * 10;
+    const value = Math.max(50, Math.min(500, raw));
+    this.setData({ budgetPerPerson: value, showVoiceInsight: false }, () => this.updateChoiceNextAction());
     this.invalidateRestaurantContext();
   },
 
@@ -606,17 +643,17 @@ Page({
   updateChoiceNextAction() {
     const tags = this.getSelectedChoiceTags();
     const question = cleanChoiceQuestion(this.data.problem);
-    const choiceHasInput = Boolean(question || tags.length);
+    const choiceHasInput = Boolean(question || tags.length || this.data.partySize || this.data.budgetPerPerson);
     this.setData({
       choiceHasInput,
-      choiceNextText: question ? "让 AI 理解一下" : "用标签让 AI 理解"
+      choiceNextText: question ? "让 AI 理解一下" : (tags.length ? "用标签和条件理解" : "按人数预算找餐厅")
     });
   },
 
   async proceedChoiceToMode() {
     const tags = this.getSelectedChoiceTags();
     const question = cleanChoiceQuestion(this.data.problem);
-    if (!question && !tags.length) {
+    if (!question && !tags.length && !this.data.partySize && !this.data.budgetPerPerson) {
       this.showToast("先写一句或点几个标签");
       return;
     }
@@ -1161,10 +1198,12 @@ Page({
   choiceReplaySignature(modeName, coords) {
     const tags = this.getSelectedChoiceTags().slice().sort();
     const question = cleanChoiceQuestion(this.data.problem);
+    const partySize = Number(this.data.partySize) || 0;
+    const budgetPerPerson = Number(this.data.budgetPerPerson) || 0;
     const location = coords && Number.isFinite(Number(coords.lat)) && Number.isFinite(Number(coords.lng))
       ? `${Number(coords.lat).toFixed(4)},${Number(coords.lng).toFixed(4)}`
       : "";
-    return JSON.stringify({ modeName, question, tags, location });
+    return JSON.stringify({ modeName, question, tags, partySize, budgetPerPerson, location });
   },
 
   replayAvoidKeys(signature) {

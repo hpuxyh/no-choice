@@ -303,11 +303,19 @@ function buildChoiceContext(data) {
   const scenes = selectedTagTexts([data.sceneTags]);
   const needs = selectedTagTexts([data.needTags, data.moreTags]);
   const tags = selectedTagTexts([data.sceneTags, data.needTags, data.moreTags]);
+  const partySize = Math.max(0, Math.min(20, Math.round(Number(data.partySize) || 0)));
+  const budgetPerPerson = Math.max(0, Math.min(2000, Math.round(Number(data.budgetPerPerson) || 0)));
+  const controls = [
+    partySize ? `共${partySize}人` : "",
+    budgetPerPerson ? `人均${budgetPerPerson}元左右` : ""
+  ].filter(Boolean).join("，");
   return {
-    question: cleanChoiceQuestion(data.problem || ""),
+    question: [cleanChoiceQuestion(data.problem || ""), controls].filter(Boolean).join(" "),
     scenes,
     needs,
-    tags
+    tags,
+    partySize,
+    budgetPerPerson
   };
 }
 
@@ -2489,6 +2497,8 @@ function restaurantPlanSceneText(plan = {}, choice = {}) {
 }
 
 function restaurantPlanPeopleText(plan = {}, choice = {}, meetup = null) {
+  const partySize = Number(choice.partySize) || 0;
+  if (partySize > 0) return partySize === 1 ? "1人" : `共${partySize}人`;
   if (meetup && Array.isArray(meetup.participants) && meetup.participants.length) {
     const labels = meetup.participants.slice(0, 2).map((item, index) => cleanParticipantLabel(item.label, index)).filter(Boolean);
     if (labels.includes("你") && labels.includes("朋友")) return "你 + 朋友，共2人";

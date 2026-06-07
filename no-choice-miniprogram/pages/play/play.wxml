@@ -5,11 +5,6 @@
 <view class="phone screen-{{screen}}" style="--page-top: {{pageTop}}px; --menu-avoid: {{menuRightPad}}px;">
   <view class="screens">
     <view wx:if="{{screen == 'welcome'}}" class="screen homeScreen active">
-      <view class="topbar">
-        <text class="badge red mono">CHALLENGE ACTIVE</text>
-        <text class="dots mono">PLAYLIST 01/08</text>
-      </view>
-
       <view>
         <text class="titleMark mono">CHOICE OVER v1.0</text>
         <text class="lead welcomeLead">选择困难辅助器</text>
@@ -190,6 +185,47 @@
             </view>
           </view>
 
+          <view class="preferenceSliders">
+            <view class="preferenceSliderRow">
+              <view class="preferenceSliderHead">
+                <text class="quickTagLabel">人数</text>
+                <text class="preferenceValue">{{partySize}}人</text>
+              </view>
+              <slider
+                class="preferenceSlider"
+                min="1"
+                max="8"
+                step="1"
+                value="{{partySize}}"
+                activeColor="#f6c518"
+                backgroundColor="#d8d0be"
+                block-color="#1a1714"
+                block-size="24"
+                bindchanging="onPartySizeChange"
+                bindchange="onPartySizeChange"
+              />
+            </view>
+            <view class="preferenceSliderRow">
+              <view class="preferenceSliderHead">
+                <text class="quickTagLabel">预算</text>
+                <text class="preferenceValue">人均{{budgetPerPerson}}元</text>
+              </view>
+              <slider
+                class="preferenceSlider"
+                min="50"
+                max="500"
+                step="10"
+                value="{{budgetPerPerson}}"
+                activeColor="#f6c518"
+                backgroundColor="#d8d0be"
+                block-color="#1a1714"
+                block-size="24"
+                bindchanging="onBudgetChange"
+                bindchange="onBudgetChange"
+              />
+            </view>
+          </view>
+
           <view class="thumbRow" wx:if="{{photoThumbs.length}}">
             <image wx:for="{{photoThumbs}}" wx:key="*this" class="thumb" src="{{item}}" mode="aspectFill"></image>
           </view>
@@ -266,7 +302,7 @@
               <view class="info" style="background: {{activeCard.infoBg}}; color: {{activeCard.infoFg}};">
                 <text class="cnum mono" style="color: {{activeCard.infoMuted}};">NO.{{activeCard.no}} / {{totalCards}} · 附近真实餐厅</text>
                 <text class="cardName">{{activeCard.name}}</text>
-                <text class="reason" style="color: {{activeCard.infoMuted}};">{{activeCard.reason}}</text>
+                <text wx:if="{{activeCard.reason}}" class="reason" style="color: {{activeCard.infoMuted}};">{{activeCard.reason}}</text>
                 <view class="metaRow">
                   <text wx:for="{{activeCard.meta}}" wx:key="*this" class="mtag" style="background: {{activeCard.tagBg}}; color: {{activeCard.tagFg}};">{{item}}</text>
                 </view>

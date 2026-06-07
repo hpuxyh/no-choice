@@ -971,6 +971,7 @@ button.back {
 }
 
 .quickTags {
+  --quick-label-width: 70rpx;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -978,22 +979,22 @@ button.back {
 }
 
 .quickTagRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--quick-label-width) repeat(4, minmax(0, 1fr));
   align-items: center;
   gap: 14rpx;
   min-width: 0;
 }
 
 .quickTagLabel {
-  flex: none;
-  width: 70rpx;
+  width: var(--quick-label-width);
   font-size: 22rpx;
   font-weight: 950;
   color: #6b6253;
 }
 
 .quickTagRow .chip {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   min-height: 62rpx;
   padding: 0 10rpx;
@@ -1012,17 +1013,59 @@ button.back {
   border-color: #beb5a2;
 }
 
+.preferenceSliders {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  margin-top: 2rpx;
+}
+
+.preferenceSliderRow {
+  display: grid;
+  grid-template-columns: 70rpx minmax(0, 1fr);
+  align-items: center;
+  column-gap: 14rpx;
+  row-gap: 6rpx;
+  min-width: 0;
+}
+
+.preferenceSliderHead {
+  display: contents;
+}
+
+.preferenceValue {
+  justify-self: start;
+  min-width: 0;
+  padding: 6rpx 16rpx 5rpx;
+  border: 3rpx solid #66625b;
+  border-radius: 999rpx;
+  background: #fffdf6;
+  color: #1a1714;
+  font-size: 23rpx;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.preferenceSlider {
+  grid-column: 2;
+  width: 100%;
+  margin: -4rpx 0 0;
+}
+
 .voiceBox.hasInsight .intentPrompt,
 .voiceBox.hasInsight .quickTags,
+.voiceBox.hasInsight .preferenceSliders,
 .voiceBox.hasInsight .choiceNextBtn {
   display: none;
 }
 
 .choiceNextBtn {
-  width: 100%;
-  max-width: 100%;
+  width: calc(100% - 70rpx - 14rpx);
+  max-width: calc(100% - 70rpx - 14rpx);
   min-height: 90rpx;
   margin-top: 6rpx;
+  margin-left: calc(70rpx + 14rpx);
   border: 6rpx solid #1a1714;
   border-radius: 30rpx;
   background: #f6c518;
