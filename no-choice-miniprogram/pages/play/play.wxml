@@ -10,7 +10,7 @@
         <text class="lead welcomeLead">选择困难辅助器</text>
       </view>
 
-      <view class="homeHero" bindtap="goConfig">
+      <view class="homeHero" bindtap="goGame">
         <text class="homeIcon">🎮</text>
         <view class="homeIntro">
           <text class="homeKicker">不用再问“你想吃什么”。</text>
@@ -37,87 +37,7 @@
         <text class="chip on">🍜 今晚吃什么</text>
       </view>
 
-      <button class="btn red" bindtap="goConfig">🪙 插入硬币，开始挑战</button>
-    </view>
-
-    <view wx:if="{{screen == 'config'}}" class="screen configScreen active">
-      <view class="topbar">
-        <text class="badge purple mono">PLAYER SETUP</text>
-        <button class="back" bindtap="skipConfig">一键跳过 ⏭</button>
-      </view>
-
-      <text class="lead configLead">设置你的角色</text>
-      <text class="sub">欢迎来到没有选择困难的世界，请设置你的初始形象 👾</text>
-
-      <view class="setupCard">
-        <view class="avatarRow">
-          <button class="avatarSlot {{avatarLoading ? 'loading' : ''}}" bindtap="chooseAvatarPhoto">
-            <image wx:if="{{selectedAvatar}}" class="avatarPic" src="{{selectedAvatar}}" mode="aspectFill"></image>
-            <text wx:else class="avatarEmoji">{{playerEmoji}}</text>
-          </button>
-          <view class="infoCol">
-            <text class="hintRow mono">从下方图库挑一个，</text>
-            <text class="hintRow mono">或点头像上传照片生成像素头像。位置会在开局时自动获取。</text>
-          </view>
-        </view>
-
-        <scroll-view class="avatarGallery" scroll-x enhanced show-scrollbar="{{false}}">
-          <button
-            wx:for="{{avatars}}"
-            wx:key="*this"
-            class="gAv {{selectedAvatar == item ? 'on' : ''}}"
-            data-src="{{item}}"
-            bindtap="selectAvatar"
-          >
-            <image src="{{item}}" mode="aspectFill"></image>
-          </button>
-        </scroll-view>
-
-        <view class="nameRow">
-          <text class="nameLabel">姓名</text>
-          <input class="field" maxlength="12" value="{{playerName}}" bindinput="onPlayerNameInput" placeholder="给角色起个名（可跳过，写了会显示在头像旁）" />
-        </view>
-      </view>
-
-      <view class="hintCard">📊 写的越多，NPC 越懂你</view>
-
-      <view class="card profileCard">
-        <view class="pRow">
-          <text class="pLabel">性别</text>
-          <view class="segChips">
-            <button
-              wx:for="{{genders}}"
-              wx:key="*this"
-              class="chip {{selectedGender == item ? 'on' : ''}}"
-              data-value="{{item}}"
-              bindtap="selectGender"
-            >{{item}}</button>
-          </view>
-        </view>
-
-        <view class="pRow">
-          <text class="pLabel">星座</text>
-          <picker class="picker" range="{{zodiacs}}" value="{{zodiacIndex}}" data-field="zodiacIndex" bindchange="onPickerChange">
-            <view class="field sel">{{zodiacs[zodiacIndex]}}</view>
-          </picker>
-        </view>
-
-        <view class="pRow">
-          <text class="pLabel">MBTI</text>
-          <picker class="picker" range="{{mbtis}}" value="{{mbtiIndex}}" data-field="mbtiIndex" bindchange="onPickerChange">
-            <view class="field sel">{{mbtis[mbtiIndex]}}</view>
-          </picker>
-        </view>
-
-        <view class="pRow">
-          <text class="pLabel">其他</text>
-          <view class="voiceRow">
-            <input class="field customField" value="{{customNote}}" bindinput="onCustomInput" placeholder="生日 / 口味 / 忌口…" />
-          </view>
-        </view>
-      </view>
-
-      <button class="btn huge red" bindtap="finishConfig">NPC 配置完成，进入游戏 →</button>
+      <button class="btn red" bindtap="goGame">🪙 插入硬币，开始挑战</button>
     </view>
 
     <view wx:if="{{screen == 'game'}}" class="screen gameScreen active">
@@ -261,7 +181,9 @@
             <image wx:for="{{photoThumbs}}" wx:key="*this" class="thumb" src="{{item}}" mode="aspectFill"></image>
           </view>
 
-          <button class="choiceNextBtn {{choiceHasInput ? '' : 'disabled'}}" bindtap="proceedChoiceToMode">{{choiceNextText}}</button>
+          <view class="choiceActionRow">
+            <button class="choiceNextBtn {{choiceHasInput ? '' : 'disabled'}}" bindtap="proceedChoiceToMode">{{choiceNextText}}</button>
+          </view>
         </view>
       </view>
     </view>

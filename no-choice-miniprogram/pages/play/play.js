@@ -3,9 +3,6 @@ const {
   SCENE_TAGS,
   NEED_TAGS,
   MORE_TAGS,
-  GENDERS,
-  ZODIACS,
-  MBTIS,
   MODE_SETTLE_COPY,
   INFO_THEMES,
   TAG_SEARCH_KEYWORDS,
@@ -42,7 +39,6 @@ const DEFAULT_ART_THEMES = [
   { bg: "#6c5ce7", accent: "#28c76f" },
   { bg: "#3d6bff", accent: "#ff7ab8" }
 ];
-const PIXEL_AVATAR = "/assets/avatars/me-pixel.jpg";
 const CUTE = ["🍄", "👾", "🐸", "🦖", "🐤", "👻", "🤖", "🐱", "🐙", "⭐", "🎈", "🍙"];
 
 function makeTags(items) {
@@ -376,19 +372,9 @@ Page({
     bgmLabel: "🔊 开启音乐",
     bgmLoading: false,
     bgmPlaying: false,
-    avatars: Array.from({ length: 18 }, (_, i) => `/assets/avatars/av${i + 1}.png`),
     selectedAvatar: "/assets/avatars/av1.png",
-    avatarLoading: false,
     playerEmoji: CUTE[Math.floor(Math.random() * CUTE.length)],
-    playerName: "",
     playerPillName: "",
-    selectedGender: "",
-    zodiacIndex: 0,
-    mbtiIndex: 0,
-    customNote: "",
-    genders: GENDERS,
-    zodiacs: ZODIACS,
-    mbtis: MBTIS,
     sceneTags: makeTags(SCENE_TAGS),
     needTags: makeTags(NEED_TAGS),
     moreTags: makeTags(MORE_TAGS),
@@ -450,7 +436,6 @@ Page({
   onLoad() {
     this.replayDeckHistory = new Map();
     this.applySystemChrome();
-    this.restoreProfile();
     this.audio = wx.createInnerAudioContext();
     this.audio.src = "/assets/audio/choice-loop.mp3";
     this.audio.loop = true;
@@ -495,22 +480,6 @@ Page({
     clearTimeout(this.motionTimer);
   },
 
-  restoreProfile() {
-    const profile = wx.getStorageSync("choiceOverProfile");
-    if (profile && typeof profile === "object") {
-      const playerName = profile.playerName || "";
-      this.setData({
-        selectedAvatar: profile.selectedAvatar || this.data.selectedAvatar,
-        playerName,
-        playerPillName: playerName,
-        selectedGender: profile.selectedGender || this.data.selectedGender,
-        zodiacIndex: profile.zodiacIndex || 0,
-        mbtiIndex: profile.mbtiIndex || 0,
-        customNote: profile.customNote || ""
-      });
-    }
-  },
-
   toggleBgm() {
     if (!this.audio) return;
     if (this.data.bgmPlaying) {
@@ -526,75 +495,15 @@ Page({
     if (this.audio && !this.data.bgmPlaying) this.audio.play();
   },
 
-  goConfig() {
+  goGame() {
     this.startBgm();
-    this.setData({ screen: "config" });
+    this.setData({ screen: "game" });
+    this.primeLocationStatus();
   },
 
   goBackGame() {
     this.startBgm();
     this.setData({ screen: "game" });
-  },
-
-  selectAvatar(e) {
-    this.setData({ selectedAvatar: e.currentTarget.dataset.src, avatarLoading: false });
-  },
-
-  chooseAvatarPhoto() {
-    if (this.data.avatarLoading) return;
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ["image"],
-      sizeType: ["compressed"],
-      success: () => {
-        this.setData({ avatarLoading: true });
-        this.showToast("正在生成你的像素头像…");
-        setTimeout(() => {
-          this.setData({ selectedAvatar: PIXEL_AVATAR, avatarLoading: false });
-          this.showToast("像素头像已生成 ✨");
-        }, 900);
-      }
-    });
-  },
-
-  onPlayerNameInput(e) {
-    this.setData({ playerName: e.detail.value });
-  },
-
-  onCustomInput(e) {
-    this.setData({ customNote: e.detail.value });
-  },
-
-  selectGender(e) {
-    this.setData({ selectedGender: e.currentTarget.dataset.value });
-  },
-
-  onPickerChange(e) {
-    const field = e.currentTarget.dataset.field;
-    this.setData({ [field]: Number(e.detail.value) || 0 });
-  },
-
-  skipConfig() {
-    const playerEmoji = CUTE[Math.floor(Math.random() * CUTE.length)];
-    const playerName = this.data.playerName.trim().slice(0, 12);
-    this.setData({ playerEmoji, playerPillName: playerName, screen: "game" });
-    this.showToast("已用随机像素形象");
-    this.primeLocationStatus();
-  },
-
-  finishConfig() {
-    const playerName = this.data.playerName.trim().slice(0, 12);
-    const profile = {
-      selectedAvatar: this.data.selectedAvatar,
-      playerName,
-      selectedGender: this.data.selectedGender,
-      zodiacIndex: this.data.zodiacIndex,
-      mbtiIndex: this.data.mbtiIndex,
-      customNote: this.data.customNote
-    };
-    wx.setStorageSync("choiceOverProfile", profile);
-    this.setData({ playerPillName: playerName, screen: "game" });
-    this.primeLocationStatus();
   },
 
   onProblemInput(e) {
@@ -773,10 +682,6 @@ Page({
     }
   },
 
-  startCustomVoice() {
-    this.toggleVoiceInput("customNote");
-  },
-
   startChoiceVoice() {
     this.toggleVoiceInput("problem");
   },
@@ -834,11 +739,6 @@ Page({
     this.setData({ recording: false, voiceTarget: "" });
     if (!text) {
       this.showToast("没听清，再试一次");
-      return;
-    }
-    if (target === "customNote") {
-      const base = this.data.customNote.trim();
-      this.setData({ customNote: base ? `${base} ${text}` : text });
       return;
     }
     const base = this.data.problem.trim();
