@@ -1,0 +1,10 @@
+.boot {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1c1b18;
+  font-size: 32rpx;
+  font-weight: 700;
+  background: #f3ecdd;
+}
