@@ -21,7 +21,7 @@ const RESTAURANT_MEETUP_MIN_RADIUS = 4500;
 const LOCATION_SUFFIX_PATTERN = "(?:区|县|市|镇|乡|街道|商圈|机场|火车站|高铁站|大学|学院|大厦|写字楼|广场|公园|园区|CBD)";
 const RESTAURANT_ACTOR_PATTERN = "(?:我|本人|自己|朋友|对象|男朋友|女朋友|男友|女友|对方|同事|他|她|一个|一个人|另一个|另一个人|一位|另一位|第一个|第二个|第三个|第四个|A|B|a|b)";
 const RESTAURANT_LOCATION_CAPTURE = "([\\u4e00-\\u9fa5A-Za-z0-9·\\-]{2,24}?)(?=(?:附近|周边|这边|那边|吃什么|吃啥|吃点什么|吃点啥|吃饭|吃|找|搜|搜索|安排|看看|餐厅|饭店|一个|另一个|一位|另一位|第一个|第二个|第三个|第四个|两个人|三个人|几个人|折中|，|,|。|!|！|\\?|？|；|;|但|但是|不过|可是|朋友|对方|同事|他|她|我们|咱们|大家|一起|$))";
-const FOOD_SEARCH_TERMS = ["火锅", "夜宵", "烤肉", "烧烤", "日料", "日本料理", "寿司", "韩餐", "韩国料理", "泰餐", "西餐", "牛排", "意面", "披萨", "粤菜", "川菜", "湘菜", "云南菜", "云贵菜", "傣味", "菌子火锅", "过桥米线", "云南米线", "贵州菜", "东北菜", "新疆菜", "西北菜", "北京菜", "烤鸭", "本帮菜", "江浙菜", "海鲜", "素食", "轻食", "咖啡", "甜品", "brunch", "早午餐", "小酒馆", "酒吧", "烧鸟", "居酒屋", "麻辣烫", "拉面", "面馆", "米粉", "私房菜", "中餐", "餐厅"];
+const FOOD_SEARCH_TERMS = ["火锅", "夜宵", "烤肉", "烧烤", "日料", "日本料理", "寿司", "韩餐", "韩国料理", "泰餐", "西餐", "牛排", "意面", "披萨", "粤菜", "川菜", "湘菜", "云南菜", "云贵菜", "傣味", "菌子火锅", "过桥米线", "云南米线", "贵州菜", "东北菜", "新疆菜", "西北菜", "北京菜", "烤鸭", "本帮菜", "江浙菜", "海鲜", "素食", "轻食", "咖啡甜品", "咖啡", "甜品", "brunch", "早午餐", "小酒馆", "酒吧", "烧鸟", "居酒屋", "麻辣烫", "拉面", "面馆", "米粉", "私房菜", "中餐", "餐厅"];
 const GENERIC_FOOD_INTENT_TERMS = new Set(["餐厅", "夜宵"]);
 const DEFAULT_DIVERSE_RESTAURANT_INTENTS = [
   { keyword: "中餐", types: "050100" },
@@ -305,9 +305,10 @@ function buildChoiceContext(data) {
   const tags = selectedTagTexts([data.sceneTags, data.needTags, data.moreTags]);
   const partySize = Math.max(0, Math.min(20, Math.round(Number(data.partySize) || 0)));
   const budgetPerPerson = Math.max(0, Math.min(2000, Math.round(Number(data.budgetPerPerson) || 0)));
+  const hasBudgetControl = data.budgetPerPerson !== undefined && data.budgetPerPerson !== null && data.budgetPerPerson !== "";
   const controls = [
     partySize ? `共${partySize}人` : "",
-    budgetPerPerson ? `人均${budgetPerPerson}元左右` : ""
+    hasBudgetControl ? `人均${budgetPerPerson}元左右` : ""
   ].filter(Boolean).join("，");
   return {
     question: [cleanChoiceQuestion(data.problem || ""), controls].filter(Boolean).join(" "),
@@ -1098,7 +1099,7 @@ function inferRestaurantSortRule(choice) {
 
 function inferRestaurantCostRange(choice) {
   const text = cleanChoiceQuestion(`${choice.question || ""} ${(choice.tags || []).join(" ")} ${(choice.scenes || []).join(" ")} ${(choice.needs || []).join(" ")}`);
-  const rangeMatch = text.match(/人均\s*(\d{2,4})\s*(?:-|~|到|至)\s*(\d{2,4})/);
+  const rangeMatch = text.match(/人均\s*(\d{1,4})\s*(?:-|~|到|至)\s*(\d{1,4})/);
   if (rangeMatch) {
     const first = Math.round(Number(rangeMatch[1]));
     const second = Math.round(Number(rangeMatch[2]));
@@ -1109,12 +1110,12 @@ function inferRestaurantCostRange(choice) {
     const minCost = Math.max(MIN_RESTAURANT_COST, Math.round(Number(plusMatch[1])));
     return { minCost, maxCost: Math.max(300, Math.round(minCost * 2.2)) };
   }
-  const underMatch = text.match(/(?:人均|预算)?\s*(\d{2,4})\s*(?:以内|以下|内|封顶)/);
+  const underMatch = text.match(/(?:人均|预算)\s*(\d{1,4})\s*(?:元)?\s*(?:以内|以下|内|封顶|左右)?/);
   if (underMatch) {
     const maxCost = Math.round(Number(underMatch[1]));
     return { minCost: maxCost <= 90 ? 25 : 50, maxCost };
   }
-  const exactMatch = text.match(/人均\s*(\d{2,4})(?!\s*(?:-|~|到|至|\+|以上|起|以内|以下|内|封顶))/);
+  const exactMatch = text.match(/人均\s*(\d{1,4})(?!\s*(?:-|~|到|至|\+|以上|起|以内|以下|内|封顶))/);
   if (exactMatch) {
     const target = Math.round(Number(exactMatch[1]));
     return { minCost: Math.max(20, Math.round(target * 0.75)), maxCost: Math.round(target * 1.25) };

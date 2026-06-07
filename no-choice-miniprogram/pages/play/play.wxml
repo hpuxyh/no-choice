@@ -10,21 +10,31 @@
         <text class="lead welcomeLead">选择困难辅助器</text>
       </view>
 
-      <view class="coin" bindtap="goConfig">
-        <text class="emoji">🎮</text>
+      <view class="homeHero" bindtap="goConfig">
+        <text class="homeIcon">🎮</text>
+        <view class="homeIntro">
+          <text class="homeKicker">不用再问“你想吃什么”。</text>
+          <text class="homeExplain">输入一句话，AI 会把人数、预算、位置和口味拆成条件，结合附近餐厅结果，抽出 5 张可以翻牌的选择卡。</text>
+        </view>
       </view>
 
-      <view class="sub heroSub">
-        <text>把“你定 / 我随便”变成一键通关。</text>
-        <text>你的专属游戏化抉择 NPC。</text>
+      <view class="homeSteps">
+        <view class="homeStep">
+          <text class="homeStepNo mono">01</text>
+          <text>说出场景</text>
+        </view>
+        <view class="homeStep">
+          <text class="homeStepNo mono">02</text>
+          <text>AI 理解条件</text>
+        </view>
+        <view class="homeStep">
+          <text class="homeStepNo mono">03</text>
+          <text>抽卡决定</text>
+        </view>
       </view>
-
-      <view class="slogan">「让日常选择像通关一样痛快！」</view>
 
       <view class="chipwrap homeChips">
         <text class="chip on">🍜 今晚吃什么</text>
-        <text class="chip">🗺️ 周末去哪</text>
-        <text class="chip">🎁 送礼物</text>
       </view>
 
       <button class="btn red" bindtap="goConfig">🪙 插入硬币，开始挑战</button>
@@ -173,15 +183,36 @@
           <view class="quickTags">
             <view class="quickTagRow">
               <text class="quickTagLabel">场景</text>
-              <button wx:for="{{sceneTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="sceneTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+              <view class="quickTagRail">
+                <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
+                  <view class="quickTagTrack">
+                    <button wx:for="{{sceneTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="sceneTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+                  </view>
+                </scroll-view>
+                <view class="quickTagFade"></view>
+              </view>
             </view>
             <view class="quickTagRow">
               <text class="quickTagLabel">需求</text>
-              <button wx:for="{{needTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="needTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+              <view class="quickTagRail">
+                <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
+                  <view class="quickTagTrack">
+                    <button wx:for="{{needTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="needTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+                  </view>
+                </scroll-view>
+                <view class="quickTagFade"></view>
+              </view>
             </view>
             <view class="quickTagRow">
               <text class="quickTagLabel">偏好</text>
-              <button wx:for="{{moreTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="moreTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+              <view class="quickTagRail">
+                <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
+                  <view class="quickTagTrack">
+                    <button wx:for="{{moreTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="moreTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+                  </view>
+                </scroll-view>
+                <view class="quickTagFade"></view>
+              </view>
             </view>
           </view>
 
@@ -200,7 +231,7 @@
                 activeColor="#f6c518"
                 backgroundColor="#d8d0be"
                 block-color="#1a1714"
-                block-size="24"
+                block-size="30"
                 bindchanging="onPartySizeChange"
                 bindchange="onPartySizeChange"
               />
@@ -212,14 +243,14 @@
               </view>
               <slider
                 class="preferenceSlider"
-                min="50"
+                min="0"
                 max="500"
                 step="10"
                 value="{{budgetPerPerson}}"
                 activeColor="#f6c518"
                 backgroundColor="#d8d0be"
                 block-color="#1a1714"
-                block-size="24"
+                block-size="30"
                 bindchanging="onBudgetChange"
                 bindchange="onBudgetChange"
               />

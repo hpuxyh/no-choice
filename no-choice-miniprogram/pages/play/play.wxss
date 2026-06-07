@@ -306,30 +306,56 @@ button.back {
 
 /* HOME */
 .homeScreen {
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 32rpx;
 }
 
-.coin {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 210rpx;
-  max-height: 40vh;
-  width: 100%;
-  border: 6rpx solid #1a1714;
-  border-radius: 28rpx;
-  background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 16rpx, transparent 16rpx 32rpx), #f6c518;
-  box-shadow: 10rpx 10rpx 0 #1a1714;
+.homeHero {
+  flex: none;
   display: flex;
   align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  gap: 22rpx;
+  padding: 22rpx 2rpx 6rpx;
   box-sizing: border-box;
 }
 
-.coin .emoji {
-  font-size: 112rpx;
+.homeIcon {
+  flex: 0 0 118rpx;
+  width: 118rpx;
+  height: 118rpx;
+  border: 5rpx solid #1a1714;
+  border-radius: 28rpx;
+  background: #f6c518;
+  box-shadow: 7rpx 7rpx 0 #1a1714;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 58rpx;
   filter: drop-shadow(6rpx 6rpx 0 rgba(0,0,0,.25));
   animation: float 2.4s ease-in-out infinite;
+}
+
+.homeIntro {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.homeKicker {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 950;
+  line-height: 1.18;
+}
+
+.homeExplain {
+  display: block;
+  color: #6b6253;
+  font-size: 25rpx;
+  font-weight: 800;
+  line-height: 1.48;
 }
 
 @keyframes float {
@@ -337,28 +363,54 @@ button.back {
   50% { transform: translateY(-14rpx); }
 }
 
-.slogan {
+.homeSteps {
   flex: none;
-  padding: 18rpx 24rpx;
-  border: 4rpx dashed #1a1714;
-  border-radius: 22rpx;
-  background: rgba(255,255,255,.4);
-  font-size: 28rpx;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.homeStep {
+  min-width: 0;
+  min-height: 78rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7rpx;
+  padding: 0 14rpx;
+  border-left: 5rpx solid #1a1714;
+  color: #1a1714;
+  box-sizing: border-box;
+}
+
+.homeStepNo {
+  color: #d24b32;
+  font-size: 18rpx;
+  line-height: 1;
+}
+
+.homeStep text:last-child {
+  font-size: 24rpx;
   font-weight: 950;
-  line-height: 1.35;
+  line-height: 1.16;
 }
 
 .homeChips {
   display: flex;
   gap: 16rpx;
   flex-wrap: nowrap;
+  margin-top: 8rpx;
 }
 
 .homeChips .chip {
-  flex: 1;
-  min-width: 0;
-  padding: 0 8rpx;
-  font-size: 23rpx;
+  flex: none;
+  min-width: 218rpx;
+  padding: 0 20rpx;
+  font-size: 25rpx;
+}
+
+.homeScreen .btn {
+  margin-top: auto;
 }
 
 /* CONFIG */
@@ -970,41 +1022,84 @@ button.back {
   color: #6f675a;
 }
 
+.voiceBox {
+  --quick-label-width: 68rpx;
+  --quick-column-gap: 12rpx;
+}
+
 .quickTags {
-  --quick-label-width: 70rpx;
   flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
+  display: grid;
+  gap: 12rpx;
+  padding: 16rpx 16rpx 14rpx;
+  border: 3rpx solid rgba(26,23,20,.14);
+  border-radius: 24rpx;
+  background: rgba(255,253,246,.54);
 }
 
 .quickTagRow {
   display: grid;
-  grid-template-columns: var(--quick-label-width) repeat(4, minmax(0, 1fr));
+  grid-template-columns: var(--quick-label-width) minmax(0, 1fr);
   align-items: center;
-  gap: 14rpx;
+  column-gap: var(--quick-column-gap);
   min-width: 0;
 }
 
 .quickTagLabel {
   width: var(--quick-label-width);
-  font-size: 22rpx;
+  font-size: 21rpx;
   font-weight: 950;
   color: #6b6253;
+  line-height: 1.1;
+}
+
+.quickTagRail {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.quickTagScroller {
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.quickTagFade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 42rpx;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255,253,246,0), rgba(255,253,246,.92));
+}
+
+.quickTagTrack {
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 100%;
+  padding-right: 42rpx;
+  box-sizing: border-box;
 }
 
 .quickTagRow .chip {
-  width: 100%;
-  min-width: 0;
-  min-height: 62rpx;
-  padding: 0 10rpx;
+  flex: 0 0 132rpx;
+  width: 132rpx;
+  min-width: 132rpx;
+  min-height: 58rpx;
+  padding: 0 8rpx;
   border-width: 3rpx;
   border-color: #66625b;
   border-radius: 999rpx;
   background: #fffdf6;
   box-shadow: none;
-  font-size: 26rpx;
+  font-size: 24rpx;
   font-weight: 950;
+  line-height: 1.08;
+  white-space: nowrap;
 }
 
 .quickTagRow .chip.on {
@@ -1015,17 +1110,20 @@ button.back {
 
 .preferenceSliders {
   flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
-  margin-top: 2rpx;
+  display: grid;
+  gap: 12rpx;
+  margin-top: 0;
+  padding: 16rpx;
+  border: 3rpx solid rgba(26,23,20,.12);
+  border-radius: 24rpx;
+  background: rgba(246,239,224,.68);
 }
 
 .preferenceSliderRow {
   display: grid;
-  grid-template-columns: 70rpx minmax(0, 1fr);
+  grid-template-columns: var(--quick-label-width) minmax(0, 1fr);
   align-items: center;
-  column-gap: 14rpx;
+  column-gap: var(--quick-column-gap);
   row-gap: 6rpx;
   min-width: 0;
 }
@@ -1037,20 +1135,25 @@ button.back {
 .preferenceValue {
   justify-self: start;
   min-width: 0;
-  padding: 6rpx 16rpx 5rpx;
+  padding: 6rpx 15rpx 5rpx;
   border: 3rpx solid #66625b;
   border-radius: 999rpx;
   background: #fffdf6;
   color: #1a1714;
-  font-size: 23rpx;
+  font-size: 22rpx;
   font-weight: 950;
   line-height: 1.1;
+  white-space: nowrap;
 }
 
 .preferenceSlider {
   grid-column: 2;
   width: 100%;
-  margin: -4rpx 0 0;
+  min-height: 44rpx;
+  margin: -6rpx 0 -4rpx;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .voiceBox.hasInsight .intentPrompt,
@@ -1061,11 +1164,11 @@ button.back {
 }
 
 .choiceNextBtn {
-  width: calc(100% - 70rpx - 14rpx);
-  max-width: calc(100% - 70rpx - 14rpx);
+  width: calc(100% - var(--quick-label-width) - var(--quick-column-gap));
+  max-width: calc(100% - var(--quick-label-width) - var(--quick-column-gap));
   min-height: 90rpx;
   margin-top: 6rpx;
-  margin-left: calc(70rpx + 14rpx);
+  margin-left: calc(var(--quick-label-width) + var(--quick-column-gap));
   border: 6rpx solid #1a1714;
   border-radius: 30rpx;
   background: #f6c518;
@@ -2410,7 +2513,12 @@ button.pipeBtn,
 @media (max-height: 760px) {
   .screen { gap: 14rpx; padding-top: var(--page-top, 24rpx); padding-left: 24rpx; padding-right: 24rpx; padding-bottom: 24rpx; }
   .welcomeLead { font-size: 50rpx; }
-  .coin { min-height: 180rpx; }
+  .homeScreen { gap: 22rpx; }
+  .homeHero { padding-top: 12rpx; }
+  .homeIcon { flex-basis: 104rpx; width: 104rpx; height: 104rpx; font-size: 52rpx; }
+  .homeKicker { font-size: 31rpx; }
+  .homeExplain { font-size: 23rpx; }
+  .homeStep { min-height: 68rpx; }
   .micBig { min-height: 96rpx; font-size: 25rpx; }
   .voicePrimary { font-size: 30rpx; }
   .gameHero, .voiceBox { gap: 16rpx; }
@@ -2421,7 +2529,8 @@ button.pipeBtn,
   .composerInput { height: 166rpx; min-height: 166rpx; font-size: 27rpx; }
   .composerMic { flex-basis: 96rpx; width: 96rpx; min-width: 96rpx; max-width: 96rpx; min-height: 166rpx; font-size: 22rpx; }
   .locationStatus { min-height: 68rpx; max-height: 90rpx; font-size: 24rpx; }
-  .quickTagRow .chip { font-size: 23rpx; min-height: 56rpx; }
+  .quickTags, .preferenceSliders { padding: 14rpx; gap: 10rpx; }
+  .quickTagRow .chip { font-size: 23rpx; min-height: 54rpx; }
   .choiceNextBtn { min-height: 82rpx; font-size: 28rpx; }
   .deckControls {
     height: 166rpx;

@@ -8,6 +8,7 @@ const {
   MBTIS,
   MODE_SETTLE_COPY,
   INFO_THEMES,
+  TAG_SEARCH_KEYWORDS,
   randomSlogan
 } = require("../../utils/choiceData");
 
@@ -337,6 +338,11 @@ function planRestaurantText(choice) {
   if (/约会|对象|男朋友|女朋友|男友|女友/.test(text) || tags.includes("约会吃饭")) values.push("约会餐厅", "西餐", "日料");
   if (/朋友|聚餐/.test(text) || tags.includes("朋友聚餐")) values.push("聚餐餐厅");
   MORE_TAGS.forEach((tag) => { if (tags.includes(tag) || text.includes(tag)) values.push(tag); });
+  tags.forEach((tag) => {
+    (TAG_SEARCH_KEYWORDS[tag] || []).forEach((keyword) => {
+      if (keyword !== "餐厅") values.push(keyword);
+    });
+  });
   if (/安静|好聊/.test(text) || tags.includes("安静好聊")) values.push("安静餐厅");
   if (/夜宵|宵夜/.test(text) || tags.includes("夜宵")) values.push("夜宵", "烧烤");
   return uniq(values).slice(0, 6).join("、") || "餐厅";
@@ -626,8 +632,9 @@ Page({
   },
 
   onBudgetChange(e) {
-    const raw = Math.round((Number(e.detail.value) || 150) / 10) * 10;
-    const value = Math.max(50, Math.min(500, raw));
+    const numeric = Number(e.detail.value);
+    const raw = Math.round((Number.isFinite(numeric) ? numeric : 150) / 10) * 10;
+    const value = Math.max(0, Math.min(500, raw));
     this.setData({ budgetPerPerson: value, showVoiceInsight: false }, () => this.updateChoiceNextAction());
     this.invalidateRestaurantContext();
   },
