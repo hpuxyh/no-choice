@@ -56,7 +56,74 @@
       "locationHints": [],
       "currentPlusFriendMeetup": false,
       "radiusMeters": 5000,
+      "typeDiversity": false,
+      "keywordsIncludes": "烤肉",
       "distanceIncludes": "5km内"
+    }
+  },
+  {
+    "id": "generic-dinner-diverse-types",
+    "input": "今天想吃饭",
+    "tags": [],
+    "expected": {
+      "locationHints": [],
+      "currentPlusFriendMeetup": false,
+      "typeDiversity": true,
+      "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"]
+    }
+  },
+  {
+    "id": "generic-meetup-diverse-types",
+    "input": "朋友聚餐 我的另外一个朋友在苏州街",
+    "tags": ["朋友聚餐"],
+    "expected": {
+      "locationHints": ["苏州街"],
+      "currentPlusFriendMeetup": true,
+      "typeDiversity": true,
+      "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "middleIncludes": "取中间点",
+      "distanceIncludes": "苏州街取中间点"
+    }
+  },
+  {
+    "id": "generic-date-remote-plan-diverse-types",
+    "input": "约会吃饭",
+    "tags": ["约会吃饭"],
+    "remotePlan": {
+      "keywords": ["约会餐厅", "西餐", "日料"],
+      "searchRequests": [
+        { "keyword": "约会餐厅" },
+        { "keyword": "西餐" },
+        { "keyword": "日料" }
+      ],
+      "radiusMeters": 5000,
+      "source": "deepseek"
+    },
+    "expected": {
+      "locationHints": [],
+      "currentPlusFriendMeetup": false,
+      "typeDiversity": true,
+      "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "remotePlan": {
+        "typeDiversity": true,
+        "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+        "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"]
+      }
+    }
+  },
+  {
+    "id": "explicit-hotpot-keeps-type",
+    "input": "想吃火锅",
+    "tags": ["火锅"],
+    "expected": {
+      "locationHints": [],
+      "currentPlusFriendMeetup": false,
+      "typeDiversity": false,
+      "keywordsIncludes": "火锅",
+      "searchRequestKeywords": ["火锅"]
     }
   }
 ]

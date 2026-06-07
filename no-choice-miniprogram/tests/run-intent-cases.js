@@ -16,10 +16,28 @@ function buildChoice(testCase) {
   };
 }
 
+function assertPlanExpectations(testCase, plan, expected, label = "plan") {
+  if ("typeDiversity" in expected) {
+    assert.strictEqual(Boolean(plan.restaurantTypeDiversity), expected.typeDiversity, `${testCase.id}: ${label} type diversity mismatch`);
+  }
+  if (expected.keywords) {
+    assert.deepStrictEqual(plan.keywords, expected.keywords, `${testCase.id}: ${label} keywords mismatch`);
+  }
+  if (expected.keywordsIncludes) {
+    assert(plan.keywords.includes(expected.keywordsIncludes), `${testCase.id}: ${label} keywords should include ${expected.keywordsIncludes}, got ${plan.keywords.join(",")}`);
+  }
+  if (expected.searchRequestKeywords) {
+    assert.deepStrictEqual((plan.searchRequests || []).map((request) => request.keyword), expected.searchRequestKeywords, `${testCase.id}: ${label} search request keywords mismatch`);
+  }
+}
+
 for (const testCase of cases) {
   const choice = buildChoice(testCase);
   const localPlan = engine.__test.localRestaurantSearchPlan(choice);
   const plan = engine.__test.ensureRestaurantMeetupPlanForMode(localPlan, choice);
+  const remotePlan = testCase.remotePlan
+    ? engine.__test.ensureRestaurantMeetupPlanForMode(engine.__test.normalizeRestaurantSearchPlan(testCase.remotePlan, choice), choice)
+    : null;
   const locationHints = engine.__test.extractedRestaurantParticipantLocationNames(choice);
   const currentPlusFriendMeetup = engine.__test.shouldUseCurrentLocationForMeetup(choice, locationHints);
   const destination = engine.__test.extractRestaurantDestinationHint(choice);
@@ -53,10 +71,20 @@ for (const testCase of cases) {
   if (expected.distanceIncludes) {
     assert(distance.includes(expected.distanceIncludes), `${testCase.id}: distance text should include ${expected.distanceIncludes}, got ${distance}`);
   }
+  assertPlanExpectations(testCase, plan, expected);
+  if (remotePlan && expected.remotePlan) {
+    assertPlanExpectations(testCase, remotePlan, expected.remotePlan, "remote plan");
+  }
 
   console.log(JSON.stringify({
     id: testCase.id,
     question: choice.question,
+    keywords: plan.keywords,
+    searchRequestKeywords: (plan.searchRequests || []).map((request) => request.keyword),
+    restaurantTypeDiversity: Boolean(plan.restaurantTypeDiversity),
+    remoteKeywords: remotePlan ? remotePlan.keywords : [],
+    remoteSearchRequestKeywords: remotePlan ? (remotePlan.searchRequests || []).map((request) => request.keyword) : [],
+    remoteRestaurantTypeDiversity: remotePlan ? Boolean(remotePlan.restaurantTypeDiversity) : false,
     locationHints,
     currentPlusFriendMeetup,
     locationHint: plan.locationHint || "",

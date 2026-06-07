@@ -247,6 +247,7 @@
                     <text class="photoChip">{{item.label}}</text>
                   </swiper-item>
                 </swiper>
+                <view class="photoDetailHint">点击查看详情</view>
                 <view wx:if="{{activeCard.photoSlides.length > 1}}" class="photoDots">
                   <text wx:for="{{activeCard.photoSlides}}" wx:key="url" class="photoDot {{index == 0 ? 'on' : ''}}"></text>
                 </view>
@@ -340,12 +341,12 @@
 
   <view wx:if="{{showPoiDetail}}" class="poiDetail">
       <view class="poiDetailCard">
-        <view class="poiDetailHero">
+        <view class="poiDetailHero" bindtap="previewDetailHeroPhoto">
         <image wx:if="{{detailCard.image}}" class="poiDetailHeroImage" src="{{detailCard.image}}" mode="aspectFill" data-url="{{detailCard.image}}" binderror="onDetailImageError"></image>
         <view class="poiDetailHeroShade"></view>
         <view class="poiDetailTop">
           <text class="poiDetailBadge mono">SHOP DETAIL</text>
-          <button class="detailClose" bindtap="closePoiDetail">×</button>
+          <button class="detailClose" catchtap="closePoiDetail">×</button>
         </view>
         <text class="detailName">{{detailCard.name}}</text>
       </view>
@@ -385,7 +386,7 @@
           </view>
         </view>
         <scroll-view wx:if="{{detailCard.detailPhotos && detailCard.detailPhotos.length}}" class="detailPhotoStrip" scroll-x enhanced show-scrollbar="{{false}}">
-          <view wx:for="{{detailCard.detailPhotos}}" wx:key="url" class="detailPhoto {{index == detailPhotoIndex ? 'active' : ''}}" data-url="{{item.url}}" data-index="{{index}}" bindtap="selectDetailPhoto">
+          <view wx:for="{{detailCard.detailPhotos}}" wx:key="url" class="detailPhoto {{index == detailPhotoIndex ? 'active' : ''}}" data-url="{{item.url}}" data-index="{{index}}" bindtap="previewDetailPhoto">
             <image src="{{item.url}}" mode="aspectFill" data-url="{{item.url}}" binderror="onDetailImageError"></image>
             <text>{{item.label}}</text>
           </view>

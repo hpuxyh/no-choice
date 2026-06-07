@@ -3117,6 +3117,25 @@ button.detailClose,
   overflow: hidden !important;
 }
 
+.photoDetailHint {
+  position: absolute;
+  top: 18rpx;
+  right: 18rpx;
+  z-index: 7;
+  max-width: 190rpx;
+  padding: 8rpx 14rpx 7rpx;
+  border: 3rpx solid rgba(255,250,242,.92);
+  border-radius: 999rpx;
+  background: rgba(26,23,20,.76);
+  color: #fffaf2;
+  font-size: 20rpx;
+  font-weight: 950;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 4rpx 4rpx 0 rgba(26,23,20,.36);
+}
+
 .poiDetailTop {
   padding-right: 0 !important;
   align-items: center;

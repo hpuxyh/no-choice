@@ -22,6 +22,14 @@ const LOCATION_SUFFIX_PATTERN = "(?:区|县|市|镇|乡|街道|商圈|机场|火
 const RESTAURANT_ACTOR_PATTERN = "(?:我|本人|自己|朋友|对象|男朋友|女朋友|男友|女友|对方|同事|他|她|一个|一个人|另一个|另一个人|一位|另一位|第一个|第二个|第三个|第四个|A|B|a|b)";
 const RESTAURANT_LOCATION_CAPTURE = "([\\u4e00-\\u9fa5A-Za-z0-9·\\-]{2,24}?)(?=(?:附近|周边|这边|那边|吃什么|吃啥|吃点什么|吃点啥|吃饭|吃|找|搜|搜索|安排|看看|餐厅|饭店|一个|另一个|一位|另一位|第一个|第二个|第三个|第四个|两个人|三个人|几个人|折中|，|,|。|!|！|\\?|？|；|;|但|但是|不过|可是|朋友|对方|同事|他|她|我们|咱们|大家|一起|$))";
 const FOOD_SEARCH_TERMS = ["火锅", "夜宵", "烤肉", "烧烤", "日料", "日本料理", "寿司", "韩餐", "韩国料理", "泰餐", "西餐", "牛排", "意面", "披萨", "粤菜", "川菜", "湘菜", "云南菜", "云贵菜", "傣味", "菌子火锅", "过桥米线", "云南米线", "贵州菜", "东北菜", "新疆菜", "西北菜", "北京菜", "烤鸭", "本帮菜", "江浙菜", "海鲜", "素食", "轻食", "咖啡", "甜品", "brunch", "早午餐", "小酒馆", "酒吧", "烧鸟", "居酒屋", "麻辣烫", "拉面", "面馆", "米粉", "私房菜", "中餐", "餐厅"];
+const GENERIC_FOOD_INTENT_TERMS = new Set(["餐厅", "夜宵"]);
+const DEFAULT_DIVERSE_RESTAURANT_INTENTS = [
+  { keyword: "中餐", types: "050100" },
+  { keyword: "火锅", types: "050117" },
+  { keyword: "西餐", types: "050200" },
+  { keyword: "日料", types: "050200" },
+  { keyword: "烧烤", types: "050100" }
+];
 const ART_COLORS = ["#ff5a4d", "#28c76f", "#f6c518", "#6c5ce7", "#3d6bff"];
 const ART_THEMES = [
   { match: /火锅|麻辣|川|湘|串串|烤鱼|辣/, bg: "#ff5a4d", accent: "#f6c518" },
@@ -522,6 +530,7 @@ function normalizeRestaurantSearchPlan(plan, choice) {
   resolved.needsCompanionLocation = needsRestaurantCompanionLocation(choice, resolved);
   resolved.searchRequests = normalizePlanSearchRequests(source.searchRequests || source.queries || source.queryIntents, resolved.keywords, resolved)
     .map((request) => ({ ...request, radiusMeters: Math.min(request.radiusMeters, resolved.radiusMeters) }));
+  applyDefaultRestaurantTypeDiversity(resolved, choice);
   if (multiParticipantMeetup) {
     resolved.region = restaurantCityLabelFromText(resolved.region) ? resolved.region : "";
     resolved.cityLimit = Boolean(resolved.region && resolved.cityLimit);
@@ -569,7 +578,39 @@ function localRestaurantSearchPlan(choice, { forceGeneric = false } = {}) {
   };
   plan.needsCompanionLocation = needsRestaurantCompanionLocation(choice, plan);
   plan.searchRequests = normalizePlanSearchRequests([], plan.keywords, plan);
+  applyDefaultRestaurantTypeDiversity(plan, choice);
   return plan;
+}
+
+function applyDefaultRestaurantTypeDiversity(plan, choice = {}) {
+  if (!plan || hasExplicitRestaurantFoodPreference(choice)) return false;
+  const intents = DEFAULT_DIVERSE_RESTAURANT_INTENTS;
+  plan.restaurantTypeDiversity = true;
+  plan.keywords = intents.map((item) => item.keyword);
+  plan.types = "050000";
+  plan.searchRequests = intents.map((item, index) => ({
+    keyword: item.keyword,
+    types: normalizeAmapTypes(item.types || inferRestaurantAmapTypes(item.keyword)),
+    radiusMeters: normalizeAmapRadius(plan.radiusMeters || 3500),
+    sortrule: normalizeAmapSortRule(plan.sortrule),
+    region: cleanRestaurantKeyword(plan.region || ""),
+    cityLimit: Boolean(plan.cityLimit && plan.region),
+    showFields: normalizeAmapShowFields(plan.showFields),
+    priority: index + 1
+  }));
+  return true;
+}
+
+function hasExplicitRestaurantFoodPreference(choice = {}) {
+  const tags = Array.isArray(choice.tags) ? choice.tags : [];
+  if (tags.some((tag) => MORE_TAGS.includes(tag))) return true;
+  const sourceText = cleanChoiceQuestion(`${choice.question || ""} ${tags.join(" ")}`);
+  const normalizedText = normalizeMatchText(sourceText);
+  return FOOD_SEARCH_TERMS.some((term) => {
+    if (GENERIC_FOOD_INTENT_TERMS.has(term)) return false;
+    const key = normalizeMatchText(term);
+    return key && normalizedText.includes(key);
+  });
 }
 
 function restaurantSearchKeywords(choice) {

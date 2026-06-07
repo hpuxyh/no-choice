@@ -21,7 +21,17 @@ const {
   buildRestaurantIntentPreview
 } = require("../../utils/restaurantEngine");
 
-const speechPlugin = null;
+function loadSpeechPlugin() {
+  if (typeof requirePlugin !== "function") return null;
+  try {
+    return requirePlugin("WechatSI");
+  } catch (error) {
+    console.warn("WechatSI plugin unavailable", error);
+    return null;
+  }
+}
+
+const speechPlugin = loadSpeechPlugin();
 
 const TOTAL = POOL.length;
 const DEFAULT_ART_THEMES = [
@@ -422,6 +432,7 @@ Page({
     this.audio.onPlay(() => this.setData({ bgmPlaying: true, bgmLoading: false, bgmLabel: "🔊 播放中" }));
     this.audio.onError(() => this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: "🔊 开启音乐" }));
     this.voiceManager = null;
+    this.setupVoiceRecognizer();
   },
 
   applySystemChrome() {
@@ -688,11 +699,17 @@ Page({
     const manager = speechPlugin.getRecordRecognitionManager();
     this.voiceManager = manager;
     manager.onStart(() => {
+      this.voiceLastResult = "";
       this.setData({ recording: true });
       this.showToast("正在听，再点一次结束");
     });
-    manager.onStop((res) => {
+    manager.onRecognize((res) => {
       const text = String(res && res.result || "").trim();
+      if (text) this.voiceLastResult = text;
+    });
+    manager.onStop((res) => {
+      const text = String(res && res.result || this.voiceLastResult || "").trim();
+      this.voiceLastResult = "";
       this.finishVoiceText(text);
     });
     manager.onError((err) => {
@@ -725,8 +742,9 @@ Page({
       this.stopVoiceRecognizer();
       return;
     }
+    if (!this.voiceManager) this.setupVoiceRecognizer();
     if (!this.voiceManager) {
-      this.showToast("语音需先开通插件权限，先用文字输入");
+      this.showToast("语音插件未生效，请确认后台已添加同声传译");
       return;
     }
     this.ensureRecordPermission()
@@ -1349,6 +1367,48 @@ Page({
     this.setData({
       detailPhotoIndex: index,
       detailCard: { ...this.data.detailCard, image: url }
+    });
+  },
+
+  previewDetailHeroPhoto() {
+    const current = normalizeImageUrl(this.data.detailCard && this.data.detailCard.image);
+    this.previewDetailImage(current);
+  },
+
+  previewDetailPhoto(event) {
+    const index = Number(event.currentTarget.dataset.index) || 0;
+    const url = event.currentTarget.dataset.url || "";
+    if (!url || !this.data.detailCard) return;
+    this.setData({
+      detailPhotoIndex: index,
+      detailCard: { ...this.data.detailCard, image: url }
+    });
+    this.previewDetailImage(url);
+  },
+
+  previewDetailImage(currentUrl = "") {
+    const detailCard = this.data.detailCard;
+    const current = normalizeImageUrl(currentUrl || (detailCard && detailCard.image));
+    const seen = new Set();
+    const urls = []
+      .concat((detailCard && detailCard.detailPhotos) || [])
+      .concat((detailCard && detailCard.photoSlides) || [])
+      .concat((detailCard && detailCard.photoGallery) || [])
+      .concat((detailCard && detailCard.image) || [])
+      .map(normalizeImageUrl)
+      .filter((url) => {
+        if (!url || seen.has(url)) return false;
+        seen.add(url);
+        return true;
+      });
+    if (!current || !urls.length) return;
+    if (!seen.has(current)) urls.unshift(current);
+    wx.previewImage({
+      current,
+      urls,
+      fail: () => {
+        wx.showToast({ title: "图片暂时打不开", icon: "none" });
+      }
     });
   },
 

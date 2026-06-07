@@ -13,6 +13,15 @@
   "permission": {
     "scope.userLocation": {
       "desc": "用于为你推荐附近餐厅，并生成可导航的抽卡结果"
+    },
+    "scope.record": {
+      "desc": "用于语音输入你的吃饭需求"
+    }
+  },
+  "plugins": {
+    "WechatSI": {
+      "version": "0.3.5",
+      "provider": "wx069ba97219f66d99"
     }
   },
   "requiredPrivateInfos": [
