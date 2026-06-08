@@ -1546,16 +1546,7 @@ Page({
   },
 
   openDetailAmapLink() {
-    const card = this.data.detailCard;
-    const url = card && (card.orderUrl || card.navUrl);
-    if (!url) {
-      wx.showToast({ title: "暂无高德链接", icon: "none" });
-      return;
-    }
-    wx.setClipboardData({
-      data: url,
-      success: () => wx.showToast({ title: "已复制高德链接", icon: "none" })
-    });
+    this.openCardNavigation(this.data.detailCard);
   },
 
   stopCardTouch() {},

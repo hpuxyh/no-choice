@@ -504,11 +504,14 @@ function normalizeRestaurantSearchPlan(plan, choice) {
     sourceIncludesCurrentLocation ? sourceCurrentLocationHints : []
   );
   const fallbackLocationHints = extractedRestaurantParticipantLocationNames(choice);
+  const forceCurrentPlusFallbackMeetup = shouldUseCurrentLocationForMeetup(choice, fallbackLocationHints);
   const keywordLocationHints = restaurantLocationHintsFromKeywords(rawKeywords, choice);
   const resolvedLocationHints = participantTargets.length >= 2
     ? participantTargets
+    : forceCurrentPlusFallbackMeetup
+      ? fallbackLocationHints
     : uniqueRestaurantLocationHints([...locationHints, ...fallbackLocationHints, ...keywordLocationHints]);
-  const currentPlusFriendMeetup = shouldUseCurrentLocationForMeetup(choice, resolvedLocationHints);
+  const currentPlusFriendMeetup = forceCurrentPlusFallbackMeetup || shouldUseCurrentLocationForMeetup(choice, resolvedLocationHints);
   const multiParticipantMeetup = participantTargets.length >= 2 || resolvedLocationHints.length >= 2 || currentPlusFriendMeetup || (sourceIncludesCurrentLocation && resolvedLocationHints.length >= 1);
   const includeCurrentLocationInMeetup = Boolean(sourceIncludesCurrentLocation || (currentPlusFriendMeetup && resolvedLocationHints.length === 1));
   const meetupParticipantCount = resolvedLocationHints.length + (includeCurrentLocationInMeetup ? 1 : 0);
@@ -519,6 +522,9 @@ function normalizeRestaurantSearchPlan(plan, choice) {
   const sourceLocationHint = multiParticipantMeetup ? "" : cleanRestaurantDestinationHint(source.locationHint || source.destinationHint || source.destination || source.area || source.landmark || "");
   const resolvedMinCost = Number.isFinite(minCost) ? minCost : fallback.minCost;
   const fallbackMaxCost = fallback.maxCost && (!resolvedMinCost || fallback.maxCost >= resolvedMinCost) ? fallback.maxCost : 0;
+  const resolvedRadiusMeters = explicitRadius || (forceCurrentPlusFallbackMeetup
+    ? normalizeAmapRadius(fallback.radiusMeters, fallback.radiusMeters)
+    : normalizeAmapRadius(radius, fallback.radiusMeters));
   const declaredTypes = source.types || source.typeCodes || source.amapTypes || amapFields.types || amapFields.typeCodes;
   const inferredTypes = inferRestaurantAmapTypes([choice.question, choice.tags, keywords, source.restaurantTypeIntent, source.typeIntent].flat().join(" "));
   const broadSceneTypes = (keywords.length ? keywords : fallback.keywords).some((keyword) => isBroadRestaurantSceneKeyword(keyword)) ? "050000" : "";
@@ -539,7 +545,7 @@ function normalizeRestaurantSearchPlan(plan, choice) {
     keywords: keywords.length ? keywords : fallback.keywords,
     minCost: resolvedMinCost,
     maxCost: Number.isFinite(maxCost) && (!resolvedMinCost || maxCost >= resolvedMinCost) ? maxCost : fallbackMaxCost,
-    radiusMeters: explicitRadius || normalizeAmapRadius(radius, fallback.radiusMeters),
+    radiusMeters: resolvedRadiusMeters,
     types: mergeAmapTypes(declaredTypes, inferredTypes !== "050000" ? inferredTypes : "", broadSceneTypes),
     sortrule: normalizeAmapSortRule(source.sortrule || source.sortRule || amapFields.sortrule || amapFields.sortRule || fallback.sortrule),
     region: cleanRestaurantKeyword(source.region || amapFields.region || source.city || source.locationIntent?.region || source.locationIntent?.street || ""),
@@ -724,6 +730,7 @@ function isInvalidRestaurantLocationHint(value) {
   if (/^(你|我|本人|自己|你自己|我自己|当前位置|当前定位|定位地址|定位|gps|已定位|已获取)$/.test(key)) return true;
   if (/^(朋友|我朋友|我的朋友|对象|男朋友|女朋友|男友|女友|对方|同事|同伴|同伴\d+|伙伴|伙伴\d+|客户|同学|室友|搭子|家人|亲戚)$/.test(key)) return true;
   if (/^(a|b|c|d|甲|乙|丙|丁)$/.test(key)) return true;
+  if (/^(共)?\d+(?:到|-)?\d*人$/.test(key) || /^(一|二|两|三|四|五|六|七|八|九|十)+人$/.test(key)) return true;
   if (/^(们|我们|咱们|大家|一起|一块|今晚|晚上|明天|今天|中午|下午|早上|周末)$/.test(key)) return true;
   return /(?:你自己|我自己|自己|当前位置|当前定位).{0,8}(?:获取|定位|拿到)/.test(key);
 }

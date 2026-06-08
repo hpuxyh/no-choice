@@ -460,7 +460,7 @@
                 <view class="metaRow">
                   <text wx:for="{{activeCard.meta}}" wx:key="*this" class="mtag" style="background: {{activeCard.tagBg}}; color: {{activeCard.tagFg}};">{{item}}</text>
                 </view>
-                <button wx:if="{{activeCard.location || activeCard.navLocation}}" class="navMini" catchtouchstart="stopCardTouch" catchtouchmove="stopCardTouch" catchtouchend="stopCardTouch" catchtap="openActiveCardNavigation">
+                <button wx:if="{{activeCard.location || activeCard.navLocation || activeCard.poi.location || activeCard.poi.navLocation}}" class="navMini" catchtouchstart="stopCardTouch" catchtouchmove="stopCardTouch" catchtouchend="stopCardTouch" catchtap="openActiveCardNavigation">
                   <text class="navMiniIcon">📍</text>
                   <text class="navMiniText">去导航</text>
                 </button>
@@ -584,8 +584,8 @@
           </view>
         </view>
         <view class="detailActions">
-          <button wx:if="{{detailCard.location || detailCard.navLocation}}" class="btn alt" bindtap="openDetailNavigation">📍 去导航</button>
-          <button class="btn ghost" bindtap="openDetailAmapLink">打开高德</button>
+          <button wx:if="{{detailCard.location || detailCard.navLocation || detailCard.poi.location || detailCard.poi.navLocation}}" class="btn alt" bindtap="openDetailNavigation">📍 去导航</button>
+          <button wx:if="{{detailCard.location || detailCard.navLocation || detailCard.poi.location || detailCard.poi.navLocation}}" class="btn ghost" bindtap="openDetailAmapLink">打开地图</button>
         </view>
       </scroll-view>
     </view>

@@ -17,6 +17,18 @@ function buildChoice(testCase) {
 }
 
 function assertPlanExpectations(testCase, plan, expected, label = "plan") {
+  if (expected.locationHints) {
+    assert.deepStrictEqual(plan.locationHints || [], expected.locationHints, `${testCase.id}: ${label} location hints mismatch`);
+  }
+  if ("includeCurrentLocationInMeetup" in expected) {
+    assert.strictEqual(Boolean(plan.includeCurrentLocationInMeetup), expected.includeCurrentLocationInMeetup, `${testCase.id}: ${label} current location meetup mismatch`);
+  }
+  if ("locationHint" in expected) {
+    assert.strictEqual(plan.locationHint || "", expected.locationHint, `${testCase.id}: ${label} locationHint mismatch`);
+  }
+  if ("radiusMeters" in expected) {
+    assert.strictEqual(plan.radiusMeters, expected.radiusMeters, `${testCase.id}: ${label} radius mismatch`);
+  }
   if ("typeDiversity" in expected) {
     assert.strictEqual(Boolean(plan.restaurantTypeDiversity), expected.typeDiversity, `${testCase.id}: ${label} type diversity mismatch`);
   }

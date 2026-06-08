@@ -25,6 +25,40 @@
     }
   },
   {
+    "id": "friend-at-guomao-overrides-bad-remote-location",
+    "input": "标签：朋友聚餐 朋友在国贸",
+    "tags": ["朋友聚餐"],
+    "remotePlan": {
+      "keywords": ["中餐", "火锅", "西餐"],
+      "locationHints": ["道酒仙桥路", "共2人"],
+      "includeCurrentLocationInMeetup": true,
+      "locationIntent": {
+        "strategy": "midpoint",
+        "participantLocations": ["道酒仙桥路", "共2人"],
+        "totalParticipantCount": 2
+      },
+      "radiusMeters": 30000,
+      "source": "deepseek"
+    },
+    "expected": {
+      "questionIncludes": "朋友在国贸",
+      "locationHints": ["国贸"],
+      "currentPlusFriendMeetup": true,
+      "locationHint": "",
+      "middleIncludes": "取中间点",
+      "distanceIncludes": "国贸取中间点",
+      "remotePlan": {
+        "locationHints": ["国贸"],
+        "includeCurrentLocationInMeetup": true,
+        "locationHint": "",
+        "radiusMeters": 10000,
+        "typeDiversity": true,
+        "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+        "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"]
+      }
+    }
+  },
+  {
     "id": "date-location-inline",
     "input": "约会吃饭 女朋友在国贸",
     "tags": ["约会吃饭"],
