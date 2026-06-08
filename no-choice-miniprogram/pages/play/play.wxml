@@ -416,6 +416,7 @@
               <view class="loadingBar" style="width: {{loadingPercent}}%;"></view>
             </view>
             <text wx:if="{{loadingProgressVisible}}" class="loadingCount mono">{{loadingDone}}/{{loadingTotal}} READY</text>
+            <button wx:if="{{loadingError}}" class="loadingRetry" bindtap="retryDeckSearch">{{loadingActionText}}</button>
           </view>
 
           <block wx:elif="{{activeCard}}">
@@ -460,9 +461,9 @@
                 <view class="metaRow">
                   <text wx:for="{{activeCard.meta}}" wx:key="*this" class="mtag" style="background: {{activeCard.tagBg}}; color: {{activeCard.tagFg}};">{{item}}</text>
                 </view>
-                <button wx:if="{{activeCard.location || activeCard.navLocation || activeCard.poi.location || activeCard.poi.navLocation}}" class="navMini" catchtouchstart="stopCardTouch" catchtouchmove="stopCardTouch" catchtouchend="stopCardTouch" catchtap="openActiveCardNavigation">
-                  <text class="navMiniIcon">📍</text>
-                  <text class="navMiniText">去导航</text>
+                <button wx:if="{{activeCard.location || activeCard.navLocation || activeCard.poi.location || activeCard.poi.navLocation}}" class="navMini" data-card-action="navigation" hover-stop-propagation="{{true}}" catchtap="openActiveCardNavigation">
+                  <text class="navMiniIcon" data-card-action="navigation">📍</text>
+                  <text class="navMiniText" data-card-action="navigation">去导航</text>
                 </button>
               </view>
               <text class="stamp s-r mono" style="opacity: {{stampPick}};">Pick</text>
@@ -472,7 +473,7 @@
         </view>
       </view>
 
-      <view class="deckControls">
+      <view wx:if="{{activeCard && !loadingDeck}}" class="deckControls">
         <button class="ctrlSide ctrlPass" data-dir="left" bindtap="tapDecision">
           <text class="big mono">Pass</text>
           <text class="sm">左滑待定</text>

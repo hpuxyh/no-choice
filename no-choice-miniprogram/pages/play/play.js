@@ -30,6 +30,7 @@ function loadSpeechPlugin() {
 }
 
 const speechPlugin = loadSpeechPlugin();
+const BGM_SRC = "/assets/audio/choice-loop.mp3";
 
 function normalizeMapPoint(point) {
   if (!point) return null;
@@ -48,6 +49,12 @@ function cardNavigationPoint(card) {
     || normalizeMapPoint(card.location)
     || normalizeMapPoint(card.poi && card.poi.navLocation)
     || normalizeMapPoint(card.poi && card.poi.location);
+}
+
+function isCardNavigationEvent(event) {
+  const dataset = event && event.target && event.target.dataset || {};
+  const currentDataset = event && event.currentTarget && event.currentTarget.dataset || {};
+  return dataset.cardAction === "navigation" || currentDataset.cardAction === "navigation";
 }
 
 const TOTAL = POOL.length;
@@ -460,6 +467,8 @@ Page({
     loadingDone: 0,
     loadingTotal: TOTAL,
     loadingPercent: 0,
+    loadingError: false,
+    loadingActionText: "重新定位搜索",
     ready: false,
     totalCards: TOTAL,
     deck: [],
@@ -486,6 +495,8 @@ Page({
 
   onLoad() {
     this.replayDeckHistory = new Map();
+    this.bgmAttemptId = 0;
+    this.bgmRecoveryTimer = null;
     this.applySystemChrome();
     if (wx.setInnerAudioOption) {
       wx.setInnerAudioOption({
@@ -493,19 +504,7 @@ Page({
         mixWithOther: true
       });
     }
-    this.audio = wx.createInnerAudioContext();
-    this.audio.src = "/assets/audio/choice-loop.mp3";
-    this.audio.loop = true;
-    this.audio.autoplay = true;
-    this.audio.volume = 0.72;
-    this.audio.obeyMuteSwitch = false;
-    this.audio.onPlay(() => this.setData({ bgmPlaying: true, bgmLoading: false, bgmMuted: false, bgmLabel: "🔊" }));
-    this.audio.onPause(() => this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: this.data.bgmMuted ? "🔇" : "🔊" }));
-    this.audio.onStop(() => this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: this.data.bgmMuted ? "🔇" : "🔊" }));
-    this.audio.onError((error) => {
-      console.warn("BGM unavailable", error);
-      this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: "🔇" });
-    });
+    this.createBgmAudio();
     this.voiceManager = null;
     this.setupVoiceRecognizer();
     this.startBgm();
@@ -535,31 +534,102 @@ Page({
 
   onUnload() {
     this.stopVoiceRecognizer();
-    if (this.audio) {
-      this.audio.stop();
-      this.audio.destroy();
-    }
+    this.destroyBgmAudio();
+    clearTimeout(this.bgmRecoveryTimer);
     clearInterval(this.revealTimer);
     clearTimeout(this.toastTimer);
     clearTimeout(this.modeTimer);
     clearTimeout(this.motionTimer);
   },
 
-  toggleBgm() {
+  createBgmAudio() {
+    if (typeof wx.createInnerAudioContext !== "function") return null;
+    const audio = wx.createInnerAudioContext();
+    audio.src = BGM_SRC;
+    audio.loop = true;
+    audio.autoplay = false;
+    audio.volume = 0.72;
+    audio.obeyMuteSwitch = false;
+    audio.onPlay(() => {
+      if (this.data.bgmMuted) {
+        audio.pause();
+        return;
+      }
+      this.setData({ bgmPlaying: true, bgmLoading: false, bgmLabel: "🔊" });
+    });
+    audio.onPause(() => {
+      this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: this.data.bgmMuted ? "🔇" : "🔊" });
+    });
+    audio.onStop(() => {
+      this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: this.data.bgmMuted ? "🔇" : "🔊" });
+    });
+    audio.onError((error) => {
+      console.warn("BGM unavailable", error);
+      this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: this.data.bgmMuted ? "🔇" : "🔊" });
+    });
+    this.audio = audio;
+    return audio;
+  },
+
+  destroyBgmAudio() {
     if (!this.audio) return;
-    if (this.data.bgmPlaying) {
-      this.setData({ bgmMuted: true, bgmLoading: false, bgmLabel: "🔇" });
-      this.audio.pause();
+    try {
+      this.audio.stop();
+      this.audio.destroy();
+    } catch (error) {
+      console.warn("BGM cleanup failed", error);
+    }
+    this.audio = null;
+  },
+
+  rebuildBgmAudio() {
+    this.destroyBgmAudio();
+    return this.createBgmAudio();
+  },
+
+  playBgm({ recover = true } = {}) {
+    if (this.data.bgmMuted) return;
+    if (!this.audio) this.createBgmAudio();
+    if (!this.audio) return;
+    const attemptId = (this.bgmAttemptId || 0) + 1;
+    this.bgmAttemptId = attemptId;
+    clearTimeout(this.bgmRecoveryTimer);
+    this.setData({ bgmMuted: false, bgmLoading: true, bgmLabel: "…" });
+    try {
+      this.audio.volume = 0.72;
+      this.audio.play();
+    } catch (error) {
+      console.warn("BGM play failed", error);
+    }
+    if (!recover) return;
+    this.bgmRecoveryTimer = setTimeout(() => {
+      if (this.bgmAttemptId !== attemptId || this.data.bgmMuted || this.data.bgmPlaying) return;
+      const audio = this.rebuildBgmAudio();
+      if (!audio) return;
+      try {
+        audio.play();
+      } catch (error) {
+        console.warn("BGM recovery failed", error);
+        this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: "🔊" });
+      }
+    }, 600);
+  },
+
+  toggleBgm() {
+    if (this.data.bgmPlaying && !this.data.bgmMuted) {
+      this.bgmAttemptId = (this.bgmAttemptId || 0) + 1;
+      clearTimeout(this.bgmRecoveryTimer);
+      this.setData({ bgmMuted: true, bgmLoading: false, bgmPlaying: false, bgmLabel: "🔇" });
+      if (this.audio) this.audio.pause();
       return;
     }
     this.setData({ bgmMuted: false, bgmLoading: true, bgmLabel: "…" });
-    this.audio.play();
+    this.playBgm();
   },
 
   startBgm() {
-    if (!this.audio || this.data.bgmPlaying || this.data.bgmMuted) return;
-    this.setData({ bgmLoading: true, bgmLabel: "…" });
-    this.audio.play();
+    if (this.data.bgmPlaying || this.data.bgmMuted) return;
+    this.playBgm();
   },
 
   onHomeCoverChange(event) {
@@ -1001,6 +1071,8 @@ Page({
       loadingDone: 0,
       loadingTotal: TOTAL,
       loadingPercent: 0,
+      loadingError: false,
+      loadingActionText: "重新定位搜索",
       ready: false,
       showWin: false,
       deck: [],
@@ -1015,26 +1087,37 @@ Page({
       stampPass: 0
     });
     const cards = await this.loadCards(modeName);
-    const readyCards = await this.prepareVisualCards(cards.length ? cards : POOL);
-    const deckCards = this.arrangeReplayCards(readyCards.length ? readyCards : POOL, this.pendingDeckSignature);
+    if (!cards.length) return;
+    const readyCards = await this.prepareVisualCards(cards);
+    if (!readyCards.length) {
+      this.showDeckError("没有拿到真实餐厅", "这次高德没有返回可用餐厅，点下面重新定位再试。");
+      return;
+    }
+    const deckCards = this.arrangeReplayCards(readyCards, this.pendingDeckSignature);
     this.resetDeck(deckCards, { shuffle: false });
     this.rememberReplayDeck(this.pendingDeckSignature, deckCards);
   },
 
   resetDeck(cards, options = {}) {
-    const activePool = (cards.length ? cards : POOL).map((card, index) => decorateCard(card, index));
+    const activePool = (cards || []).map((card, index) => decorateCard(card, index));
     const deck = options.shuffle ? shuffleCards(activePool) : activePool.slice();
+    if (!deck.length) {
+      this.showDeckError("没有拿到真实餐厅", "这次高德没有返回可用餐厅，点下面重新定位再试。");
+      return;
+    }
     this.setData({
       loadingDeck: false,
       loadingProgressVisible: false,
+      loadingError: false,
       ready: false,
+      totalCards: activePool.length,
       activePool,
       deck,
       pending: [],
       activeCard: deck[0] || null,
       deckLayers: this.deckLayers(deck.length),
       leftN: deck.length,
-      pips: this.pipsFor(deck.length),
+      pips: this.pipsFor(deck.length, activePool.length),
       roundSlogan: deck[0] ? deck[0].slogan : "",
       cardTransform: "",
       cardMotionClass: "",
@@ -1048,8 +1131,8 @@ Page({
     return Array.from({ length: Math.min(2, Math.max(0, length - 1)) }, (_, i) => ({ level: i + 1 }));
   },
 
-  pipsFor(left) {
-    return Array.from({ length: TOTAL }, (_, index) => ({ spent: index >= left }));
+  pipsFor(left, total = TOTAL) {
+    return Array.from({ length: Math.max(1, total) }, (_, index) => ({ spent: index >= left }));
   },
 
   dealRound() {
@@ -1219,8 +1302,42 @@ Page({
       loadingProgressVisible: Boolean(progress),
       loadingDone: done,
       loadingTotal: total,
-      loadingPercent: Math.round((done / total) * 100)
+      loadingPercent: Math.round((done / total) * 100),
+      loadingError: false,
+      loadingActionText: "重新定位搜索"
     });
+  },
+
+  showDeckError(title, text) {
+    clearInterval(this.revealTimer);
+    this.setData({
+      loadingDeck: true,
+      loadingTitle: title,
+      loadingText: text,
+      loadingProgressVisible: false,
+      loadingDone: 0,
+      loadingTotal: TOTAL,
+      loadingPercent: 0,
+      loadingError: true,
+      loadingActionText: "重新定位搜索",
+      ready: false,
+      activePool: [],
+      deck: [],
+      pending: [],
+      activeCard: null,
+      deckLayers: [],
+      leftN: 0,
+      pips: this.pipsFor(0, TOTAL),
+      roundSlogan: "",
+      cardTransform: "",
+      cardMotionClass: "",
+      stampPick: 0,
+      stampPass: 0
+    });
+  },
+
+  retryDeckSearch() {
+    this.startGame(this.data.modeName || "AI 模式", this.data.modeLabel || "AI INTEL");
   },
 
   async prepareVisualCards(cards) {
@@ -1244,8 +1361,10 @@ Page({
 
   async loadCards(modeName) {
     try {
+      this.setLoading("正在读取当前位置", "3 秒内拿不到 GPS，就先按城市定位发牌。");
       const coords = await this.ensureLocation();
       if (!coords) throw new Error("no location");
+      this.setLoading("正在定位附近餐厅", "位置已确认，正在从高德拿真实餐厅。");
       const choice = buildChoiceContext(this.data);
       const replaySignature = this.choiceReplaySignature(modeName, coords);
       this.pendingDeckSignature = replaySignature;
@@ -1258,11 +1377,13 @@ Page({
         toast: (text) => this.showToast(text)
       });
       if (result.cards.length >= TOTAL) return result.cards;
+      if (result.cards.length > 0) return result.cards;
       throw new Error("empty pois");
     } catch (error) {
-      console.warn("restaurant cards fallback", error);
-      this.showToast("没有拿到真实餐厅，先展示兜底卡");
-      return POOL;
+      console.warn("restaurant cards unavailable", error);
+      this.showToast("没有拿到真实餐厅，请重试");
+      this.showDeckError("没有拿到真实餐厅", "这次高德没有返回可用餐厅，点下面重新定位再试。");
+      return [];
     }
   },
 
@@ -1349,7 +1470,7 @@ Page({
         locationMeta: ""
       });
     }
-    this.locationAddressPromise = withTimeout(reverseGeocodeLocation(coords), 7000, "地址解析超时")
+    this.locationAddressPromise = withTimeout(reverseGeocodeLocation(coords), 4000, "地址解析超时")
       .then((detail) => this.applyLocationDetail(coords, detail, seq) || coords)
       .catch((error) => {
         console.warn("Location address refresh unavailable", error);
@@ -1389,27 +1510,7 @@ Page({
           locationText: "当前位置：正在解析地址…",
           locationMeta: ""
         });
-        const detailPromise = reverseGeocodeLocation(coords)
-          .then((detail) => this.applyLocationDetail(coords, detail, seq));
-        try {
-          const updatedCoords = await withTimeout(detailPromise, 8000, "地址解析超时");
-          if (updatedCoords) return updatedCoords;
-          throw new Error("地址解析为空");
-        } catch (error) {
-          console.warn("Detailed location unavailable", error);
-          if (this.locationSeq === seq) {
-            const cityCoords = await getApproxPosition().catch(() => null);
-            const fallbackTitle = locationDisplayLabel(cityCoords) || stableLocationFallbackTitle(coords);
-            const fallbackCoords = { ...coords, label: fallbackTitle, addressMeta: fallbackTitle };
-            this.setData({
-              lastCoords: fallbackCoords,
-              locationState: "gps",
-              locationText: `当前位置：${fallbackTitle}`,
-              locationMeta: shortLocationError(error)
-            });
-            return fallbackCoords;
-          }
-        }
+        this.refreshLocationAddress(coords);
         return coords;
       })
       .catch((error) => {
@@ -1440,11 +1541,14 @@ Page({
     this.openCardNavigation(card);
   },
 
-  openActiveCardNavigation() {
+  openActiveCardNavigation(event) {
+    this.drag = null;
+    this.setData({ cardTransform: "", stampPick: 0, stampPass: 0 });
     this.openCardNavigation(this.data.activeCard);
   },
 
-  openActiveCardDetail() {
+  openActiveCardDetail(event) {
+    if (isCardNavigationEvent(event)) return;
     this.openCardDetail(this.data.activeCard);
   },
 
@@ -1549,22 +1653,32 @@ Page({
     this.openCardNavigation(this.data.detailCard);
   },
 
-  stopCardTouch() {},
-
   openCardNavigation(card) {
     const point = cardNavigationPoint(card);
-    if (!card || !point) {
+    const latitude = Number(point && point.latitude);
+    const longitude = Number(point && point.longitude);
+    if (!card || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       wx.showToast({ title: "暂无导航地址", icon: "none" });
       return;
     }
+    const address = [card.address, card.area, card.type].filter(Boolean).join(" ").slice(0, 180);
     wx.openLocation({
-      latitude: point.latitude,
-      longitude: point.longitude,
+      latitude,
+      longitude,
       scale: 18,
       name: card.name || "餐厅位置",
-      address: [card.address, card.area, card.type].filter(Boolean).join(" "),
+      address,
       fail: (error) => {
         console.warn("Open map navigation unavailable", error);
+        const fallbackText = card.navUrl || address || `${card.name || "餐厅位置"} ${longitude},${latitude}`;
+        if (fallbackText && wx.setClipboardData) {
+          wx.setClipboardData({
+            data: fallbackText,
+            success: () => wx.showToast({ title: "地图打不开，已复制地址", icon: "none" }),
+            fail: () => wx.showToast({ title: "地图暂时打不开", icon: "none" })
+          });
+          return;
+        }
         wx.showToast({ title: "地图暂时打不开", icon: "none" });
       }
     });

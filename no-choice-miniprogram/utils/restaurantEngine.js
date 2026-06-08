@@ -8,11 +8,13 @@ const RESTAURANT_POI_ENDPOINT = WORKER_API_BASE ? `${WORKER_API_BASE}/api/poi` :
 const DEFAULT_AMAP_CENTER = { lat: 39.904179, lng: 116.407387, amap: true, label: "北京" };
 const MIN_RESTAURANT_COST = 150;
 const AMAP_RESTAURANT_LIMIT = 20;
-const AMAP_SEARCH_PAGES = 6;
+const AMAP_SEARCH_PAGES = 3;
 const AMAP_SHOW_FIELDS_DEFAULT = "business,photos,navi";
 const AMAP_SEARCH_MIN_RADIUS = 1000;
 const AMAP_SEARCH_MAX_RADIUS = 30000;
 const AMAP_PRICE_POOL_SIZE = 30;
+const GPS_LOCATION_TIMEOUT_MS = 3500;
+const AMAP_REQUEST_TIMEOUT_MS = 8000;
 const TOTAL = 5;
 const RESTAURANT_KEYWORD_FALLBACK = "餐厅";
 const PRIORITY_TAGS = new Set(["西餐", "火锅", "日料", "烧烤", "夜宵", "通宵熬夜"]);
@@ -66,14 +68,14 @@ let restaurantSearchPlanSignature = "";
 let restaurantSearchPlanPromise = null;
 const restaurantRouteCityCache = new Map();
 
-function wxRequest({ url, method = "GET", data = {}, header = {} }) {
+function wxRequest({ url, method = "GET", data = {}, header = {}, timeout = AMAP_REQUEST_TIMEOUT_MS }) {
   return new Promise((resolve, reject) => {
     wx.request({
       url,
       method,
       data,
       header,
-      timeout: 12000,
+      timeout,
       success: (res) => {
         const status = Number(res.statusCode) || 0;
         if (status >= 200 && status < 300) {
@@ -105,10 +107,20 @@ function normalizeCoord(coords) {
 
 function getCurrentPosition() {
   return new Promise((resolve, reject) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      reject(new Error("定位超时，改用城市定位"));
+    }, GPS_LOCATION_TIMEOUT_MS);
     wx.getLocation({
       type: "gcj02",
       isHighAccuracy: true,
+      highAccuracyExpireTime: 3000,
       success: (res) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
         resolve(normalizeCoord({
           lat: Number(res.latitude.toFixed(6)),
           lng: Number(res.longitude.toFixed(6)),
@@ -117,7 +129,12 @@ function getCurrentPosition() {
           label: "当前位置"
         }));
       },
-      fail: (err) => reject(new Error(locationErrorText(err)))
+      fail: (err) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        reject(new Error(locationErrorText(err)));
+      }
     });
   });
 }
@@ -131,7 +148,7 @@ function locationErrorText(err) {
 
 async function getApproxPosition() {
   try {
-    const data = await amapRequest("https://restapi.amap.com/v3/ip", { key: AMAP_WEB_SERVICE_KEY, output: "json" });
+    const data = await amapRequest("https://restapi.amap.com/v3/ip", { key: AMAP_WEB_SERVICE_KEY, output: "json" }, { timeout: 2500 });
     if (data.status === "1") {
       const center = centerFromRectangle(data.rectangle);
       if (center) {
@@ -163,7 +180,7 @@ async function reverseGeocodeByAmap(center) {
     extensions: "base",
     roadlevel: "0",
     output: "json"
-  });
+  }, { timeout: 4000 });
   if (data.status !== "1") throw new Error(data.info || "高德逆地理编码失败");
   const regeocode = data.regeocode || {};
   const component = regeocode.addressComponent || {};
@@ -194,6 +211,7 @@ async function reverseGeocodeByWorkerPoi(center) {
   if (!RESTAURANT_POI_ENDPOINT) throw new Error("缺少地址兜底接口");
   const data = await wxRequest({
     url: RESTAURANT_POI_ENDPOINT,
+    timeout: 4000,
     data: {
       lat: center.lat,
       lng: center.lng,
@@ -293,8 +311,8 @@ function centerFromRectangle(rectangle) {
   return { lng: (lng1 + lng2) / 2, lat: (lat1 + lat2) / 2 };
 }
 
-async function amapRequest(url, data) {
-  const result = await wxRequest({ url, data });
+async function amapRequest(url, data, options = {}) {
+  const result = await wxRequest({ url, data, timeout: options.timeout || AMAP_REQUEST_TIMEOUT_MS });
   if (result && result.status && result.status !== "1") throw new Error(result.info || "高德接口返回异常");
   return result;
 }
@@ -463,6 +481,7 @@ async function fetchRestaurantSearchPlan(choice, coords) {
     url: RESTAURANT_SEARCH_PLAN_ENDPOINT,
     method: "POST",
     header: { "content-type": "application/json" },
+    timeout: 6500,
     data: {
       moduleId: "dinner",
       question: questionWithTags || choice.question,
