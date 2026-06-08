@@ -300,111 +300,16 @@ button.back {
 
 /* HOME */
 .homeScreen {
-  justify-content: flex-start;
-  gap: 32rpx;
-}
-
-.homeHero {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 22rpx;
-  padding: 22rpx 2rpx 6rpx;
-  box-sizing: border-box;
-}
-
-.homeIcon {
-  flex: 0 0 118rpx;
-  width: 118rpx;
-  height: 118rpx;
-  border: 5rpx solid #1a1714;
-  border-radius: 28rpx;
-  background: #f6c518;
-  box-shadow: 7rpx 7rpx 0 #1a1714;
-  display: flex;
-  align-items: center;
+  padding: 0;
   justify-content: center;
-  font-size: 58rpx;
-  filter: drop-shadow(6rpx 6rpx 0 rgba(0,0,0,.25));
-  animation: float 2.4s ease-in-out infinite;
+  gap: 0;
+  background: #f8ead1;
 }
 
-.homeIntro {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.homeKicker {
+.homeCoverImage {
   display: block;
-  font-size: 34rpx;
-  font-weight: 950;
-  line-height: 1.18;
-}
-
-.homeExplain {
-  display: block;
-  color: #6b6253;
-  font-size: 25rpx;
-  font-weight: 800;
-  line-height: 1.48;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-14rpx); }
-}
-
-.homeSteps {
-  flex: none;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12rpx;
-}
-
-.homeStep {
-  min-width: 0;
-  min-height: 78rpx;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 7rpx;
-  padding: 0 14rpx;
-  border-left: 5rpx solid #1a1714;
-  color: #1a1714;
-  box-sizing: border-box;
-}
-
-.homeStepNo {
-  color: #d24b32;
-  font-size: 18rpx;
-  line-height: 1;
-}
-
-.homeStep text:last-child {
-  font-size: 24rpx;
-  font-weight: 950;
-  line-height: 1.16;
-}
-
-.homeChips {
-  display: flex;
-  gap: 16rpx;
-  flex-wrap: nowrap;
-  margin-top: 8rpx;
-}
-
-.homeChips .chip {
-  flex: none;
-  min-width: 218rpx;
-  padding: 0 20rpx;
-  font-size: 25rpx;
-}
-
-.homeScreen .btn {
-  margin-top: auto;
+  width: 100%;
+  height: 100%;
 }
 
 .field {
@@ -2236,13 +2141,6 @@ button.ctrlSide,
 
 @media (max-height: 760px) {
   .screen { gap: 14rpx; padding-top: var(--page-top, 24rpx); padding-left: 24rpx; padding-right: 24rpx; padding-bottom: 24rpx; }
-  .welcomeLead { font-size: 50rpx; }
-  .homeScreen { gap: 22rpx; }
-  .homeHero { padding-top: 12rpx; }
-  .homeIcon { flex-basis: 104rpx; width: 104rpx; height: 104rpx; font-size: 52rpx; }
-  .homeKicker { font-size: 31rpx; }
-  .homeExplain { font-size: 23rpx; }
-  .homeStep { min-height: 68rpx; }
   .micBig { min-height: 96rpx; font-size: 25rpx; }
   .voicePrimary { font-size: 30rpx; }
   .gameHero, .voiceBox { gap: 16rpx; }

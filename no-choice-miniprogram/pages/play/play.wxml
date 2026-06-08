@@ -1,43 +1,11 @@
-<button class="soundGate mono {{bgmPlaying ? 'ready' : ''}} {{bgmLoading ? 'loading' : ''}}" style="top: {{soundTop}}px;" bindtap="toggleBgm">
+<button wx:if="{{screen != 'welcome'}}" class="soundGate mono {{bgmPlaying ? 'ready' : ''}} {{bgmLoading ? 'loading' : ''}}" style="top: {{soundTop}}px;" bindtap="toggleBgm">
   {{bgmLabel}}
 </button>
 
 <view class="phone screen-{{screen}}" style="--page-top: {{pageTop}}px; --menu-avoid: {{menuRightPad}}px;">
   <view class="screens">
-    <view wx:if="{{screen == 'welcome'}}" class="screen homeScreen active">
-      <view>
-        <text class="titleMark mono">CHOICE OVER v1.0</text>
-        <text class="lead welcomeLead">选择困难辅助器</text>
-      </view>
-
-      <view class="homeHero" bindtap="goGame">
-        <text class="homeIcon">🎮</text>
-        <view class="homeIntro">
-          <text class="homeKicker">不用再问“你想吃什么”。</text>
-          <text class="homeExplain">输入一句话，AI 会把人数、预算、位置和口味拆成条件，结合附近餐厅结果，抽出 5 张可以翻牌的选择卡。</text>
-        </view>
-      </view>
-
-      <view class="homeSteps">
-        <view class="homeStep">
-          <text class="homeStepNo mono">01</text>
-          <text>说出场景</text>
-        </view>
-        <view class="homeStep">
-          <text class="homeStepNo mono">02</text>
-          <text>AI 理解条件</text>
-        </view>
-        <view class="homeStep">
-          <text class="homeStepNo mono">03</text>
-          <text>抽卡决定</text>
-        </view>
-      </view>
-
-      <view class="chipwrap homeChips">
-        <text class="chip on">🍜 今晚吃什么</text>
-      </view>
-
-      <button class="btn red" bindtap="goGame">🪙 插入硬币，开始挑战</button>
+    <view wx:if="{{screen == 'welcome'}}" class="screen homeScreen active" bindtap="goGame">
+      <image class="homeCoverImage" src="/assets/cover/choice-over-home-cover.png" mode="aspectFill"></image>
     </view>
 
     <view wx:if="{{screen == 'game'}}" class="screen gameScreen active">
