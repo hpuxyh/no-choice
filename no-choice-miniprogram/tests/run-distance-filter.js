@@ -20,11 +20,23 @@ const pois = [
     id: "far-amap-distance",
     name: "无坐标但高德距离超限",
     distance: 15000
+  },
+  {
+    id: "unknown-distance",
+    name: "无坐标无距离餐厅"
+  },
+  {
+    id: "near-bad-nav",
+    name: "附近餐厅但导航点异常",
+    distance: 2800,
+    location: { lat: 39.914, lng: 116.409 },
+    navLocation: { lat: 41.58, lng: 120.45 }
   }
 ];
 
 const filtered = engine.__test.filterRestaurantPoisWithinSearchRadius(pois, center, 5000);
-assert.deepStrictEqual(filtered.map((poi) => poi.id), ["near"]);
+assert.deepStrictEqual(filtered.map((poi) => poi.id), ["near", "near-bad-nav"]);
+assert.deepStrictEqual(filtered.find((poi) => poi.id === "near-bad-nav").navLocation, { lat: 39.914, lng: 116.409 });
 
 const requests = engine.__test.restaurantAmapRequests(5000, ["烤肉"], {
   searchRequests: [

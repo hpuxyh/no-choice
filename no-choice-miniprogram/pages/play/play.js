@@ -31,6 +31,7 @@ function loadSpeechPlugin() {
 
 const speechPlugin = loadSpeechPlugin();
 const BGM_SRC = "/assets/audio/choice-loop.mp3";
+const MAP_NAV_LOCATION_MAX_DRIFT_METERS = 2000;
 
 function normalizeMapPoint(point) {
   if (!point) return null;
@@ -43,12 +44,32 @@ function normalizeMapPoint(point) {
   return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
 }
 
+function mapPointDistanceMeters(a, b) {
+  const lat1 = Number(a && a.latitude);
+  const lng1 = Number(a && a.longitude);
+  const lat2 = Number(b && b.latitude);
+  const lng2 = Number(b && b.longitude);
+  if ([lat1, lng1, lat2, lng2].some((value) => !Number.isFinite(value))) return Infinity;
+  const toRad = (value) => value * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const rLat1 = toRad(lat1);
+  const rLat2 = toRad(lat2);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLng / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
 function cardNavigationPoint(card) {
   if (!card) return null;
-  return normalizeMapPoint(card.navLocation)
-    || normalizeMapPoint(card.location)
-    || normalizeMapPoint(card.poi && card.poi.navLocation)
+  const location = normalizeMapPoint(card.location)
     || normalizeMapPoint(card.poi && card.poi.location);
+  const navLocation = normalizeMapPoint(card.navLocation)
+    || normalizeMapPoint(card.poi && card.poi.navLocation);
+  if (location && navLocation) {
+    const drift = mapPointDistanceMeters(location, navLocation);
+    if (!Number.isFinite(drift) || drift > MAP_NAV_LOCATION_MAX_DRIFT_METERS) return location;
+  }
+  return navLocation || location;
 }
 
 function isCardNavigationEvent(event) {

@@ -15,6 +15,7 @@ const AMAP_SEARCH_MAX_RADIUS = 30000;
 const AMAP_PRICE_POOL_SIZE = 30;
 const GPS_LOCATION_TIMEOUT_MS = 3500;
 const AMAP_REQUEST_TIMEOUT_MS = 8000;
+const RESTAURANT_NAV_LOCATION_MAX_DRIFT_METERS = 2000;
 const TOTAL = 5;
 const RESTAURANT_KEYWORD_FALLBACK = "餐厅";
 const PRIORITY_TAGS = new Set(["西餐", "火锅", "日料", "烧烤", "夜宵", "通宵熬夜"]);
@@ -91,6 +92,7 @@ function wxRequest({ url, method = "GET", data = {}, header = {}, timeout = AMAP
 }
 
 function normalizeCoord(coords) {
+  if (!coords) return null;
   const lat = Number(coords && (coords.lat ?? coords.latitude));
   const lng = Number(coords && (coords.lng ?? coords.longitude));
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -406,7 +408,7 @@ async function loadRestaurantDeck({ modeName, choice, coords, setLoading, toast,
   const radiusTarget = restaurantSearchRadiusTarget({ userCoords: center, searchCoords, destination, meetup });
   const avoidSet = normalizeRestaurantReplayKeySet(avoidCardKeys);
   if (toast) toast(restaurantSearchToast(searchPlan.keywords, meetup, destination));
-  const lockSearchCenter = Boolean(destination || meetup);
+  const lockSearchCenter = Boolean(destination || meetup || isPreciseRestaurantSearchCenter(center));
   const result = await searchRestaurantsWithFallback(searchCoords, radius, searchPlan.keywords, searchOptions, meetup, { lockSearchCenter });
   let rawPois = filterRestaurantPoisWithinSearchRadius(result.pois, radiusTarget, radius);
   if (meetup) rawPois = rankRestaurantPoisForMeetup(rawPois, meetup);
@@ -1786,6 +1788,8 @@ function restaurantCardsForModeAvoiding(pois, modeName, options = {}, avoidKeys 
 function poisToCards(pois, options = {}) {
   const named = preferredRestaurantPois(pois, options);
   return named.map((p, index) => {
+    const locationPoint = restaurantPoiLocationPoint(p) || restaurantNavigationPointForPoi(p);
+    const navPoint = restaurantNavigationPointForPoi(p);
     const art = artThemeForPoi(p, index);
     const fallbackImage = fallbackImageForPoi(p, index);
     const photoItems = restaurantCardImages(p, fallbackImage);
@@ -1827,8 +1831,8 @@ function poisToCards(pois, options = {}) {
       routeMetrics: p.routeMetrics || null,
       participantRoutes: p.participantRoutes || [],
       meetup: p.meetup || null,
-      location: p.location ? { latitude: p.location.lat, longitude: p.location.lng, lat: p.location.lat, lng: p.location.lng } : null,
-      navLocation: p.navLocation || null,
+      location: locationPoint ? { latitude: locationPoint.lat, longitude: locationPoint.lng, lat: locationPoint.lat, lng: locationPoint.lng } : null,
+      navLocation: navPoint || null,
       address: p.address || "",
       type: p.type || "",
       area: p.area || "",
@@ -1939,8 +1943,53 @@ function restaurantUserDistanceText(p, options = {}) {
 }
 
 function restaurantDistanceFromPoi(p, coords) {
-  if (!p || !p.location || !coords) return 0;
-  const distance = Math.round(restaurantDistanceMeters(coords, p.location));
+  const point = restaurantPoiDistancePoint(p);
+  if (!point || !coords) return 0;
+  const distance = Math.round(restaurantDistanceMeters(coords, point));
+  return Number.isFinite(distance) && distance > 0 && distance < 999000 ? distance : 0;
+}
+
+function restaurantPoiLocationPoint(poi) {
+  const location = normalizeCoord(poi && poi.location);
+  return location && restaurantValidCoords(location) ? { lat: location.lat, lng: location.lng } : null;
+}
+
+function restaurantPoiNavPoint(poi) {
+  const navLocation = normalizeCoord(poi && poi.navLocation);
+  return navLocation && restaurantValidCoords(navLocation) ? { lat: navLocation.lat, lng: navLocation.lng } : null;
+}
+
+function restaurantNavigationPointForPoi(poi) {
+  const location = restaurantPoiLocationPoint(poi);
+  const navLocation = restaurantPoiNavPoint(poi);
+  if (location && navLocation) {
+    const drift = restaurantDistanceMeters(location, navLocation);
+    if (!Number.isFinite(drift) || drift > RESTAURANT_NAV_LOCATION_MAX_DRIFT_METERS) return location;
+  }
+  return navLocation || location;
+}
+
+function restaurantPoiDistancePoint(poi) {
+  return restaurantPoiLocationPoint(poi) || restaurantNavigationPointForPoi(poi);
+}
+
+function sanitizeRestaurantPoiNavigationPoint(poi) {
+  if (!poi) return poi;
+  const location = restaurantPoiLocationPoint(poi);
+  const navLocation = restaurantNavigationPointForPoi(poi);
+  if (!location && !navLocation) return poi;
+  return {
+    ...poi,
+    location: location || navLocation,
+    navLocation: navLocation || location
+  };
+}
+
+function restaurantPoiDistanceFromPoint(poi, targetCoords) {
+  const target = normalizeCoord(targetCoords);
+  const point = restaurantPoiDistancePoint(poi);
+  if (!target || !point) return 0;
+  const distance = Math.round(restaurantDistanceMeters(target, point));
   return Number.isFinite(distance) && distance > 0 && distance < 999000 ? distance : 0;
 }
 
@@ -1951,10 +2000,9 @@ function restaurantSearchRadiusTarget(options = {}) {
 }
 
 function restaurantPoiDistanceFromTarget(poi, targetCoords) {
-  const byLocation = restaurantDistanceFromPoi(poi, targetCoords);
+  const byLocation = restaurantPoiDistanceFromPoint(poi, targetCoords);
   if (byLocation) return byLocation;
-  const byAmap = Number(poi && poi.distance);
-  return Number.isFinite(byAmap) && byAmap > 0 ? Math.round(byAmap) : 0;
+  return 0;
 }
 
 function filterRestaurantPoisWithinSearchRadius(pois, targetCoords, radiusMeters) {
@@ -1963,10 +2011,15 @@ function filterRestaurantPoisWithinSearchRadius(pois, targetCoords, radiusMeters
   if (!target || !Number.isFinite(radius) || radius <= 0) return (pois || []).filter(Boolean);
   const tolerance = Math.min(250, Math.max(100, radius * 0.03));
   const cap = radius + tolerance;
-  return (pois || []).filter((poi) => {
+  return (pois || []).map(sanitizeRestaurantPoiNavigationPoint).filter((poi) => {
     const distance = restaurantPoiDistanceFromTarget(poi, target);
-    return !distance || distance <= cap;
+    return distance > 0 && distance <= cap;
   });
+}
+
+function isPreciseRestaurantSearchCenter(coords) {
+  const center = normalizeCoord(coords);
+  return Boolean(center && Number(center.accuracy) > 0);
 }
 
 function restaurantHasTarget(options = {}) {
@@ -2111,7 +2164,7 @@ async function fetchRestaurantParticipantRouteMetrics(participants, poi) {
 }
 
 async function fetchRestaurantRouteMetrics(origin, poi) {
-  const destination = normalizeCoord(poi && (poi.navLocation || poi.location));
+  const destination = normalizeCoord(restaurantNavigationPointForPoi(poi));
   if (!restaurantValidCoords(origin) || !restaurantValidCoords(destination)) return null;
   const straightDistanceMeters = restaurantDistanceFromPoi(poi, origin);
   const [walkingResult, drivingResult, subwayResult] = await Promise.allSettled([
@@ -2908,7 +2961,7 @@ function restaurantPoiFromCard(card = {}) {
     venueImage,
     cardImage
   ].filter(Boolean), fallbackImage, 8);
-  return {
+  return sanitizeRestaurantPoiNavigationPoint({
     ...(card.poi || {}),
     fallbackImage,
     id: (card.poi && card.poi.id) || card.id || card.name,
@@ -2933,7 +2986,7 @@ function restaurantPoiFromCard(card = {}) {
     meetup: (card.poi && card.poi.meetup) || card.meetup || null,
     navLocation: (card.poi && card.poi.navLocation) || card.navLocation || null,
     location: location && Number.isFinite(location.lat) && Number.isFinite(location.lng) ? location : ((card.poi && card.poi.location) || null)
-  };
+  });
 }
 
 async function fetchAmapPoiDetail(poi = {}) {
@@ -2980,61 +3033,62 @@ function mergeRestaurantPoiDetails(base = {}, detail = {}) {
 }
 
 function restaurantDetailCardFromPoi(card = {}, poi = {}) {
+  const cleanedPoi = sanitizeRestaurantPoiNavigationPoint(poi);
   const fallbackImage = String(card.fallbackImage || "");
   const cardImage = card.image && card.image !== fallbackImage ? card.image : "";
   const photoItems = restaurantCardImages({
-    ...poi,
+    ...cleanedPoi,
     photoItems: [
-      ...(poi.photoItems || []),
+      ...(cleanedPoi.photoItems || []),
       ...(card.carouselImages || []),
       ...(card.photoItems || []),
-      ...(poi.photos || []),
-      poi.image,
+      ...(cleanedPoi.photos || []),
+      cleanedPoi.image,
       card.venueImage,
       cardImage
     ].filter(Boolean)
   }, fallbackImage);
   const photoGallery = photoItems.map((item) => item.url);
-  const detail = restaurantDetailPayloadForPoi(poi, { photoItems });
+  const detail = restaurantDetailPayloadForPoi(cleanedPoi, { photoItems });
   return {
     ...card,
-    poi,
+    poi: cleanedPoi,
     image: photoGallery[0] || cardImage,
-    venueImage: poi.image || card.venueImage || "",
+    venueImage: cleanedPoi.image || card.venueImage || "",
     photoGallery,
     photoItems,
     carouselImages: photoItems,
     detailPhotos: detail.photos,
-    address: poi.address || card.address || "",
-    type: poi.type || card.type || "",
-    area: poi.area || card.area || "",
-    businessArea: poi.businessArea || card.businessArea || "",
-    tag: poi.tag || card.tag || "",
-    recommend: poi.recommend || card.recommend || "",
-    tel: poi.tel || card.tel || "",
-    opentimeToday: poi.opentimeToday || card.opentimeToday || "",
-    opentimeWeek: poi.opentimeWeek || card.opentimeWeek || "",
-    rating: poi.rating || card.rating || "",
-    cost: poi.cost || card.cost || "",
-    routeMetrics: poi.routeMetrics || card.routeMetrics || null,
-    participantRoutes: poi.participantRoutes || card.participantRoutes || [],
-    meetup: poi.meetup || card.meetup || null,
-    navLocation: poi.navLocation || card.navLocation || null,
-    ratingText: poi.rating ? `${poi.rating}分` : card.ratingText || "",
-    costText: poi.cost ? `${formatCost(poi.cost)}元` : card.costText || "",
+    address: cleanedPoi.address || card.address || "",
+    type: cleanedPoi.type || card.type || "",
+    area: cleanedPoi.area || card.area || "",
+    businessArea: cleanedPoi.businessArea || card.businessArea || "",
+    tag: cleanedPoi.tag || card.tag || "",
+    recommend: cleanedPoi.recommend || card.recommend || "",
+    tel: cleanedPoi.tel || card.tel || "",
+    opentimeToday: cleanedPoi.opentimeToday || card.opentimeToday || "",
+    opentimeWeek: cleanedPoi.opentimeWeek || card.opentimeWeek || "",
+    rating: cleanedPoi.rating || card.rating || "",
+    cost: cleanedPoi.cost || card.cost || "",
+    routeMetrics: cleanedPoi.routeMetrics || card.routeMetrics || null,
+    participantRoutes: cleanedPoi.participantRoutes || card.participantRoutes || [],
+    meetup: cleanedPoi.meetup || card.meetup || null,
+    navLocation: restaurantNavigationPointForPoi(cleanedPoi) || card.navLocation || null,
+    ratingText: cleanedPoi.rating ? `${cleanedPoi.rating}分` : card.ratingText || "",
+    costText: cleanedPoi.cost ? `${formatCost(cleanedPoi.cost)}元` : card.costText || "",
     openTimeText: detail.openTimeText,
     detailFacts: detail.facts,
     detailFeatures: detail.features,
     detailRoutes: detail.routes,
     detailRows: detail.rows,
-    navUrl: amapNavigationUrl(poi) || card.navUrl || "",
-    orderUrl: amapStoreUrl(poi || card)
+    navUrl: amapNavigationUrl(cleanedPoi) || card.navUrl || "",
+    orderUrl: amapStoreUrl(cleanedPoi || card)
   };
 }
 
 function amapNavigationUrl(p) {
   if (!p) return "";
-  const point = p.navLocation || p.location;
+  const point = restaurantNavigationPointForPoi(p);
   if (!point) return "";
   return `https://uri.amap.com/navigation?to=${point.lng},${point.lat},${encodeURIComponent(p.name)}&mode=walk&policy=1&src=choiceover&coordinate=gaode&callnative=1`;
 }
