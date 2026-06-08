@@ -421,8 +421,6 @@ Page({
     cardMotionClass: "",
     stampPick: 0,
     stampPass: 0,
-    stampBye: 0,
-    pipeGulp: false,
     toastText: "",
     showWin: false,
     winner: null,
@@ -652,13 +650,17 @@ Page({
     const manager = speechPlugin.getRecordRecognitionManager();
     this.voiceManager = manager;
     manager.onStart(() => {
+      this.voiceInputBase = this.data.problem.trim();
       this.voiceLastResult = "";
       this.setData({ recording: true });
       this.showToast("正在听，再点一次结束");
     });
     manager.onRecognize((res) => {
       const text = String(res && res.result || "").trim();
-      if (text) this.voiceLastResult = text;
+      if (text) {
+        this.voiceLastResult = text;
+        this.applyVoiceTextToInput(text);
+      }
     });
     manager.onStop((res) => {
       const text = String(res && res.result || this.voiceLastResult || "").trim();
@@ -667,6 +669,7 @@ Page({
     });
     manager.onError((err) => {
       console.warn("Voice recognition error", err);
+      this.voiceInputBase = "";
       this.setData({ recording: false, voiceTarget: "" });
       this.showToast(this.voiceErrorText(err));
     });
@@ -735,14 +738,22 @@ Page({
   },
 
   finishVoiceText(text) {
-    const target = this.data.voiceTarget;
     this.setData({ recording: false, voiceTarget: "" });
     if (!text) {
+      this.voiceInputBase = "";
       this.showToast("没听清，再试一次");
       return;
     }
-    const base = this.data.problem.trim();
-    this.setData({ problem: base ? `${base} ${text}` : text }, () => this.updateChoiceNextAction());
+    this.applyVoiceTextToInput(text);
+    this.voiceInputBase = "";
+  },
+
+  applyVoiceTextToInput(text) {
+    const spoken = String(text || "").trim();
+    if (!spoken) return;
+    const base = String(this.voiceInputBase || "").trim();
+    const problem = base ? `${base} ${spoken}` : spoken;
+    this.setData({ problem, showVoiceInsight: false }, () => this.updateChoiceNextAction());
     this.invalidateRestaurantContext();
   },
 
@@ -834,8 +845,7 @@ Page({
       cardTransform: "",
       cardMotionClass: "",
       stampPick: 0,
-      stampPass: 0,
-      stampBye: 0
+      stampPass: 0
     });
     const cards = await this.loadCards(modeName);
     const readyCards = await this.prepareVisualCards(cards.length ? cards : POOL);
@@ -862,8 +872,7 @@ Page({
       cardTransform: "",
       cardMotionClass: "",
       stampPick: 0,
-      stampPass: 0,
-      stampBye: 0
+      stampPass: 0
     });
     this.dealRound();
   },
@@ -885,8 +894,7 @@ Page({
       cardTransform: "",
       cardMotionClass: "",
       stampPick: 0,
-      stampPass: 0,
-      stampBye: 0
+      stampPass: 0
     });
     let k = 0;
     const total = 5 + Math.floor(Math.random() * 3);
@@ -932,27 +940,19 @@ Page({
     const y = touch.clientY - this.drag.sy;
     this.drag.x = x;
     this.drag.y = y;
-    const down = y > 0 && y > Math.abs(x);
-    const transform = down
-      ? `translate(${Math.round(x * 0.3)}px, ${Math.round(y)}px) scale(${Math.max(.82, 1 - y / 900).toFixed(3)})`
-      : `translate(${Math.round(x)}px, ${Math.round(y)}px) rotate(${(x / 16).toFixed(2)}deg)`;
+    const transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) rotate(${(x / 16).toFixed(2)}deg)`;
     this.setData({
       cardTransform: transform,
-      stampPick: down ? 0 : Math.max(0, Math.min(1, x / 85)),
-      stampPass: down ? 0 : Math.max(0, Math.min(1, -x / 85)),
-      stampBye: Math.max(0, Math.min(1, (y - 15) / 85)) * (down ? 1 : 0)
+      stampPick: Math.max(0, Math.min(1, x / 85)),
+      stampPass: Math.max(0, Math.min(1, -x / 85))
     });
   },
 
   onCardTouchEnd() {
     if (!this.drag) return;
-    const { x, y } = this.drag;
+    const { x } = this.drag;
     this.drag = null;
     const threshold = 82;
-    if (y > threshold && y > Math.abs(x)) {
-      this.decideByDir("down");
-      return;
-    }
     if (x > threshold) {
       this.decideByDir("right");
       return;
@@ -961,15 +961,16 @@ Page({
       this.decideByDir("left");
       return;
     }
-    this.setData({ cardTransform: "", stampPick: 0, stampPass: 0, stampBye: 0 });
+    this.setData({ cardTransform: "", stampPick: 0, stampPass: 0 });
   },
 
   decideByDir(dir) {
     if (!this.data.deck.length) return;
+    if (dir !== "right" && dir !== "left") return;
     const current = this.data.deck[0];
     const rest = this.data.deck.slice(1);
     const pending = this.data.pending.slice();
-    this.setData({ ready: false, cardTransform: "", stampPick: 0, stampPass: 0, stampBye: 0 });
+    this.setData({ ready: false, cardTransform: "", stampPick: 0, stampPass: 0 });
 
     if (dir === "right") {
       this.setData({ cardMotionClass: "flyR" });
@@ -985,10 +986,6 @@ Page({
       }, 280);
       return;
     }
-
-    this.setData({ cardMotionClass: "intoPipe", pipeGulp: true });
-    setTimeout(() => this.setData({ pipeGulp: false }), 160);
-    this.motionTimer = setTimeout(() => this.afterRemove(rest, pending, "Bye bye · 永久拉黑"), 520);
   },
 
   afterRemove(deck, pending, msg) {
@@ -1009,8 +1006,7 @@ Page({
       cardMotionClass: "",
       cardTransform: "",
       stampPick: 0,
-      stampPass: 0,
-      stampBye: 0
+      stampPass: 0
     });
     this.dealRound();
   },
@@ -1433,7 +1429,6 @@ Page({
       cardTransform: "",
       stampPick: 0,
       stampPass: 0,
-      stampBye: 0,
       confettiPieces: []
     });
   },

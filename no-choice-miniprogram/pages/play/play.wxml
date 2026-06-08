@@ -266,7 +266,6 @@
               </view>
               <text class="stamp s-r mono" style="opacity: {{stampPick}};">Pick</text>
               <text class="stamp s-l mono" style="opacity: {{stampPass}};">Pass</text>
-              <text class="stamp s-d mono" style="opacity: {{stampBye}};">Bye bye</text>
             </view>
           </block>
         </view>
@@ -276,10 +275,6 @@
         <button class="ctrlSide ctrlPass" data-dir="left" bindtap="tapDecision">
           <text class="big mono">Pass</text>
           <text class="sm">左滑待定</text>
-        </button>
-        <button class="pipeBtn {{pipeGulp ? 'gulp' : ''}}" data-dir="down" bindtap="tapDecision">
-          <view class="rim"><text class="plabel mono">Bye bye</text></view>
-          <view class="pipeBody"><view class="mouth"></view></view>
         </button>
         <button class="ctrlSide ctrlPick" data-dir="right" bindtap="tapDecision">
           <text class="big mono">Pick</text>
