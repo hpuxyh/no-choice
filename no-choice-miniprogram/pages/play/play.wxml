@@ -99,12 +99,18 @@
         </view>
       </view>
 
-      <view class="homeStartBtn">
-        <view class="homeStartLight"></view>
-        <view class="homeStartCoin"></view>
-        <text>插入硬币，抽餐厅卡</text>
+      <view class="homeBottomDock">
+        <view class="homeStartBtn">
+          <view class="homeStartLight"></view>
+          <view class="homeStartCoin"></view>
+          <text>插入硬币，抽餐厅卡</text>
+        </view>
+        <view class="homeTapGuide">
+          <text class="mono">STEP 01</text>
+          <text>点一下，先看看多人选餐局 →</text>
+        </view>
+        <text class="homeFooter">AI 正在洗牌附近餐厅结果</text>
       </view>
-      <text class="homeFooter">AI 正在洗牌附近餐厅结果</text>
           </view>
         </swiper-item>
 
@@ -197,11 +203,17 @@
               </view>
             </view>
 
-            <view class="homeStartBtn groupStartBtn">
-              <view class="homeStartCoin"></view>
-              <text>确认订位，中轴小锅</text>
+            <view class="homeBottomDock">
+              <view class="homeStartBtn groupStartBtn">
+                <view class="homeStartCoin"></view>
+                <text>确认订位，中轴小锅</text>
+              </view>
+              <view class="homeTapGuide groupTapGuide">
+                <text class="mono">STEP 02</text>
+                <text>再点一下，开始选择餐厅</text>
+              </view>
+              <text class="homeFooter">已锁定 19:30 · 中轴商圈 · 4 人桌</text>
             </view>
-            <text class="homeFooter">已锁定 19:30 · 中轴商圈 · 4 人桌</text>
           </view>
         </swiper-item>
       </swiper>

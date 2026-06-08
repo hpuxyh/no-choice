@@ -350,7 +350,9 @@ button.back {
 .homePills,
 .homeMachineWrap,
 .homeResultCards,
+.homeBottomDock,
 .homeStartBtn,
+.homeTapGuide,
 .homeFooter {
   position: relative;
   z-index: 1;
@@ -775,8 +777,20 @@ button.back {
   box-sizing: border-box;
 }
 
+.homeBottomDock {
+  flex: none;
+  width: 100%;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  padding-bottom: 4rpx;
+  box-sizing: border-box;
+}
+
 .homeStartBtn {
   flex: none;
+  width: 100%;
   min-height: 112rpx;
   border: 8rpx solid #1a1714;
   border-radius: 36rpx;
@@ -812,6 +826,46 @@ button.back {
   background: #c9c5b8;
   box-shadow: inset 0 0 0 12rpx #eee9dc;
   box-sizing: border-box;
+}
+
+.homeTapGuide {
+  flex: none;
+  min-height: 54rpx;
+  padding: 0 22rpx;
+  border: 5rpx solid #1a1714;
+  border-radius: 999rpx;
+  background: #fffdf6;
+  box-shadow: 6rpx 6rpx 0 rgba(26, 23, 20, .9);
+  color: #1a1714;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+  font-size: 24rpx;
+  font-weight: 950;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+.homeTapGuide text:first-child {
+  flex: none;
+  padding: 5rpx 10rpx;
+  border: 4rpx solid #1a1714;
+  border-radius: 999rpx;
+  background: #f6c518;
+  font-size: 15rpx;
+  font-weight: 400;
+}
+
+.homeTapGuide text:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groupTapGuide text:first-child {
+  background: #35dc87;
 }
 
 .homeFooter {
