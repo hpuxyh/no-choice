@@ -1,10 +1,13 @@
-<button wx:if="{{screen != 'welcome'}}" class="soundGate mono {{bgmPlaying ? 'ready' : ''}} {{bgmLoading ? 'loading' : ''}}" style="top: {{soundTop}}px;" bindtap="toggleBgm">
+<button class="soundGate mono {{bgmPlaying ? 'ready' : ''}} {{bgmLoading ? 'loading' : ''}} {{bgmMuted ? 'muted' : ''}}" style="top: {{soundTop}}px;" catchtap="toggleBgm">
   {{bgmLabel}}
 </button>
 
 <view class="phone screen-{{screen}}" style="--page-top: {{pageTop}}px; --menu-avoid: {{menuRightPad}}px;">
   <view class="screens">
-    <view wx:if="{{screen == 'welcome'}}" class="screen homeScreen active" bindtap="goGame">
+    <view wx:if="{{screen == 'welcome'}}" class="screen homeScreen active">
+      <swiper class="homeSwiper" current="{{homeCoverIndex}}" circular="{{true}}" indicator-dots="{{true}}" indicator-color="rgba(26,23,20,.22)" indicator-active-color="#ff5a4d" duration="260" bindchange="onHomeCoverChange">
+        <swiper-item>
+          <view class="homeSlide homeSlideSolo" data-index="0" bindtap="onHomeCoverTap">
       <view class="homeTop">
         <view class="homeModePill">
           <text class="homeStatusDot"></text>
@@ -102,16 +105,111 @@
         <text>插入硬币，抽餐厅卡</text>
       </view>
       <text class="homeFooter">AI 正在洗牌附近餐厅结果</text>
+          </view>
+        </swiper-item>
+
+        <swiper-item>
+          <view class="homeSlide homeSlideGroup" data-index="1" bindtap="onHomeCoverTap" bindtouchstart="onHomeCoverTouchStart" bindtouchend="onHomeGroupCoverTouchEnd">
+            <view class="homeTop">
+              <view class="homeModePill">
+                <text class="homeStatusDot"></text>
+                <text>多人选餐局</text>
+              </view>
+              <view class="homeTopControls">
+                <view class="homeCoinPill">
+                  <text class="homeCoin off"></text>
+                  <text class="mono">04</text>
+                </view>
+                <view class="homeMore menu">≡</view>
+              </view>
+            </view>
+
+            <view class="homeHeroCopy groupHeroCopy">
+              <text class="homeEnglish mono">CHOICE HACK</text>
+              <text class="groupTitle">今晚<text>4 人</text>订哪家?</text>
+              <text class="homeDesc">每个人只说一句偏好，AI 自动合并预算、口味、四个出发地区和可订时间，直接给出可订餐厅。</text>
+            </view>
+
+            <view class="groupBoard">
+              <view class="groupBoardHead">
+                <text>群局：下班后吃饭</text>
+                <text>19:30 可订</text>
+              </view>
+              <view class="groupPeople">
+                <view class="personCard me">
+                  <view><text>我</text><text>东区</text></view>
+                  <text>想吃热乎</text>
+                  <text>别太远</text>
+                </view>
+                <view class="personCard warm">
+                  <view><text>雅</text><text>西区</text></view>
+                  <text>能聊天</text>
+                  <text>别太吵</text>
+                </view>
+                <view class="personCard green">
+                  <view><text>王</text><text>南区</text></view>
+                  <text>人均 100</text>
+                  <text>少排队</text>
+                </view>
+                <view class="personCard red">
+                  <view><text>陈</text><text>北区</text></view>
+                  <text>可订位</text>
+                  <text>要有座</text>
+                </view>
+              </view>
+            </view>
+
+            <view class="groupActions">
+              <text>发起</text>
+              <text>收集</text>
+              <text class="active">计算</text>
+              <text>订位</text>
+            </view>
+
+            <view class="groupAiPanel">
+              <view class="groupAiHead">
+                <text>AI 已合并 4 人 + 4 区出发</text>
+                <text>92%</text>
+              </view>
+              <view class="groupAiFacts">
+                <view><text>冲突点：</text><text>四区分散，最远到店 42 分</text></view>
+                <view><text>解法：</text><text>选中轴商圈，平均 24 分</text></view>
+              </view>
+              <view class="groupTimeRow">
+                <text>东 22分</text>
+                <text>西 25分</text>
+                <text>南 23分</text>
+                <text>北 28分</text>
+              </view>
+            </view>
+
+            <view class="groupResult">
+              <image src="/assets/food/steak.jpg" mode="aspectFill"></image>
+              <view class="groupResultMain">
+                <text>中轴小锅</text>
+                <text>¥89 · 中轴商圈 · 可订 19:30</text>
+                <text>四区路程均衡</text>
+              </view>
+              <view class="groupScore">
+                <text>均程</text>
+                <text>24分</text>
+                <text>最佳</text>
+              </view>
+            </view>
+
+            <view class="homeStartBtn groupStartBtn">
+              <view class="homeStartCoin"></view>
+              <text>确认订位，中轴小锅</text>
+            </view>
+            <text class="homeFooter">已锁定 19:30 · 中轴商圈 · 4 人桌</text>
+          </view>
+        </swiper-item>
+      </swiper>
     </view>
 
     <view wx:if="{{screen == 'game'}}" class="screen gameScreen active">
       <view class="topbar">
         <text class="badge yellow mono">CHOICE OVER</text>
-        <view class="playerWrap">
-          <text class="playerName">{{playerPillName}}</text>
-          <image wx:if="{{selectedAvatar}}" class="playerPill img" src="{{selectedAvatar}}" mode="aspectFill"></image>
-          <text wx:else class="playerPill">{{playerEmoji}}</text>
-        </view>
       </view>
 
       <view class="gameHero">
@@ -155,11 +253,30 @@
             <view class="voiceInsightHeader">
               <text>{{voiceInsightQuestion}}</text>
             </view>
-            <view class="voiceSectionTitle">我理解成</view>
+            <view class="voiceSectionTitle">我理解成，可直接改</view>
             <view class="voiceInsightDetails">
               <view wx:for="{{voiceIntentDetails}}" wx:key="label" class="voiceInsightItem {{item.wide ? 'wide' : ''}}">
                 <text class="voiceInsightKey">{{item.label}}</text>
-                <text class="voiceInsightVal">{{item.value}}</text>
+                <block wx:if="{{item.editable}}">
+                  <textarea
+                    wx:if="{{item.multiline}}"
+                    class="voiceInsightInput multiline"
+                    value="{{item.value}}"
+                    auto-height="{{true}}"
+                    maxlength="140"
+                    data-index="{{index}}"
+                    bindinput="onVoiceIntentFieldInput"
+                  />
+                  <input
+                    wx:else
+                    class="voiceInsightInput"
+                    value="{{item.value}}"
+                    maxlength="80"
+                    data-index="{{index}}"
+                    bindinput="onVoiceIntentFieldInput"
+                  />
+                </block>
+                <text wx:else class="voiceInsightVal">{{item.value}}</text>
               </view>
             </view>
             <view wx:if="{{voiceInsightState == 'loading'}}" class="voiceInsightLoading">
@@ -167,7 +284,7 @@
               <text>理解完成后再确认</text>
             </view>
             <view wx:else class="voiceInsightActions">
-              <button class="intentBtn primary" bindtap="confirmChoiceIntent">理解对</button>
+              <button class="intentBtn primary" bindtap="confirmChoiceIntent">按这个找</button>
               <button class="intentBtn ghost" bindtap="reviseChoiceIntent">再补充</button>
             </view>
           </view>

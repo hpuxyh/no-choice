@@ -306,6 +306,7 @@ function buildChoiceContext(data) {
   const partySize = Math.max(0, Math.min(20, Math.round(Number(data.partySize) || 0)));
   const budgetPerPerson = Math.max(0, Math.min(2000, Math.round(Number(data.budgetPerPerson) || 0)));
   const hasBudgetControl = data.budgetPerPerson !== undefined && data.budgetPerPerson !== null && data.budgetPerPerson !== "";
+  const intentOverrides = normalizeChoiceIntentOverrides(data.confirmedChoiceIntent || data.intentOverrides);
   const controls = [
     partySize ? `共${partySize}人` : "",
     hasBudgetControl ? `人均${budgetPerPerson}元左右` : ""
@@ -316,7 +317,25 @@ function buildChoiceContext(data) {
     needs,
     tags,
     partySize,
-    budgetPerPerson
+    budgetPerPerson,
+    intentOverrides
+  };
+}
+
+function normalizeChoiceIntentOverrides(value) {
+  if (!value || typeof value !== "object") return null;
+  const sourceFields = value.fields && typeof value.fields === "object" ? value.fields : {};
+  const fields = {};
+  ["scene", "people", "middle", "restaurantTypes", "budget", "locationDistance"].forEach((key) => {
+    const text = String(sourceFields[key] || "").trim();
+    if (text) fields[key] = text;
+  });
+  const searchText = Object.values(fields).filter(Boolean).join(" ");
+  if (!searchText) return null;
+  return {
+    fields,
+    searchText,
+    basePlan: value.basePlan && typeof value.basePlan === "object" ? value.basePlan : null
   };
 }
 
@@ -389,6 +408,13 @@ async function loadRestaurantDeck({ modeName, choice, coords, setLoading, toast,
 }
 
 async function restaurantSearchPlanForMode(modeName, choice, coords, helpers) {
+  const manualOverrides = normalizeChoiceIntentOverrides(choice && choice.intentOverrides);
+  if (manualOverrides) {
+    const basePlan = manualOverrides.basePlan
+      ? cloneRestaurantPlan(manualOverrides.basePlan)
+      : localRestaurantSearchPlan(choice);
+    return ensureRestaurantMeetupPlanForMode(applyChoiceIntentOverrides(basePlan, choice, manualOverrides), choice);
+  }
   const basePlan = (!ENABLE_REMOTE_AI_PLAN || !isAiMode(modeName))
     ? localRestaurantSearchPlan(choice, { forceGeneric: !isAiMode(modeName) })
     : await aiRestaurantSearchPlan(choice, coords, helpers);
@@ -913,6 +939,171 @@ function ensureRestaurantMeetupPlanForMode(plan = {}, choice = {}) {
   return merged;
 }
 
+function applyChoiceIntentOverrides(plan = {}, choice = {}, overrides = {}) {
+  const merged = cloneRestaurantPlan(plan || {});
+  const fields = overrides.fields || {};
+  const manualText = Object.values(fields).filter(Boolean).join(" ");
+  const keywords = manualRestaurantKeywords(fields.restaurantTypes);
+  if (keywords.length) {
+    merged.keywords = keywords;
+    merged.types = mergeAmapTypes(inferRestaurantAmapTypes(keywords.join(" ")), merged.types);
+    merged.restaurantTypeIntent = {
+      ...(merged.restaurantTypeIntent && typeof merged.restaurantTypeIntent === "object" ? merged.restaurantTypeIntent : {}),
+      primaryType: keywords[0],
+      keywords
+    };
+    merged.restaurantTypeDiversity = false;
+  }
+
+  const budget = manualBudgetRange(fields.budget);
+  if (budget) {
+    merged.minCost = budget.minCost;
+    merged.maxCost = budget.maxCost;
+    merged.priceIntent = {
+      ...(merged.priceIntent && typeof merged.priceIntent === "object" ? merged.priceIntent : {}),
+      minCost: budget.minCost,
+      maxCost: budget.maxCost,
+      source: "manual"
+    };
+  }
+
+  const radius = manualRadiusMeters(`${fields.middle || ""} ${fields.locationDistance || ""}`);
+  if (radius) merged.radiusMeters = radius;
+
+  const currentAsParticipant = /当前位置|当前定位|我的位置|你的位置|用你|按你/.test(`${fields.middle || ""} ${fields.locationDistance || ""}`);
+  const participantHints = manualParticipantLocationHints(fields);
+  const destinationHint = participantHints.length >= 2 || (currentAsParticipant && participantHints.length >= 1)
+    ? ""
+    : manualDestinationHint(fields);
+  if (participantHints.length >= 2 || (currentAsParticipant && participantHints.length >= 1)) {
+    const participantCount = participantHints.length + (currentAsParticipant ? 1 : 0);
+    merged.locationHint = "";
+    merged.locationHints = participantHints;
+    merged.includeCurrentLocationInMeetup = currentAsParticipant;
+    merged.region = "";
+    merged.cityLimit = false;
+    merged.locationIntent = {
+      ...(merged.locationIntent && typeof merged.locationIntent === "object" ? merged.locationIntent : {}),
+      destination: "",
+      region: "",
+      street: "",
+      participantLocations: participantHints,
+      strategy: "midpoint",
+      textLocationCount: participantHints.length,
+      totalParticipantCount: Math.max(manualPartySize(fields.people), participantCount),
+      totalLocationCount: participantCount,
+      source: "manual"
+    };
+  } else if (destinationHint) {
+    merged.locationHint = destinationHint;
+    merged.locationHints = [];
+    merged.includeCurrentLocationInMeetup = false;
+    merged.locationIntent = {
+      ...(merged.locationIntent && typeof merged.locationIntent === "object" ? merged.locationIntent : {}),
+      destination: destinationHint,
+      strategy: "destination",
+      source: "manual"
+    };
+  }
+
+  const partySize = manualPartySize(fields.people);
+  if (partySize) {
+    merged.sceneIntent = {
+      ...(merged.sceneIntent && typeof merged.sceneIntent === "object" ? merged.sceneIntent : {}),
+      primaryScenario: fields.scene || merged.sceneIntent?.primaryScenario || "",
+      companions: partySize === 1 ? "1人" : `共${partySize}人`,
+      totalParticipantCount: partySize,
+      source: "manual"
+    };
+  } else if (fields.scene) {
+    merged.sceneIntent = {
+      ...(merged.sceneIntent && typeof merged.sceneIntent === "object" ? merged.sceneIntent : {}),
+      primaryScenario: fields.scene,
+      source: "manual"
+    };
+  }
+
+  merged.source = "manual";
+  merged.explanation = manualText.slice(0, 120);
+  merged.needsCompanionLocation = needsRestaurantCompanionLocation(choice, merged);
+  merged.searchRequests = normalizePlanSearchRequests([], merged.keywords, merged);
+  return merged;
+}
+
+function manualRestaurantKeywords(value) {
+  const text = String(value || "")
+    .replace(/餐厅类型/g, "")
+    .replace(/人均\d+.*$/u, "")
+    .replace(/约\d+(?:\.\d+)?\s*(?:km|公里|千米|m|米).*$/iu, "");
+  const keywords = normalizePlanKeywords(text).filter((keyword) => keyword !== RESTAURANT_KEYWORD_FALLBACK);
+  return keywords.length ? keywords.slice(0, 6) : [];
+}
+
+function manualBudgetRange(value) {
+  const text = String(value || "")
+    .replace(/[￥¥]/g, "")
+    .replace(/人均约/g, "人均")
+    .replace(/预算约/g, "预算")
+    .trim();
+  if (!/\d/.test(text)) return null;
+  const rangeMatch = text.match(/(?:人均|预算)?\s*(\d{1,4})\s*(?:-|~|到|至)\s*(\d{1,4})/);
+  if (rangeMatch) {
+    const first = Math.round(Number(rangeMatch[1]));
+    const second = Math.round(Number(rangeMatch[2]));
+    return { minCost: Math.min(first, second), maxCost: Math.max(first, second) };
+  }
+  const underMatch = text.match(/(?:人均|预算)?\s*(\d{1,4})\s*(?:元)?\s*(?:以内|以下|内|封顶)/);
+  if (underMatch) return { minCost: 0, maxCost: Math.round(Number(underMatch[1])) };
+  const plusMatch = text.match(/(?:人均|预算)?\s*(\d{1,4})\s*(?:元)?\s*(?:\+|以上|起)/);
+  if (plusMatch) {
+    const minCost = Math.round(Number(plusMatch[1]));
+    return { minCost, maxCost: Math.max(minCost, Math.round(minCost * 2.2)) };
+  }
+  const exactMatch = text.match(/(?:人均|预算)?\s*(\d{1,4})(?:元)?/);
+  if (!exactMatch) return null;
+  const target = Math.round(Number(exactMatch[1]));
+  return { minCost: Math.max(0, Math.round(target * 0.75)), maxCost: Math.round(target * 1.25) };
+}
+
+function manualRadiusMeters(value) {
+  return inferExplicitRestaurantRadiusMeters({ question: String(value || ""), tags: [] });
+}
+
+function manualPartySize(value) {
+  const text = String(value || "");
+  const count = text.match(/(?:共|约)?\s*(\d{1,2})\s*人/);
+  if (count) return Math.max(1, Math.min(20, Math.round(Number(count[1]))));
+  if (/一人|1人|自己/.test(text)) return 1;
+  if (/你\s*\+\s*(?:朋友|对象|同伴|约会对象)|两人|2人/.test(text)) return 2;
+  return 0;
+}
+
+function manualParticipantLocationHints(fields = {}) {
+  const text = `${fields.middle || ""} ${fields.locationDistance || ""}`;
+  const chunks = [];
+  const midpointMatch = text.match(/(?:按|用|照顾)(.+?)(?:取中间点|的?中间点|折中|之间|附近|找|$)/);
+  if (midpointMatch) chunks.push(midpointMatch[1]);
+  const directMatch = text.match(/(?:当前位置|当前定位|我的位置|你的位置)\s*(?:和|\/|、|,|，|跟|与)\s*([^，。；]+?)(?:取中间点|折中|附近|找|$)/);
+  if (directMatch) chunks.push(directMatch[1]);
+  return uniqueRestaurantLocationHints(chunks.flatMap((chunk) => String(chunk || "").split(/[、,，/和跟与]+/)).map(cleanRestaurantLocationHint).filter(Boolean));
+}
+
+function manualDestinationHint(fields = {}) {
+  const text = `${fields.middle || ""} ${fields.locationDistance || ""}`;
+  const wantsMidpoint = /取中间点|折中/.test(text) && !/不取中间点/.test(text);
+  if (wantsMidpoint) return "";
+  const patterns = [
+    /(?:直接在|就在|在|到|去|目的地\s*[:：]?)([^，。；]{2,24}?)(?:附近|周边|找|搜索)/,
+    /([^，。；]{2,24})(?:附近|周边)(?:找|搜索|餐厅|饭店)?/
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const hint = match && cleanRestaurantDestinationHint(match[1]);
+    if (hint) return hint;
+  }
+  return "";
+}
+
 function restaurantCurrentLocationHintsFromPlan(plan = {}) {
   const intent = plan.locationIntent || {};
   const audit = Array.isArray(intent.participantAudit) ? intent.participantAudit : [];
@@ -1245,10 +1436,19 @@ async function searchRestaurantsWithFallback(coords, radius = 3500, keywords = [
 
 async function trySearchNearbyRestaurants(coords, radius, keywords, options, label, meetup = null) {
   try {
-    return await searchNearbyRestaurants(coords, radius, keywords, options, meetup);
+    const directPois = await searchNearbyRestaurants(coords, radius, keywords, options, meetup);
+    if (directPois.length || !RESTAURANT_POI_ENDPOINT) return directPois;
+    const workerPois = await searchNearbyRestaurantsByWorker(coords, radius, keywords, options, meetup);
+    if (workerPois.length) return workerPois;
+    return directPois;
   } catch (error) {
     console.warn("Restaurant search attempt failed", label, error);
-    return [];
+    try {
+      return await searchNearbyRestaurantsByWorker(coords, radius, keywords, options, meetup);
+    } catch (workerError) {
+      console.warn("Restaurant worker search attempt failed", label, workerError);
+      return [];
+    }
   }
 }
 
@@ -1287,6 +1487,68 @@ async function searchNearbyRestaurants(coords, radius = 3500, keywords = [RESTAU
     if (hasEnoughCandidates()) break;
   }
   return diverseRestaurantPois(rankRestaurantPoisForMeetup(preferredRestaurantPois(pois.map(normalizeAmapPoi).filter(Boolean), options), meetup), AMAP_PRICE_POOL_SIZE);
+}
+
+async function searchNearbyRestaurantsByWorker(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK], options = {}, meetup = null) {
+  if (!RESTAURANT_POI_ENDPOINT) return [];
+  const center = normalizeCoord(coords);
+  if (!center) return [];
+  const pois = [];
+  const searchRequests = restaurantAmapRequests(radius, keywords, relaxedRestaurantSearchOptions(options)).slice(0, 4);
+  for (const request of searchRequests) {
+    const data = await wxRequest({
+      url: RESTAURANT_POI_ENDPOINT,
+      data: {
+        lat: center.lat,
+        lng: center.lng,
+        module: "dinner",
+        keyword: request.keyword,
+        radius: request.radiusMeters,
+        types: request.types,
+        limit: AMAP_PRICE_POOL_SIZE
+      }
+    });
+    const pagePois = Array.isArray(data && data.pois) ? data.pois : [];
+    pois.push(...pagePois.map((poi) => normalizeWorkerRestaurantPoi(poi, request.keyword)).filter(Boolean));
+    if (diverseRestaurantPois(preferredRestaurantPois(pois, options), AMAP_PRICE_POOL_SIZE).length >= AMAP_PRICE_POOL_SIZE) break;
+  }
+  return diverseRestaurantPois(rankRestaurantPoisForMeetup(preferredRestaurantPois(pois, options), meetup), AMAP_PRICE_POOL_SIZE);
+}
+
+function normalizeWorkerRestaurantPoi(poi, searchKeyword = "") {
+  if (!poi || !poi.name) return null;
+  const location = normalizeCoord(poi.location || { lat: poi.lat, lng: poi.lng });
+  const navLocation = normalizeCoord(poi.navLocation || poi.nav_location);
+  const photoItems = normalizeAmapPoiPhotoItems([
+    ...(Array.isArray(poi.photoItems) ? poi.photoItems : []),
+    ...(Array.isArray(poi.photos) ? poi.photos : []),
+    poi.image
+  ].filter(Boolean));
+  const photoUrls = photoItems.map((item) => item.url);
+  const area = Array.isArray(poi.area) ? poi.area.join(" ") : String(poi.area || "");
+  return {
+    id: poi.id || poi.name,
+    name: poi.name,
+    address: Array.isArray(poi.address) ? poi.address.join("") : String(poi.address || ""),
+    type: poi.type || "餐厅",
+    typecode: poi.typecode || "",
+    area,
+    businessArea: poi.businessArea || poi.business_area || "",
+    tag: poi.tag || "",
+    recommend: poi.recommend || "",
+    tel: poi.tel || "",
+    opentimeToday: poi.opentimeToday || poi.opentime_today || "",
+    opentimeWeek: poi.opentimeWeek || poi.opentime_week || "",
+    distance: Number(poi.distance) || 0,
+    rating: poi.rating || "",
+    cost: poi.cost || "",
+    image: photoUrls[0] || normalizeAmapPhotoUrl(poi.image),
+    photos: photoUrls,
+    photoItems,
+    searchKeyword: cleanRestaurantKeyword(poi.searchKeyword || searchKeyword),
+    location: location ? { lat: location.lat, lng: location.lng } : null,
+    navLocation: navLocation ? { lat: navLocation.lat, lng: navLocation.lng } : null
+  };
 }
 
 function restaurantAmapRequests(radius, keywords, options = {}) {
@@ -2766,6 +3028,8 @@ module.exports = {
     shouldUseCurrentLocationForMeetup,
     extractRestaurantDestinationHint,
     normalizeRestaurantSearchPlan,
+    normalizeChoiceIntentOverrides,
+    applyChoiceIntentOverrides,
     localRestaurantSearchPlan,
     ensureRestaurantMeetupPlanForMode,
     inferExplicitRestaurantRadiusMeters,

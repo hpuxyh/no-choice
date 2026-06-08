@@ -58,7 +58,6 @@ const DEFAULT_ART_THEMES = [
   { bg: "#6c5ce7", accent: "#28c76f" },
   { bg: "#3d6bff", accent: "#ff7ab8" }
 ];
-const CUTE = ["🍄", "👾", "🐸", "🦖", "🐤", "👻", "🤖", "🐱", "🐙", "⭐", "🎈", "🍙"];
 
 function makeTags(items) {
   return items.map((text) => ({ text, selected: false }));
@@ -382,18 +381,51 @@ function planLocationText(choice) {
   return "在你当前位置附近找，约4km内";
 }
 
+const VOICE_INTENT_DETAIL_KEYS = {
+  "意图": "scene",
+  "人数": "people",
+  "人群": "people",
+  "中间点": "middle",
+  "餐厅类型": "restaurantTypes",
+  "价格": "budget",
+  "预算": "budget",
+  "位置距离": "locationDistance"
+};
+
+function editableVoiceIntentDetails(details = []) {
+  return (details || []).map((item, index) => {
+    const label = String(item && item.label || "").trim();
+    return {
+      ...item,
+      label,
+      key: VOICE_INTENT_DETAIL_KEYS[label] || `field${index}`,
+      value: String(item && item.value || "").trim(),
+      editable: label !== "状态",
+      multiline: Boolean(item && item.wide)
+    };
+  });
+}
+
+function voiceIntentFieldsFromDetails(details = []) {
+  return (details || []).reduce((fields, item) => {
+    const key = item && item.key;
+    if (!key || /^field\d+$/.test(key)) return fields;
+    fields[key] = String(item.value || "").trim();
+    return fields;
+  }, {});
+}
+
 Page({
   data: {
     screen: "welcome",
     pageTop: 14,
     soundTop: 10,
     menuRightPad: 96,
-    bgmLabel: "🔊 开启音乐",
-    bgmLoading: false,
+    bgmLabel: "🔊",
+    bgmMuted: false,
+    bgmLoading: true,
     bgmPlaying: false,
-    selectedAvatar: "/assets/avatars/av1.png",
-    playerEmoji: CUTE[Math.floor(Math.random() * CUTE.length)],
-    playerPillName: "",
+    homeCoverIndex: 0,
     sceneTags: makeTags(SCENE_TAGS),
     needTags: makeTags(NEED_TAGS),
     moreTags: makeTags(MORE_TAGS),
@@ -408,6 +440,8 @@ Page({
     voiceInsightQuestion: "",
     voiceIntentDetails: [],
     voiceAmapPreview: [],
+    voiceSearchPlan: null,
+    confirmedChoiceIntent: null,
     photoThumbs: [],
     useComicImages: false,
     comicImageHint: "关闭后直接用真实照片",
@@ -453,14 +487,28 @@ Page({
   onLoad() {
     this.replayDeckHistory = new Map();
     this.applySystemChrome();
+    if (wx.setInnerAudioOption) {
+      wx.setInnerAudioOption({
+        obeyMuteSwitch: false,
+        mixWithOther: true
+      });
+    }
     this.audio = wx.createInnerAudioContext();
     this.audio.src = "/assets/audio/choice-loop.mp3";
     this.audio.loop = true;
+    this.audio.autoplay = true;
     this.audio.volume = 0.72;
-    this.audio.onPlay(() => this.setData({ bgmPlaying: true, bgmLoading: false, bgmLabel: "🔊 播放中" }));
-    this.audio.onError(() => this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: "🔊 开启音乐" }));
+    this.audio.obeyMuteSwitch = false;
+    this.audio.onPlay(() => this.setData({ bgmPlaying: true, bgmLoading: false, bgmMuted: false, bgmLabel: "🔊" }));
+    this.audio.onPause(() => this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: this.data.bgmMuted ? "🔇" : "🔊" }));
+    this.audio.onStop(() => this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: this.data.bgmMuted ? "🔇" : "🔊" }));
+    this.audio.onError((error) => {
+      console.warn("BGM unavailable", error);
+      this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: "🔇" });
+    });
     this.voiceManager = null;
     this.setupVoiceRecognizer();
+    this.startBgm();
   },
 
   applySystemChrome() {
@@ -500,16 +548,46 @@ Page({
   toggleBgm() {
     if (!this.audio) return;
     if (this.data.bgmPlaying) {
+      this.setData({ bgmMuted: true, bgmLoading: false, bgmLabel: "🔇" });
       this.audio.pause();
-      this.setData({ bgmPlaying: false, bgmLoading: false, bgmLabel: "🔊 开启音乐" });
       return;
     }
-    this.setData({ bgmLoading: true, bgmLabel: "🔊 音乐启动中" });
+    this.setData({ bgmMuted: false, bgmLoading: true, bgmLabel: "…" });
     this.audio.play();
   },
 
   startBgm() {
-    if (this.audio && !this.data.bgmPlaying) this.audio.play();
+    if (!this.audio || this.data.bgmPlaying || this.data.bgmMuted) return;
+    this.setData({ bgmLoading: true, bgmLabel: "…" });
+    this.audio.play();
+  },
+
+  onHomeCoverChange(event) {
+    const current = Number(event && event.detail && event.detail.current);
+    if (Number.isFinite(current)) this.setData({ homeCoverIndex: current });
+  },
+
+  onHomeCoverTap(event) {
+    const index = Number(event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.index);
+    const current = Number.isFinite(index) ? index : Number(this.data.homeCoverIndex) || 0;
+    if (current === 0) {
+      this.setData({ homeCoverIndex: 1 });
+      return;
+    }
+    this.goGame();
+  },
+
+  onHomeCoverTouchStart(event) {
+    const touch = event && event.touches && event.touches[0];
+    this.homeCoverStartX = touch ? touch.clientX : 0;
+  },
+
+  onHomeGroupCoverTouchEnd(event) {
+    const changed = event && event.changedTouches && event.changedTouches[0];
+    const startX = Number(this.homeCoverStartX) || 0;
+    this.homeCoverStartX = 0;
+    if (Number(this.data.homeCoverIndex) !== 1) return;
+    if (changed && startX && changed.clientX - startX > 80) this.goGame();
   },
 
   goGame() {
@@ -526,7 +604,9 @@ Page({
   onProblemInput(e) {
     this.setData({
       problem: e.detail.value,
-      showVoiceInsight: false
+      showVoiceInsight: false,
+      confirmedChoiceIntent: null,
+      voiceSearchPlan: null
     }, () => this.updateChoiceNextAction());
     this.invalidateRestaurantContext();
   },
@@ -545,6 +625,8 @@ Page({
     ]);
     next.problem = withTagLine(this.data.problem, selected);
     next.showVoiceInsight = false;
+    next.confirmedChoiceIntent = null;
+    next.voiceSearchPlan = null;
     if (willSelect && toggled.text === "一人食") next.partySize = 1;
     if (willSelect && (toggled.text === "朋友聚餐" || toggled.text === "约会吃饭") && this.data.partySize < 2) next.partySize = 2;
     this.setData(next, () => this.updateChoiceNextAction());
@@ -553,7 +635,7 @@ Page({
 
   onPartySizeChange(e) {
     const value = Math.max(1, Math.min(8, Math.round(Number(e.detail.value) || 2)));
-    this.setData({ partySize: value, showVoiceInsight: false }, () => this.updateChoiceNextAction());
+    this.setData({ partySize: value, showVoiceInsight: false, confirmedChoiceIntent: null, voiceSearchPlan: null }, () => this.updateChoiceNextAction());
     this.invalidateRestaurantContext();
   },
 
@@ -561,7 +643,7 @@ Page({
     const numeric = Number(e.detail.value);
     const raw = Math.round((Number.isFinite(numeric) ? numeric : 150) / 10) * 10;
     const value = Math.max(0, Math.min(500, raw));
-    this.setData({ budgetPerPerson: value, showVoiceInsight: false }, () => this.updateChoiceNextAction());
+    this.setData({ budgetPerPerson: value, showVoiceInsight: false, confirmedChoiceIntent: null, voiceSearchPlan: null }, () => this.updateChoiceNextAction());
     this.invalidateRestaurantContext();
   },
 
@@ -596,9 +678,11 @@ Page({
       voiceInsightState: "loading",
       voiceInsightQuestion: "AI 正在理解中",
       voiceIntentDetails: [
-        { label: "状态", value: "正在理解你的场景、人数和位置", wide: true }
+        { label: "状态", value: "正在理解你的场景、人数和位置", wide: true, editable: false }
       ],
-      voiceAmapPreview: []
+      voiceAmapPreview: [],
+      voiceSearchPlan: null,
+      confirmedChoiceIntent: null
     });
     const coords = await this.ensureLocation().catch(() => null);
     await this.renderChoiceIntent(coords);
@@ -608,10 +692,12 @@ Page({
     const choice = buildChoiceContext(this.data);
     let details = [];
     let amapPreview = [];
+    let searchPlan = null;
     try {
       const preview = await buildRestaurantIntentPreview(choice, coords);
       details = preview.details || [];
       amapPreview = preview.amapPreview || [];
+      searchPlan = preview.plan || null;
     } catch (error) {
       console.warn("restaurant intent preview fallback", error);
       const tags = choice.tags;
@@ -646,9 +732,30 @@ Page({
       showVoiceInsight: true,
       voiceInsightState: "ready",
       voiceInsightQuestion: "我按下面这样理解，确认一下？",
-      voiceIntentDetails: details,
-      voiceAmapPreview: amapPreview
+      voiceIntentDetails: editableVoiceIntentDetails(details),
+      voiceAmapPreview: amapPreview,
+      voiceSearchPlan: searchPlan,
+      confirmedChoiceIntent: null
     });
+  },
+
+  onVoiceIntentFieldInput(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    const value = String(e.detail && e.detail.value || "");
+    const details = (this.data.voiceIntentDetails || []).map((item, idx) => (
+      idx === index ? { ...item, value } : item
+    ));
+    this.setData({ voiceIntentDetails: details, confirmedChoiceIntent: null });
+    this.invalidateRestaurantContext();
+  },
+
+  buildConfirmedChoiceIntent() {
+    const fields = voiceIntentFieldsFromDetails(this.data.voiceIntentDetails);
+    return {
+      fields,
+      basePlan: this.data.voiceSearchPlan || null,
+      confirmedAt: Date.now()
+    };
   },
 
   confirmChoiceIntent() {
@@ -656,12 +763,15 @@ Page({
       this.showToast("AI 还在理解，等结果出来再确认");
       return;
     }
-    this.showToast("好，按这个理解来");
-    this.startAiModeGame();
+    const confirmedChoiceIntent = this.buildConfirmedChoiceIntent();
+    this.setData({ confirmedChoiceIntent }, () => {
+      this.showToast("好，按修改后的理解来");
+      this.startAiModeGame();
+    });
   },
 
   reviseChoiceIntent() {
-    this.setData({ showVoiceInsight: false }, () => this.updateChoiceNextAction());
+    this.setData({ showVoiceInsight: false, confirmedChoiceIntent: null, voiceSearchPlan: null }, () => this.updateChoiceNextAction());
     this.showToast("继续补充一句，我会重新理解");
   },
 
@@ -1151,6 +1261,7 @@ Page({
       throw new Error("empty pois");
     } catch (error) {
       console.warn("restaurant cards fallback", error);
+      this.showToast("没有拿到真实餐厅，先展示兜底卡");
       return POOL;
     }
   },
