@@ -37,6 +37,14 @@ const pois = [
 const filtered = engine.__test.filterRestaurantPoisWithinSearchRadius(pois, center, 5000);
 assert.deepStrictEqual(filtered.map((poi) => poi.id), ["near", "near-bad-nav"]);
 assert.deepStrictEqual(filtered.find((poi) => poi.id === "near-bad-nav").navLocation, { lat: 39.914, lng: 116.409 });
+const cardFiltered = engine.__test.filterRestaurantCardsWithinSearchRadius([
+  { id: "card-near", poi: pois[0] },
+  { id: "card-far", poi: pois[1] }
+], center, 5000);
+assert.deepStrictEqual(cardFiltered.map((card) => card.id), ["card-near"]);
+assert.strictEqual(engine.__test.isPreciseRestaurantSearchCenter({ lat: 39.9, lng: 116.4, label: "当前位置" }), true);
+assert.strictEqual(engine.__test.isPreciseRestaurantSearchCenter({ lat: 39.9, lng: 116.4, label: "北京市朝阳区朝外街道朝外南街" }), true);
+assert.strictEqual(engine.__test.isPreciseRestaurantSearchCenter({ lat: 39.9, lng: 116.4, label: "北京" }), false);
 
 const requests = engine.__test.restaurantAmapRequests(5000, ["烤肉"], {
   searchRequests: [

@@ -123,17 +123,22 @@ async function handlePoiRequest(url, env) {
   const moduleId = url.searchParams.get("module") || "dinner";
   const config = poiConfigs[moduleId] || poiConfigs.dinner;
   const keyword = cleanKeyword(url.searchParams.get("keyword")) || config.keyword;
+  const requestConfig = poiConfigFromParams(config, url.searchParams, keyword);
+  const coordsys = String(url.searchParams.get("coordsys") || "").toLowerCase();
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return json({ ok: false, message: "缺少有效经纬度" }, 400);
   }
 
   try {
-    const center = await convertToAmap({ lat, lng, key });
-    const pois = await fetchAroundPois({ center, key, keyword, config });
+    const center = coordsys === "amap" || coordsys === "gcj02"
+      ? { lat, lng }
+      : await convertToAmap({ lat, lng, key });
+    const pois = await fetchAroundPois({ center, key, keyword, config: requestConfig });
     return json({
       ok: true,
       provider: "amap",
+      radius: requestConfig.radius,
       coords: {
         raw: { lat, lng },
         amap: center,
@@ -143,6 +148,39 @@ async function handlePoiRequest(url, env) {
   } catch (error) {
     return json({ ok: false, message: error.message || "POI 查询失败" }, 502);
   }
+}
+
+function poiConfigFromParams(baseConfig, params, keyword) {
+  const radius = normalizePoiRadius(params.get("radius"), baseConfig.radius);
+  const types = normalizeAmapTypes(params.get("types") || inferPoiTypes(keyword) || baseConfig.types);
+  const minCostRaw = params.get("minCost");
+  const minCostParam = minCostRaw === null ? Number.NaN : Number(minCostRaw);
+  return {
+    ...baseConfig,
+    keyword: cleanKeyword(params.get("keyword")) || baseConfig.keyword,
+    radius: String(radius),
+    radiusMeters: radius,
+    types: types || baseConfig.types,
+    showFields: normalizeAmapShowFields(params.get("showFields") || params.get("show_fields") || baseConfig.showFields),
+    minCost: Number.isFinite(minCostParam) ? Math.max(0, minCostParam) : baseConfig.minCost,
+  };
+}
+
+function normalizePoiRadius(value, fallback = 3500) {
+  const radius = Number(value);
+  const source = Number.isFinite(radius) ? radius : Number(fallback) || 3500;
+  return Math.max(1000, Math.min(30000, Math.round(source)));
+}
+
+function inferPoiTypes(value) {
+  const text = String(value || "").toLowerCase();
+  if (/火锅|涮|串串|羊蝎子|铜锅/.test(text)) return "050117";
+  if (/咖啡|coffee|下午茶/.test(text)) return "050500";
+  if (/甜品|糖水|冰淇淋|冷饮|奶茶|饮品|蛋糕|面包|烘焙/.test(text)) return "050700|050800|050900";
+  if (/西餐|牛排|披萨|意面|法餐|bistro|brunch|西式/.test(text)) return "050200";
+  if (/日料|日本|寿司|料理|刺身|烧鸟|居酒屋|拉面|韩餐|韩国|泰餐|越南|东南亚|印度|墨西哥/.test(text)) return "050200";
+  if (/川菜|湘菜|粤菜|云南|云贵|东北|本帮|江浙|北京菜|烤鱼|烧烤|烤肉|小龙虾|中餐|私房菜|家常菜/.test(text)) return "050100";
+  return "050000";
 }
 
 async function handleDecideRequest(request, env) {
@@ -1343,11 +1381,56 @@ async function fetchAroundPois({ center, key, keyword, config }) {
     }
   }
 
-  const normalized = pois.map(normalizeAmapPoi).filter((poi) => isTargetPoi(poi, config));
+  const normalized = filterPoisWithinRadius(
+    pois.map(normalizeAmapPoi).filter((poi) => isTargetPoi(poi, config)),
+    center,
+    Number(config.radiusMeters || config.radius),
+  );
   if (!config.minCost) {
     return uniquePois(normalized).slice(0, DECIDE_POI_LIMIT);
   }
   return diverseRestaurantPois(normalized, DINNER_PRICE_POOL_SIZE);
+}
+
+function filterPoisWithinRadius(pois, center, radiusMeters) {
+  const radius = Number(radiusMeters);
+  if (!Number.isFinite(radius) || radius <= 0 || !isValidCoord(center)) {
+    return (pois || []).filter(Boolean);
+  }
+  const cap = radius + Math.min(250, Math.max(100, radius * 0.03));
+  return (pois || []).filter((poi) => {
+    const distance = poiDistanceFromCenter(poi, center);
+    return distance > 0 && distance <= cap;
+  });
+}
+
+function poiDistanceFromCenter(poi, center) {
+  if (poi?.location && isValidCoord(poi.location)) {
+    return Math.round(distanceMeters(center, poi.location));
+  }
+  const distance = Number(poi?.distance);
+  return Number.isFinite(distance) && distance > 0 ? Math.round(distance) : 0;
+}
+
+function isValidCoord(coords) {
+  return Number.isFinite(Number(coords?.lat)) && Number.isFinite(Number(coords?.lng));
+}
+
+function distanceMeters(a, b) {
+  const lat1 = Number(a?.lat);
+  const lng1 = Number(a?.lng);
+  const lat2 = Number(b?.lat);
+  const lng2 = Number(b?.lng);
+  if ([lat1, lng1, lat2, lng2].some((value) => !Number.isFinite(value))) {
+    return Infinity;
+  }
+  const toRad = (value) => value * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const rLat1 = toRad(lat1);
+  const rLat2 = toRad(lat2);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLng / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
 function normalizeAmapPoi(poi) {

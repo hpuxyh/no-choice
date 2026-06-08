@@ -423,6 +423,7 @@ async function loadRestaurantDeck({ modeName, choice, coords, setLoading, toast,
     pois = await enrichRestaurantTravelMetrics(mergedPois, cardOptions, setLoading);
     cards = restaurantCardsForModeAvoiding(pois, modeName, cardOptions, avoidSet);
   }
+  cards = filterRestaurantCardsWithinSearchRadius(cards, radiusTarget, radius);
   if (toast && cards.length) toast(`已准备好 ${cards.length} 家附近餐厅候选`);
   return { cards: cards.slice(0, TOTAL), searchPlan, searchCoords: result.coords, destination, meetup };
 }
@@ -1533,6 +1534,9 @@ async function searchNearbyRestaurantsByWorker(coords, radius = 3500, keywords =
         keyword: request.keyword,
         radius: request.radiusMeters,
         types: request.types,
+        coordsys: "amap",
+        minCost: Number(options.minCost) || 0,
+        maxCost: Number(options.maxCost) || 0,
         limit: AMAP_PRICE_POOL_SIZE
       }
     });
@@ -2017,9 +2021,30 @@ function filterRestaurantPoisWithinSearchRadius(pois, targetCoords, radiusMeters
   });
 }
 
+function filterRestaurantCardsWithinSearchRadius(cards, targetCoords, radiusMeters) {
+  const target = normalizeCoord(targetCoords);
+  const radius = Number(radiusMeters);
+  if (!target || !Number.isFinite(radius) || radius <= 0) return (cards || []).filter(Boolean);
+  const tolerance = Math.min(250, Math.max(100, radius * 0.03));
+  const cap = radius + tolerance;
+  return (cards || []).filter((card) => {
+    const source = card && card.poi ? card.poi : card;
+    const distance = restaurantPoiDistanceFromTarget(source, target);
+    return distance > 0 && distance <= cap;
+  });
+}
+
 function isPreciseRestaurantSearchCenter(coords) {
   const center = normalizeCoord(coords);
-  return Boolean(center && Number(center.accuracy) > 0);
+  const label = String(center && center.label || "");
+  return Boolean(
+    center
+    && (
+      Number(center.accuracy) > 0
+      || label === "当前位置"
+      || /(?:街道|街|路|社区|小区|大厦|广场|商场|胡同|村|园区)/.test(label)
+    )
+  );
 }
 
 function restaurantHasTarget(options = {}) {
@@ -3117,6 +3142,8 @@ module.exports = {
     restaurantCardReplayKey,
     restaurantCardsForModeAvoiding,
     filterRestaurantPoisWithinSearchRadius,
+    filterRestaurantCardsWithinSearchRadius,
+    isPreciseRestaurantSearchCenter,
     restaurantPlanMiddleText,
     restaurantPlanLocationDistanceText
   }
