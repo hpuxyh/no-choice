@@ -5,7 +5,103 @@
 <view class="phone screen-{{screen}}" style="--page-top: {{pageTop}}px; --menu-avoid: {{menuRightPad}}px;">
   <view class="screens">
     <view wx:if="{{screen == 'welcome'}}" class="screen homeScreen active" bindtap="goGame">
-      <image class="homeCoverImage" src="/assets/cover/choice-over-home-cover.png" mode="aspectFill"></image>
+      <view class="homeTop">
+        <view class="homeModePill">
+          <text class="homeStatusDot"></text>
+          <text>外挂模式</text>
+          <text class="mono">v2.0</text>
+        </view>
+        <view class="homeTopControls">
+          <view class="homeCoinPill">
+            <text class="homeCoin"></text>
+            <text class="mono">03</text>
+          </view>
+          <view class="homeMore">••</view>
+        </view>
+      </view>
+
+      <view class="homeHeroCopy">
+        <text class="homeEnglish mono">CHOICE HACK</text>
+        <text class="homeTitle">选择困难症外挂</text>
+        <text class="homeDesc">不用再问“你想吃什么”。说出预算、人数和口味，<text class="homeRed">AI 从附近餐厅里抽 5 张候选卡。</text></text>
+      </view>
+
+      <view class="homePills">
+        <text>3 人</text>
+        <text>人均 ¥80</text>
+        <text>2km 内</text>
+        <text>少排队</text>
+      </view>
+
+      <view class="homeMachineWrap">
+        <view class="homeFloatingCard cardLeft">
+          <image src="/assets/food/hot-noodles.jpg" mode="aspectFill"></image>
+          <text>拉面</text>
+          <text class="homeDistance mono">900m</text>
+        </view>
+        <view class="homeFloatingCard cardRightTop">
+          <image src="/assets/food/izakaya.jpg" mode="aspectFill"></image>
+          <text>烧鸟</text>
+          <text class="homeDistance mono">1.4km</text>
+        </view>
+        <view class="homeFloatingCard cardRightBottom">
+          <image src="/assets/food/sushi.jpg" mode="aspectFill"></image>
+          <text>日料</text>
+          <text class="homeDistance mono">1.2km</text>
+        </view>
+
+        <view class="homeMachine">
+          <view class="homeMachineLabel">AI 选餐机</view>
+          <view class="homeMachineScreen">
+            <text>候选餐厅</text>
+            <text>人均 / 距离 / 等位 已计算</text>
+          </view>
+          <view class="homeMachineControls">
+            <view class="homeSlot"></view>
+            <view class="homeLever">
+              <text></text>
+              <text></text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="homeResultCards">
+        <view class="homeMiniCard">
+          <view class="homeMiniHeader">
+            <text class="homeMiniNo mono">01</text>
+            <image src="/assets/food/hot-noodles.jpg" mode="aspectFill"></image>
+          </view>
+          <text class="homeMiniName">雾岛拉面</text>
+          <text class="homeMiniMeta">¥68 · 900m · 不排队</text>
+          <text class="homeMiniTag">热乎</text>
+        </view>
+        <view class="homeMiniCard">
+          <view class="homeMiniHeader">
+            <text class="homeMiniNo mono">02</text>
+            <image src="/assets/food/steak.jpg" mode="aspectFill"></image>
+          </view>
+          <text class="homeMiniName">小锅火锅</text>
+          <text class="homeMiniMeta">¥89 · 1.1km · 等12分</text>
+          <text class="homeMiniTag">适合 3 人</text>
+        </view>
+        <view class="homeMiniCard">
+          <view class="homeMiniHeader">
+            <text class="homeMiniNo mono">03</text>
+            <image src="/assets/food/izakaya.jpg" mode="aspectFill"></image>
+          </view>
+          <text class="homeMiniName">巷口烧鸟</text>
+          <text class="homeMiniMeta">¥76 · 1.4km · 有座</text>
+          <text class="homeMiniTag">氛围好</text>
+        </view>
+      </view>
+
+      <view class="homeStartBtn">
+        <view class="homeStartLight"></view>
+        <view class="homeStartCoin"></view>
+        <text>插入硬币，抽餐厅卡</text>
+      </view>
+      <text class="homeFooter">AI 正在洗牌附近餐厅结果</text>
     </view>
 
     <view wx:if="{{screen == 'game'}}" class="screen gameScreen active">
@@ -46,8 +142,12 @@
               placeholder="{{problemPlaceholder}}"
             />
             <button class="composerMic {{recording && voiceTarget == 'problem' ? 'rec' : ''}}" bindtap="startChoiceVoice">
+              <view wx:if="{{recording && voiceTarget == 'problem'}}" class="micRipple">
+                <text></text>
+                <text></text>
+              </view>
               <text class="micGlyph">🎙️</text>
-              <text>语音</text>
+              <text>{{recording && voiceTarget == 'problem' ? '听着' : '语音'}}</text>
             </button>
           </view>
 
@@ -62,7 +162,11 @@
                 <text class="voiceInsightVal">{{item.value}}</text>
               </view>
             </view>
-            <view class="voiceInsightActions">
+            <view wx:if="{{voiceInsightState == 'loading'}}" class="voiceInsightLoading">
+              <text class="voiceLoadingDot"></text>
+              <text>理解完成后再确认</text>
+            </view>
+            <view wx:else class="voiceInsightActions">
               <button class="intentBtn primary" bindtap="confirmChoiceIntent">理解对</button>
               <button class="intentBtn ghost" bindtap="reviseChoiceIntent">再补充</button>
             </view>
@@ -227,7 +331,7 @@
                 <view class="metaRow">
                   <text wx:for="{{activeCard.meta}}" wx:key="*this" class="mtag" style="background: {{activeCard.tagBg}}; color: {{activeCard.tagFg}};">{{item}}</text>
                 </view>
-                <button wx:if="{{activeCard.location}}" class="navMini" catchtouchstart="stopCardTouch" catchtap="openActiveCardNavigation">
+                <button wx:if="{{activeCard.location || activeCard.navLocation}}" class="navMini" catchtouchstart="stopCardTouch" catchtouchmove="stopCardTouch" catchtouchend="stopCardTouch" catchtap="openActiveCardNavigation">
                   <text class="navMiniIcon">📍</text>
                   <text class="navMiniText">去导航</text>
                 </button>
@@ -351,7 +455,7 @@
           </view>
         </view>
         <view class="detailActions">
-          <button wx:if="{{detailCard.location}}" class="btn alt" bindtap="openDetailNavigation">📍 去导航</button>
+          <button wx:if="{{detailCard.location || detailCard.navLocation}}" class="btn alt" bindtap="openDetailNavigation">📍 去导航</button>
           <button class="btn ghost" bindtap="openDetailAmapLink">打开高德</button>
         </view>
       </scroll-view>

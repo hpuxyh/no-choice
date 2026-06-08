@@ -31,6 +31,25 @@ function loadSpeechPlugin() {
 
 const speechPlugin = loadSpeechPlugin();
 
+function normalizeMapPoint(point) {
+  if (!point) return null;
+  if (typeof point === "string") {
+    const [lng, lat] = point.split(",").map(Number);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { latitude: lat, longitude: lng } : null;
+  }
+  const latitude = Number(point.latitude ?? point.lat);
+  const longitude = Number(point.longitude ?? point.lng);
+  return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
+}
+
+function cardNavigationPoint(card) {
+  if (!card) return null;
+  return normalizeMapPoint(card.navLocation)
+    || normalizeMapPoint(card.location)
+    || normalizeMapPoint(card.poi && card.poi.navLocation)
+    || normalizeMapPoint(card.poi && card.poi.location);
+}
+
 const TOTAL = POOL.length;
 const DEFAULT_ART_THEMES = [
   { bg: "#ff5a4d", accent: "#f6c518" },
@@ -633,6 +652,10 @@ Page({
   },
 
   confirmChoiceIntent() {
+    if (this.data.voiceInsightState === "loading") {
+      this.showToast("AI 还在理解，等结果出来再确认");
+      return;
+    }
     this.showToast("好，按这个理解来");
     this.startAiModeGame();
   },
@@ -649,38 +672,44 @@ Page({
     }
     const manager = speechPlugin.getRecordRecognitionManager();
     this.voiceManager = manager;
-    manager.onStart(() => {
+    manager.onStart = () => {
+      this.voiceStartedAt = Date.now();
       this.voiceInputBase = this.data.problem.trim();
       this.voiceLastResult = "";
       this.setData({ recording: true });
       this.showToast("正在听，再点一次结束");
-    });
-    manager.onRecognize((res) => {
+    };
+    manager.onRecognize = (res) => {
       const text = String(res && res.result || "").trim();
       if (text) {
         this.voiceLastResult = text;
         this.applyVoiceTextToInput(text);
       }
-    });
-    manager.onStop((res) => {
+    };
+    manager.onStop = (res) => {
+      console.warn("Voice recognition stopped", res);
       const text = String(res && res.result || this.voiceLastResult || "").trim();
       this.voiceLastResult = "";
-      this.finishVoiceText(text);
-    });
-    manager.onError((err) => {
+      this.finishVoiceText(text, res);
+    };
+    manager.onError = (err) => {
       console.warn("Voice recognition error", err);
       this.voiceInputBase = "";
       this.setData({ recording: false, voiceTarget: "" });
       this.showToast(this.voiceErrorText(err));
-    });
+    };
   },
 
   stopVoiceRecognizer() {
     if (this.voiceManager && this.data.recording) {
       try {
+        this.setData({ recording: false, voiceTarget: "" });
         this.voiceManager.stop();
       } catch (error) {
         console.warn("Stop voice recognizer failed", error);
+        this.voiceInputBase = "";
+        this.voiceLastResult = "";
+        this.showToast("语音已结束");
       }
     }
   },
@@ -701,8 +730,19 @@ Page({
     }
     this.ensureRecordPermission()
       .then(() => {
-        this.setData({ voiceTarget: target });
-        this.voiceManager.start({ duration: 30000, lang: "zh_CN" });
+        this.voiceStartedAt = Date.now();
+        this.voiceInputBase = this.data.problem.trim();
+        this.voiceLastResult = "";
+        this.setData({ voiceTarget: target, recording: true });
+        this.showToast("正在听，再点一次结束");
+        try {
+          this.voiceManager.start({ duration: 30000, lang: "zh_CN" });
+        } catch (err) {
+          this.voiceInputBase = "";
+          this.voiceLastResult = "";
+          this.setData({ recording: false, voiceTarget: "" });
+          this.showToast(this.voiceErrorText(err));
+        }
       })
       .catch((err) => {
         console.warn("Record permission unavailable", err);
@@ -737,11 +777,11 @@ Page({
     });
   },
 
-  finishVoiceText(text) {
+  finishVoiceText(text, meta) {
     this.setData({ recording: false, voiceTarget: "" });
     if (!text) {
       this.voiceInputBase = "";
-      this.showToast("没听清，再试一次");
+      this.showToast(this.emptyVoiceText(meta));
       return;
     }
     this.applyVoiceTextToInput(text);
@@ -762,7 +802,24 @@ Page({
     if (/auth|permission|authorize|denied|record/i.test(message)) {
       return "请允许麦克风权限后再试";
     }
-    return "没听清，再试一次";
+    if (/network|timeout|connect|request/i.test(message)) {
+      return "语音识别网络不稳，再试一次";
+    }
+    if (/plugin|requirePlugin|WechatSI/i.test(message)) {
+      return "语音插件未生效，请重新打开小程序";
+    }
+    if (/microphone|mic|audio|busy|system/i.test(message)) {
+      return "麦克风暂时不可用，稍后再试";
+    }
+    return "语音识别失败，再试一次";
+  },
+
+  emptyVoiceText(meta) {
+    const elapsed = Date.now() - (this.voiceStartedAt || Date.now());
+    const errMsg = String(meta && meta.errMsg || "");
+    if (elapsed < 1200) return "时间太短了，说完一句再点结束";
+    if (/fail|error/i.test(errMsg)) return "语音服务没返回文字，再试一次";
+    return "没有识别到文字，靠近麦克风再说一次";
   },
 
   chooseChoicePhoto() {
@@ -1393,21 +1450,21 @@ Page({
   stopCardTouch() {},
 
   openCardNavigation(card) {
-    if (!card || !card.location) {
-      wx.showToast({ title: "暂无导航地址", icon: "none" });
-      return;
-    }
-    const latitude = Number(card.location.latitude ?? card.location.lat);
-    const longitude = Number(card.location.longitude ?? card.location.lng);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    const point = cardNavigationPoint(card);
+    if (!card || !point) {
       wx.showToast({ title: "暂无导航地址", icon: "none" });
       return;
     }
     wx.openLocation({
-      latitude,
-      longitude,
-      name: card.name,
-      address: card.address || card.type || ""
+      latitude: point.latitude,
+      longitude: point.longitude,
+      scale: 18,
+      name: card.name || "餐厅位置",
+      address: [card.address, card.area, card.type].filter(Boolean).join(" "),
+      fail: (error) => {
+        console.warn("Open map navigation unavailable", error);
+        wx.showToast({ title: "地图暂时打不开", icon: "none" });
+      }
     });
   },
 
