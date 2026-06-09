@@ -8,109 +8,80 @@
       <swiper class="homeSwiper" current="{{homeCoverIndex}}" circular="{{true}}" indicator-dots="{{true}}" indicator-color="rgba(26,23,20,.22)" indicator-active-color="#ff5a4d" duration="260" bindchange="onHomeCoverChange">
         <swiper-item>
           <view class="homeSlide homeSlideSolo" data-index="0" bindtap="onHomeCoverTap">
-      <view class="homeTop">
-        <view class="homeModePill">
-          <text class="homeStatusDot"></text>
-          <text>外挂模式</text>
-          <text class="mono">v2.0</text>
-        </view>
-        <view class="homeTopControls">
-          <view class="homeCoinPill">
-            <text class="homeCoin"></text>
-            <text class="mono">03</text>
-          </view>
-          <view class="homeMore">••</view>
-        </view>
-      </view>
+            <view class="homeTop">
+              <view class="homeModePill">
+                <text class="homeStatusDot"></text>
+                <text>外挂模式</text>
+                <text class="mono">v2.0</text>
+              </view>
+              <view class="homeTopControls soloTopControls">
+                <view class="homeMore">••</view>
+              </view>
+            </view>
 
-      <view class="homeHeroCopy">
-        <text class="homeEnglish mono">CHOICE HACK</text>
-        <text class="homeTitle">选择困难症外挂</text>
-        <text class="homeDesc">不用再问“你想吃什么”。说出预算、人数和口味，<text class="homeRed">AI 从附近餐厅里抽 5 张候选卡。</text></text>
-      </view>
+            <view class="homeHeroCopy soloHeroCopy">
+              <text class="homeEnglish mono">CHOICE HACK</text>
+              <text class="homeTitle">选择困难症外挂</text>
+              <text class="homeDesc">你可以输入任何信息，<text class="homeRed">我会根据你此刻的心情、状态和场景来选择餐厅。</text></text>
+            </view>
 
-      <view class="homePills">
-        <text>3 人</text>
-        <text>人均 ¥80</text>
-        <text>2km 内</text>
-        <text>少排队</text>
-      </view>
-
-      <view class="homeMachineWrap">
-        <view class="homeFloatingCard cardLeft">
-          <image src="/assets/food/hot-noodles.jpg" mode="aspectFill"></image>
-          <text>拉面</text>
-          <text class="homeDistance mono">900m</text>
-        </view>
-        <view class="homeFloatingCard cardRightTop">
-          <image src="/assets/food/izakaya.jpg" mode="aspectFill"></image>
-          <text>烧鸟</text>
-          <text class="homeDistance mono">1.4km</text>
-        </view>
-        <view class="homeFloatingCard cardRightBottom">
-          <image src="/assets/food/sushi.jpg" mode="aspectFill"></image>
-          <text>日料</text>
-          <text class="homeDistance mono">1.2km</text>
-        </view>
-
-        <view class="homeMachine">
-          <view class="homeMachineLabel">AI 选餐机</view>
-          <view class="homeMachineScreen">
-            <text>候选餐厅</text>
-            <text>人均 / 距离 / 等位 已计算</text>
-          </view>
-          <view class="homeMachineControls">
-            <view class="homeSlot"></view>
-            <view class="homeLever">
-              <text></text>
+            <view class="homeMagicTile">
               <text></text>
             </view>
-          </view>
-        </view>
-      </view>
 
-      <view class="homeResultCards">
-        <view class="homeMiniCard">
-          <view class="homeMiniHeader">
-            <text class="homeMiniNo mono">01</text>
-            <image src="/assets/food/hot-noodles.jpg" mode="aspectFill"></image>
-          </view>
-          <text class="homeMiniName">雾岛拉面</text>
-          <text class="homeMiniMeta">¥68 · 900m · 不排队</text>
-          <text class="homeMiniTag">热乎</text>
-        </view>
-        <view class="homeMiniCard">
-          <view class="homeMiniHeader">
-            <text class="homeMiniNo mono">02</text>
-            <image src="/assets/food/steak.jpg" mode="aspectFill"></image>
-          </view>
-          <text class="homeMiniName">小锅火锅</text>
-          <text class="homeMiniMeta">¥89 · 1.1km · 等12分</text>
-          <text class="homeMiniTag">适合 3 人</text>
-        </view>
-        <view class="homeMiniCard">
-          <view class="homeMiniHeader">
-            <text class="homeMiniNo mono">03</text>
-            <image src="/assets/food/izakaya.jpg" mode="aspectFill"></image>
-          </view>
-          <text class="homeMiniName">巷口烧鸟</text>
-          <text class="homeMiniMeta">¥76 · 1.4km · 有座</text>
-          <text class="homeMiniTag">氛围好</text>
-        </view>
-      </view>
+            <view class="homeMomentCard">
+              <text>随便说一句</text>
+              <text>我今天<text>有点累</text>，想找个<text>安静、不催人</text>的地方坐坐。</text>
+            </view>
 
-      <view class="homeBottomDock">
-        <view class="homeStartBtn">
-          <view class="homeStartLight"></view>
-          <view class="homeStartCoin"></view>
-          <text>插入硬币，抽餐厅卡</text>
-        </view>
-        <view class="homeTapGuide">
-          <text class="mono">STEP 01</text>
-          <text>点一下，先看看多人选餐局 →</text>
-        </view>
-        <text class="homeFooter">AI 正在洗牌附近餐厅结果</text>
-      </view>
+            <view class="homeScenarioGrid">
+              <text>刚运动完想吃肉</text>
+              <text>第一次约会好聊天</text>
+              <text>加班晚想喝热汤</text>
+              <text>庆祝一下要热闹</text>
+            </view>
+
+            <view class="homeMachineWrap homeMachineWrapSolo">
+              <view class="homeFloatingCard cardLeft">
+                <image src="/assets/food/pasta.jpg" mode="aspectFill"></image>
+                <text>咖啡</text>
+                <text class="homeDistance">放松</text>
+              </view>
+              <view class="homeFloatingCard cardRightTop">
+                <image src="/assets/food/izakaya.jpg" mode="aspectFill"></image>
+                <text>烧鸟</text>
+                <text class="homeDistance">安静</text>
+              </view>
+              <view class="homeFloatingCard cardRightBottom">
+                <image src="/assets/food/steak.jpg" mode="aspectFill"></image>
+                <text>火锅</text>
+                <text class="homeDistance">庆祝</text>
+              </view>
+
+              <view class="homeMachine">
+                <view class="homeMachineLabel">AI 选餐机</view>
+                <view class="homeMachineScreen">
+                  <text>读懂此刻</text>
+                  <text>心情 / 场景 / 个性 已识别</text>
+                </view>
+                <view class="homeMachineControls">
+                  <view class="homeSlot"></view>
+                  <view class="homeLever">
+                    <text></text>
+                    <text></text>
+                  </view>
+                </view>
+              </view>
+            </view>
+
+            <view class="homeBottomDock">
+              <view class="homeStartBtn">
+                <view class="homeStartLight"></view>
+                <view class="homeStartCoin"></view>
+                <text>输入一句话，抽餐厅卡</text>
+              </view>
+              <text class="homeFooter">我会根据你此刻输入的信息来选餐厅</text>
+            </view>
           </view>
         </swiper-item>
 
@@ -122,10 +93,6 @@
                 <text>多人选餐局</text>
               </view>
               <view class="homeTopControls">
-                <view class="homeCoinPill">
-                  <text class="homeCoin off"></text>
-                  <text class="mono">04</text>
-                </view>
                 <view class="homeMore menu">≡</view>
               </view>
             </view>
@@ -180,6 +147,8 @@
               <view class="groupAiFacts">
                 <view><text>冲突点：</text><text>四区分散，最远到店 42 分</text></view>
                 <view><text>解法：</text><text>选中轴商圈，平均 24 分</text></view>
+                <view><text>偏好：</text><text>能聊天、少排队、有座位</text></view>
+                <view><text>订位：</text><text>保留 19:30 的 4 人桌</text></view>
               </view>
               <view class="groupTimeRow">
                 <text>东 22分</text>
@@ -193,8 +162,8 @@
               <image src="/assets/food/steak.jpg" mode="aspectFill"></image>
               <view class="groupResultMain">
                 <text>中轴小锅</text>
-                <text>¥89 · 中轴商圈 · 可订 19:30</text>
-                <text>四区路程均衡</text>
+                <text>中轴商圈 · 四区平均 24 分 · 可订 19:30</text>
+                <text>位置最均衡的 4 人桌</text>
               </view>
               <view class="groupScore">
                 <text>均程</text>
@@ -204,13 +173,13 @@
             </view>
 
             <view class="homeBottomDock">
+              <view class="homeTapGuide groupTapGuide">
+                <text class="mono">STEP 02</text>
+                <text>点击红色按钮进入下一页</text>
+              </view>
               <view class="homeStartBtn groupStartBtn" catchtap="goGame">
                 <view class="homeStartCoin"></view>
                 <text>确认订位，中轴小锅</text>
-              </view>
-              <view class="homeTapGuide groupTapGuide">
-                <text class="mono">STEP 02</text>
-                <text>再点一下，开始选择餐厅</text>
               </view>
               <text class="homeFooter">已锁定 19:30 · 中轴商圈 · 4 人桌</text>
             </view>
@@ -239,8 +208,8 @@
 
         <view class="voiceBox {{showVoiceInsight ? 'hasInsight' : ''}}">
           <view class="intentPrompt">
-            <text class="intentPromptTitle">输入吃饭场景</text>
-            <text class="intentPromptCopy">想吃什么、想在哪儿吃、和谁一起、预算大概多少...</text>
+            <text class="intentPromptTitle">随便写点什么</text>
+            <text class="intentPromptCopy">餐厅、心情、最近场景都可以写，AI 会帮你解析口味和餐厅</text>
           </view>
 
           <view class="choiceComposer">
@@ -270,14 +239,15 @@
               <view wx:for="{{voiceIntentDetails}}" wx:key="label" class="voiceInsightItem {{item.wide ? 'wide' : ''}}">
                 <text class="voiceInsightKey">{{item.label}}</text>
                 <block wx:if="{{item.editable}}">
-                  <textarea
-                    wx:if="{{item.multiline}}"
-                    class="voiceInsightInput multiline"
-                    value="{{item.value}}"
-                    auto-height="{{true}}"
-                    maxlength="140"
-                    data-index="{{index}}"
-                    bindinput="onVoiceIntentFieldInput"
+	                  <textarea
+	                    wx:if="{{item.multiline}}"
+	                    class="voiceInsightInput multiline"
+	                    value="{{item.value}}"
+	                    auto-height="{{false}}"
+	                    show-confirm-bar="{{false}}"
+	                    maxlength="140"
+	                    data-index="{{index}}"
+	                    bindinput="onVoiceIntentFieldInput"
                   />
                   <input
                     wx:else
@@ -457,9 +427,20 @@
               <view class="info" style="background: {{activeCard.infoBg}}; color: {{activeCard.infoFg}};">
                 <text class="cnum mono" style="color: {{activeCard.infoMuted}};">NO.{{activeCard.no}} / {{totalCards}} · 附近真实餐厅</text>
                 <text class="cardName">{{activeCard.name}}</text>
-                <text wx:if="{{activeCard.reason}}" class="reason" style="color: {{activeCard.infoMuted}};">{{activeCard.reason}}</text>
-                <view class="metaRow">
+                <view wx:if="{{activeCard.summaryPills && activeCard.summaryPills.length}}" class="summaryGrid">
+                  <text wx:for="{{activeCard.summaryPills}}" wx:key="text" class="summaryPill {{item.wide ? 'wide' : 'compact'}}">{{item.text}}</text>
+                </view>
+                <view wx:elif="{{activeCard.meta && activeCard.meta.length}}" class="metaRow">
                   <text wx:for="{{activeCard.meta}}" wx:key="*this" class="mtag" style="background: {{activeCard.tagBg}}; color: {{activeCard.tagFg}};">{{item}}</text>
+                </view>
+                <view wx:if="{{activeCard.meetupPanel}}" class="meetupPanel" data-card-action="meetup">
+                  <view wx:if="{{activeCard.meetupPanel.summaryPills && activeCard.meetupPanel.summaryPills.length}}" class="meetupSummary">
+                    <text wx:for="{{activeCard.meetupPanel.summaryPills}}" wx:key="text" class="meetupSummaryPill">{{item.text}}</text>
+                  </view>
+                  <view wx:if="{{activeCard.meetupPanel.routes && activeCard.meetupPanel.routes.length}}" class="meetupTabs">
+                    <button wx:for="{{activeCard.meetupPanel.routes}}" wx:key="label" class="meetupTab {{item.long ? 'long' : ''}} {{index == activeCard.meetupPanel.selectedIndex ? 'on' : ''}}" data-index="{{index}}" data-card-action="meetup" hover-stop-propagation="{{true}}" catchtap="selectActiveMeetupRoute">{{item.label}}</button>
+                  </view>
+                  <text wx:if="{{activeCard.meetupPanel.activeRoute}}" class="meetupRouteText">{{activeCard.meetupPanel.activeRoute.text}}</text>
                 </view>
                 <button wx:if="{{activeCard.location || activeCard.navLocation || activeCard.poi.location || activeCard.poi.navLocation}}" class="navMini" data-card-action="navigation" hover-stop-propagation="{{true}}" catchtap="openActiveCardNavigation">
                   <text class="navMiniIcon" data-card-action="navigation">📍</text>
@@ -562,10 +543,15 @@
           <view class="detailCommuteBlock">
             <text class="detailFeatureTitle">到店成本</text>
             <view class="detailRouteList">
-              <view wx:for="{{detailCard.detailRoutes}}" wx:key="label" class="detailRouteRow">
-                <text class="detailRouteName">{{item.label}}</text>
+              <scroll-view wx:if="{{detailCard.detailRoutes && detailCard.detailRoutes.length > 1}}" class="detailRouteTabs" scroll-x enhanced show-scrollbar="{{false}}">
+                <view class="detailRouteTabTrack">
+                  <button wx:for="{{detailCard.detailRoutes}}" wx:key="label" class="detailRouteTab {{item.long ? 'long' : ''}} {{index == detailCard.detailRouteIndex ? 'on' : ''}}" data-index="{{index}}" catchtap="selectDetailRoute">{{item.label}}</button>
+                </view>
+              </scroll-view>
+              <view wx:if="{{detailCard.activeDetailRoute}}" class="detailRouteRow">
+                <text class="detailRouteName {{detailCard.activeDetailRoute.long ? 'long' : ''}}">{{detailCard.activeDetailRoute.label}}</text>
                 <view class="detailRouteStats">
-                  <text wx:for="{{item.stats}}" wx:key="*this" class="detailRouteStat">{{item}}</text>
+                  <text wx:for="{{detailCard.activeDetailRoute.stats}}" wx:key="*this" class="detailRouteStat">{{item}}</text>
                 </view>
               </view>
             </view>

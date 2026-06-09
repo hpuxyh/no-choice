@@ -549,11 +549,12 @@ function normalizeRestaurantSearchPlan(plan, choice) {
   const fallbackLocationHints = extractedRestaurantParticipantLocationNames(choice);
   const forceCurrentPlusFallbackMeetup = shouldUseCurrentLocationForMeetup(choice, fallbackLocationHints);
   const keywordLocationHints = restaurantLocationHintsFromKeywords(rawKeywords, choice);
-  const resolvedLocationHints = participantTargets.length >= 2
-    ? participantTargets
+  const textLocationHints = participantTargets.length >= 2 ? participantTargets : fallbackLocationHints;
+  const resolvedLocationHints = textLocationHints.length >= 2
+    ? uniqueRestaurantLocationHints([...textLocationHints, ...locationHints, ...keywordLocationHints])
     : forceCurrentPlusFallbackMeetup
       ? fallbackLocationHints
-    : uniqueRestaurantLocationHints([...locationHints, ...fallbackLocationHints, ...keywordLocationHints]);
+      : uniqueRestaurantLocationHints([...locationHints, ...fallbackLocationHints, ...keywordLocationHints]);
   const currentPlusFriendMeetup = forceCurrentPlusFallbackMeetup || shouldUseCurrentLocationForMeetup(choice, resolvedLocationHints);
   const multiParticipantMeetup = participantTargets.length >= 2 || resolvedLocationHints.length >= 2 || currentPlusFriendMeetup || (sourceIncludesCurrentLocation && resolvedLocationHints.length >= 1);
   const includeCurrentLocationInMeetup = Boolean((sourceIncludesCurrentLocation && resolvedLocationHints.length >= 1) || (currentPlusFriendMeetup && resolvedLocationHints.length === 1));
@@ -1853,6 +1854,8 @@ function poisToCards(pois, options = {}) {
       fallbackImage,
       reason: poiReason(p, options),
       meta: restaurantPoiMeta(p, options),
+      summaryPills: restaurantCardSummaryPills(p, options),
+      meetupPanel: restaurantMeetupPanelForPoi(p),
       routeTags: restaurantTravelTags(p, options).map(metaTagText).filter(Boolean),
       ratingText: p.rating ? `${p.rating}分` : "",
       costText: p.cost ? `${formatCost(p.cost)}元` : "",
@@ -1890,6 +1893,139 @@ function restaurantPoiMeta(p, options = {}) {
   return [...travel, quality, priceOrType].filter(Boolean).slice(0, 6);
 }
 
+function restaurantCardSummaryPills(p, options = {}) {
+  const meetup = restaurantMeetupSummaryPills(p);
+  const rating = p && p.rating ? { text: `${p.rating}分`, wide: false } : null;
+  const cost = p && p.cost ? { text: `人均${formatCost(p.cost)}`, wide: false } : null;
+  if (meetup.length) return [rating, cost].filter(Boolean);
+  const travel = restaurantTravelTags(p, options)
+    .map(metaTagText)
+    .filter(Boolean)
+    .filter((text) => !/：/.test(text))
+    .slice(0, 3)
+    .map((text, index) => ({ text, wide: index < 2 }));
+  return [...travel, rating, cost].filter(Boolean).slice(0, 5);
+}
+
+function restaurantMeetupSummaryPills(p = {}) {
+  const meetup = p && p.meetup;
+  if (!meetup) return [];
+  const avg = formatDistance(meetup.avgDistance);
+  const participantDistances = Array.isArray(meetup.participantDistances) ? meetup.participantDistances : [];
+  const farthest = participantDistances.reduce((picked, item, index) => {
+    const distance = Number(item && item.distance);
+    if (!Number.isFinite(distance) || distance <= 0) return picked;
+    if (!picked || distance > picked.distance) return { ...item, index, distance };
+    return picked;
+  }, null);
+  const maxDistance = formatDistance((farthest && farthest.distance) || meetup.maxDistance);
+  const farthestLabel = farthest ? restaurantRoutePlaceLabel(farthest, farthest.index) : "";
+  return [
+    avg ? { text: `平均${avg}`, wide: true } : null,
+    maxDistance ? { text: `最远${farthestLabel || ""}${maxDistance}`, wide: true } : null
+  ].filter(Boolean);
+}
+
+function restaurantMeetupExpectedLabels(p = {}) {
+  const meetup = p && p.meetup || {};
+  const labelParts = String(meetup.label || "").split(/[\/、,，]+/);
+  const distances = Array.isArray(meetup.participantDistances) ? meetup.participantDistances : [];
+  const routes = Array.isArray(p && p.participantRoutes) ? p.participantRoutes : [];
+  return uniqueRestaurantMeetupRouteLabels([
+    ...(Array.isArray(meetup.participantLabels) ? meetup.participantLabels : []),
+    ...labelParts,
+    ...distances.map((item) => item && (item.placeLabel || item.label)),
+    ...routes.map((route) => route && (route.placeLabel || route.label))
+  ]);
+}
+
+function restaurantMeetupPanelForPoi(p = {}) {
+  const summaryPills = restaurantMeetupSummaryPills(p);
+  const routeItems = restaurantMeetupRouteItems(p);
+  if (!summaryPills.length && routeItems.length < 2) return null;
+  return {
+    summaryPills,
+    routes: routeItems,
+    selectedIndex: 0,
+    activeRoute: routeItems[0] || null
+  };
+}
+
+function restaurantMeetupRouteItems(p = {}) {
+  const routes = Array.isArray(p && p.participantRoutes) ? p.participantRoutes : [];
+  const fromRoutes = routes.map((route, index) => {
+    const label = restaurantRoutePlaceLabel(route, index);
+    const stats = restaurantRouteStatTexts(route);
+    const text = stats.length ? `${label}： ${stats.join(" · ")}` : "";
+    return text ? restaurantMeetupRouteItem(label, text, index) : null;
+  }).filter(Boolean);
+  const distances = Array.isArray(p && p.meetup && p.meetup.participantDistances) ? p.meetup.participantDistances : [];
+  const fromDistances = distances.map((item, index) => {
+    const label = restaurantRoutePlaceLabel(item, index);
+    const distance = formatDistance(item && item.distance);
+    return distance ? restaurantMeetupRouteItem(label, `${label}： ${distance}`, index) : null;
+  }).filter(Boolean);
+  const expectedLabels = restaurantMeetupExpectedLabels(p);
+  if (!expectedLabels.length) return (fromRoutes.length ? fromRoutes : fromDistances).slice(0, 4);
+  return expectedLabels.map((label) => {
+    const route = findRestaurantMeetupRouteItem(fromRoutes, label);
+    if (route) return { ...route, label, long: restaurantMeetupRouteLabelIsLong(label) };
+    const distance = findRestaurantMeetupRouteItem(fromDistances, label);
+    if (distance) return { ...distance, label, long: restaurantMeetupRouteLabelIsLong(label) };
+    return restaurantMeetupRouteItem(label, `${label}： 路线正在计算`);
+  }).filter(Boolean).slice(0, 4);
+}
+
+function restaurantMeetupRouteItem(label, text, index = 0) {
+  const cleanLabel = restaurantMeetupRouteDisplayLabel(label, index);
+  return {
+    label: cleanLabel,
+    text: String(text || "").replace(String(label || ""), cleanLabel),
+    long: restaurantMeetupRouteLabelIsLong(cleanLabel)
+  };
+}
+
+function uniqueRestaurantMeetupRouteLabels(labels = []) {
+  const rawLabels = (labels || []).map((label) => String(label || "").trim()).filter(Boolean);
+  const hasPosition = rawLabels.some((label) => isRestaurantPositionLabel(label));
+  return uniqueRestaurantMiddlePointLabels(rawLabels.map((label, index) => (
+    restaurantMeetupRouteDisplayLabel(label, index, { hasPosition })
+  )));
+}
+
+function restaurantMeetupRouteDisplayLabel(label, index = 0, options = {}) {
+  const raw = String(label || "").trim();
+  if (isRestaurantPositionLabel(raw)) return "位置";
+  if (isRestaurantGenericCompanionLabel(raw) && (index === 0 || options.hasPosition)) return "位置";
+  const display = restaurantMiddlePointDisplayLabel(raw) || cleanParticipantLabel(raw, index);
+  if (isRestaurantPositionLabel(display)) return "位置";
+  if (isRestaurantGenericCompanionLabel(display) && (index === 0 || options.hasPosition)) return "位置";
+  return display;
+}
+
+function isRestaurantPositionLabel(label) {
+  const key = normalizeMatchText(label);
+  return key === "位置" || isRestaurantCurrentLocationHint(label);
+}
+
+function isRestaurantGenericCompanionLabel(label) {
+  return /^同伴\d*$/.test(normalizeMatchText(label));
+}
+
+function restaurantMeetupRouteLabelIsLong(label) {
+  return String(label || "").replace(/[A-Za-z0-9]/g, "aa").length >= 5;
+}
+
+function findRestaurantMeetupRouteItem(items = [], label = "") {
+  const key = normalizeMatchText(label);
+  if (!key) return null;
+  return (items || []).find((item) => {
+    const itemKey = normalizeMatchText(item && item.label);
+    if (!itemKey) return false;
+    return itemKey === key || itemKey.includes(key) || key.includes(itemKey);
+  }) || null;
+}
+
 function restaurantTravelTags(p, options = {}) {
   const participantTags = restaurantParticipantRouteTags(p);
   if (participantTags.length) return participantTags;
@@ -1915,7 +2051,10 @@ function restaurantParticipantRouteTags(p) {
 }
 
 function restaurantRoutePlaceLabel(route = {}, index = 0) {
-  return restaurantShortPlaceLabel(route.placeLabel || route.label) || cleanParticipantLabel(route.label, index);
+  const raw = route.placeLabel || route.label;
+  if (isRestaurantPositionLabel(raw)) return "位置";
+  if (index === 0 && isRestaurantGenericCompanionLabel(raw)) return "位置";
+  return restaurantShortPlaceLabel(raw) || cleanParticipantLabel(route.label, index);
 }
 
 function restaurantRouteStraightDistanceMeters(route = {}) {
@@ -2253,7 +2392,8 @@ function addEstimatedRestaurantRoute(poi, options = {}) {
   if (poi.meetup && !Array.isArray(poi.participantRoutes)) {
     const routes = (poi.meetup.participantDistances || []).map((item, index) => {
       const metrics = restaurantEstimatedRouteMetrics(null, item.distance || 0);
-      return { ...metrics, label: cleanParticipantLabel(item.label, index), placeLabel: restaurantShortPlaceLabel(item.placeLabel || item.label) };
+      const placeLabel = restaurantShortPlaceLabel(item.placeLabel || item.label) || cleanParticipantLabel(item.label, index);
+      return { ...metrics, label: placeLabel, placeLabel, straightDistanceMeters: item.distance || 0, distanceMeters: item.distance || 0 };
     });
     return { ...poi, participantRoutes: routes };
   }
@@ -2306,6 +2446,18 @@ async function fetchRestaurantParticipantRouteMetrics(participants, poi) {
       });
     } catch (error) {
       console.warn("Restaurant participant route metric unavailable", participant && participant.label, error);
+      const fallbackDistance = restaurantDistanceFromPoi(poi, participant.location);
+      if (fallbackDistance) {
+        const fallbackMetrics = restaurantEstimatedRouteMetrics(null, fallbackDistance);
+        routes.push({
+          ...fallbackMetrics,
+          label: participant.label,
+          placeLabel: participant.placeLabel || participant.label,
+          distanceMeters: fallbackDistance,
+          straightDistanceMeters: fallbackDistance,
+          estimatedRouteMetrics: true
+        });
+      }
     }
   }
   return routes.filter(Boolean);
@@ -2523,6 +2675,12 @@ function restaurantFeatureTagsForPoi(poi = {}) {
 }
 
 function detailRouteRowsForPoi(poi = {}, routeTags = []) {
+  const meetupRows = restaurantMeetupRouteItems(poi).map((item) => ({
+    label: item.label,
+    long: item.long,
+    stats: detailRouteStatsFromText(item.text, item.label)
+  })).filter((item) => item.stats.length);
+  if (meetupRows.length >= 2) return meetupRows;
   const participantRows = Array.isArray(poi.participantRoutes) ? poi.participantRoutes.slice(0, 2).map((route, index) => {
     const stats = detailRouteStatsFromMetric(route);
     return stats.length ? { label: restaurantRoutePlaceLabel(route, index), stats } : null;
@@ -2533,6 +2691,11 @@ function detailRouteRowsForPoi(poi = {}, routeTags = []) {
     if (stats.length) return [{ label: "你", stats }];
   }
   return (routeTags || []).filter(Boolean).slice(0, 2).map((text, index) => ({ label: index ? "路线" : "距离", stats: [text] }));
+}
+
+function detailRouteStatsFromText(text = "", label = "") {
+  const body = String(text || "").replace(new RegExp(`^${escapeRegExp(String(label || ""))}\\s*[：:]\\s*`), "").trim();
+  return body ? body.split(/\s*·\s*/).filter(Boolean) : [];
 }
 
 function detailRouteStatsFromMetric(route = {}) {
@@ -2558,6 +2721,7 @@ function compactDetailText(value, limit = 12) {
 }
 
 function cleanParticipantLabel(label, index = 0) {
+  if (isRestaurantPositionLabel(label)) return "位置";
   const cleaned = restaurantShortPlaceLabel(label) || String(label || "").replace(/附近|周边|折中点|当前位置/g, "").trim();
   const key = normalizeMatchText(cleaned);
   if (/^(你|我|本人)$/.test(key)) return "你";
@@ -2801,6 +2965,7 @@ function withRestaurantMeetupMetrics(poi, meetup) {
   if (!poi || !poi.location || !meetup || !meetup.participants || !meetup.participants.length) return poi;
   const participantDistances = meetup.participants.map((participant) => ({
     label: participant.label,
+    placeLabel: participant.placeLabel,
     distance: Math.round(restaurantDistanceMeters(participant.location, poi.location))
   })).filter((item) => Number.isFinite(item.distance));
   if (!participantDistances.length) return poi;
@@ -2808,7 +2973,12 @@ function withRestaurantMeetupMetrics(poi, meetup) {
   const maxDistance = Math.max(...distances);
   const minDistance = Math.min(...distances);
   const avgDistance = Math.round(distances.reduce((sum, value) => sum + value, 0) / distances.length);
-  return { ...poi, meetup: { label: meetup.label, participantDistances, maxDistance, minDistance, avgDistance, imbalance: maxDistance - minDistance } };
+  const participantLabels = uniqueRestaurantMiddlePointLabels([
+    ...(Array.isArray(meetup.participantLabels) ? meetup.participantLabels : []),
+    ...String(meetup.label || "").split(/[\/、,，]+/),
+    ...participantDistances.map((item) => item.placeLabel || item.label)
+  ].map(restaurantMiddlePointDisplayLabel));
+  return { ...poi, meetup: { label: meetup.label, participantLabels, participantDistances, maxDistance, minDistance, avgDistance, imbalance: maxDistance - minDistance } };
 }
 
 async function resolveRestaurantDestinationContext(coords, searchPlan, choice) {
@@ -2837,11 +3007,12 @@ async function resolveRestaurantMeetupContext(coords, searchPlan, choice) {
   const currentPlusFriendMeetup = shouldUseCurrentLocationForMeetup(choice, hints);
   if (hints.length < 2 && !currentPlusFriendMeetup) return null;
   const participants = [];
+  const expectedLabels = uniqueRestaurantMiddlePointLabels(hints.map(restaurantMiddlePointDisplayLabel));
   if (currentPlusFriendMeetup && coords) {
     const userPoint = normalizeCoord(coords);
     if (userPoint) {
-      const placeLabel = restaurantShortPlaceLabel(userPoint.addressMeta || userPoint.label) || "当前位置";
-      participants.push({ label: placeLabel, placeLabel, location: { ...userPoint, amap: true, label: placeLabel } });
+      const sourceLabel = restaurantShortPlaceLabel(userPoint.addressMeta || userPoint.label) || "当前位置";
+      participants.push({ label: "位置", placeLabel: "位置", sourceLabel, isCurrentLocation: true, location: { ...userPoint, amap: true, label: sourceLabel } });
     }
   }
   for (const hint of hints.slice(0, 4)) {
@@ -2852,14 +3023,21 @@ async function resolveRestaurantMeetupContext(coords, searchPlan, choice) {
     }
   }
   if (participants.length < 2) return null;
+  const participantLabels = uniqueRestaurantMiddlePointLabels([
+    ...(currentPlusFriendMeetup ? participants.slice(0, 1).map((item) => item.placeLabel || item.label) : []),
+    ...expectedLabels,
+    ...participants.map((item) => item.placeLabel || item.label)
+  ].map(restaurantMiddlePointDisplayLabel));
+  const displayLabel = (participantLabels.length >= 2 ? participantLabels : participants.map((item) => item.label)).join(" / ");
   const searchCoords = midpointRestaurantCoords(participants.map((item) => item.location));
   const spread = maxRestaurantPairDistance(participants.map((item) => item.location));
   const radiusMeters = Math.round(Math.max(RESTAURANT_MEETUP_MIN_RADIUS, Math.min(RESTAURANT_MEETUP_MAX_RADIUS, spread * 0.32)));
   return {
     strategy: "midpoint",
-    label: participants.map((item) => item.label).join(" / "),
+    label: displayLabel,
+    participantLabels,
     participants,
-    searchCoords: { ...searchCoords, amap: true, label: `${participants.map((item) => item.label).join(" / ")}折中点` },
+    searchCoords: { ...searchCoords, amap: true, label: `${displayLabel}折中点` },
     radiusMeters,
     spreadMeters: spread
   };
@@ -2867,10 +3045,10 @@ async function resolveRestaurantMeetupContext(coords, searchPlan, choice) {
 
 function restaurantParticipantLocationHints(searchPlan = {}, choice) {
   const targetHints = extractRestaurantParticipantTargetHints(choice);
-  if (targetHints.length >= 2) return targetHints;
+  const textHints = targetHints.length >= 2 ? targetHints : extractedRestaurantParticipantLocationNames(choice);
   return uniqueRestaurantLocationHints([
+    ...textHints,
     ...normalizeRestaurantLocationHints(searchPlan.locationHints || searchPlan.locations || searchPlan.participantLocations || searchPlan.meetingLocations),
-    ...extractedRestaurantParticipantLocationNames(choice)
   ]);
 }
 
@@ -2982,9 +3160,9 @@ async function buildRestaurantIntentPreview(choice, coords) {
       { label: "中间点", value: middleText, wide: middleText.length > 14 },
       { label: "餐厅类型", value: restaurantText, wide: true },
       { label: "价格", value: restaurantPlanBudgetText(plan) },
-      { label: "位置距离", value: restaurantPlanLocationDistanceText(plan, destination, meetup), wide: true }
+      { label: "位置距离", value: restaurantPlanLocationDistanceText(plan, destination, meetup, choice), wide: true }
     ].filter((item) => item.value),
-    amapPreview: restaurantPlanAmapPreviewItems(plan, { coords: center, destination, meetup })
+    amapPreview: restaurantPlanAmapPreviewItems(plan, { coords: center, destination, meetup, choice })
   };
 }
 
@@ -3026,11 +3204,13 @@ function restaurantPlanMiddleText(plan = {}, choice = {}, destination = null, me
 }
 
 function restaurantMiddlePointLabels(plan = {}, choice = {}, meetup = null) {
+  const hintLabels = restaurantParticipantLocationHints(plan, choice).map(restaurantMiddlePointDisplayLabel).filter(Boolean);
+  if (plan.includeCurrentLocationInMeetup || shouldUseCurrentLocationForMeetup(choice, hintLabels)) return uniqueRestaurantMiddlePointLabels(["当前位置", ...hintLabels]);
+  if (hintLabels.length >= 2) return uniqueRestaurantMiddlePointLabels(hintLabels);
   if (meetup && Array.isArray(meetup.participants) && meetup.participants.length) {
     return uniqueRestaurantMiddlePointLabels(meetup.participants.map((item) => restaurantMiddlePointDisplayLabel(item && (item.placeLabel || item.label))));
   }
-  const hints = restaurantParticipantLocationHints(plan, choice).map(restaurantMiddlePointDisplayLabel).filter(Boolean);
-  if (plan.includeCurrentLocationInMeetup || shouldUseCurrentLocationForMeetup(choice, hints)) return uniqueRestaurantMiddlePointLabels(["当前位置", ...hints]);
+  const hints = hintLabels;
   if (hints.length >= 2) return uniqueRestaurantMiddlePointLabels(hints);
   if (plan.locationHint || plan.region) return uniqueRestaurantMiddlePointLabels([restaurantMiddlePointDisplayLabel(plan.locationHint || plan.region)]);
   if (hints.length === 1 && !needsRestaurantCompanionLocation(choice, plan)) return uniqueRestaurantMiddlePointLabels(hints);
@@ -3067,11 +3247,14 @@ function restaurantPlanBudgetText(plan = {}) {
   return "按普通正餐预算";
 }
 
-function restaurantPlanLocationDistanceText(plan = {}, destination = null, meetup = null) {
+function restaurantPlanLocationDistanceText(plan = {}, destination = null, meetup = null, choice = {}) {
   if (meetup) {
-    const spread = meetup.spreadMeters ? `两边相距约${formatDistance(meetup.spreadMeters)}` : "";
+    const labels = restaurantMiddlePointLabels(plan, choice, meetup);
+    const prefix = labels.length >= 2 ? `按${labels.join(" / ")}取中间点` : "";
+    const spreadName = labels.length > 2 || (meetup.participants && meetup.participants.length > 2) ? "最远相距" : "两边相距";
+    const spread = meetup.spreadMeters ? `${spreadName}约${formatDistance(meetup.spreadMeters)}` : "";
     const radius = meetup.radiusMeters ? `在中间点附近约${formatDistance(meetup.radiusMeters)}内找` : "在中间点附近找";
-    return [radius, spread].filter(Boolean).join("，");
+    return [prefix, radius, spread].filter(Boolean).join("，");
   }
   if (destination) {
     const radius = destination.radiusMeters || plan.radiusMeters || 3500;
@@ -3100,7 +3283,7 @@ function needsRestaurantCompanionLocationFromPlan(plan = {}) {
   return Boolean(plan.needsCompanionLocation);
 }
 
-function restaurantPlanAmapPreviewItems(plan = {}, { coords = null, destination = null, meetup = null } = {}) {
+function restaurantPlanAmapPreviewItems(plan = {}, { coords = null, destination = null, meetup = null, choice = {} } = {}) {
   const searchCenter = destination?.searchCoords || meetup?.searchCoords || coords;
   const centerLabel = destination?.label
     ? `${destination.label}附近`
@@ -3111,7 +3294,7 @@ function restaurantPlanAmapPreviewItems(plan = {}, { coords = null, destination 
   return [
     { label: "搜索中心", value: coordText, wide: true },
     { label: "关键词", value: (plan.keywords || []).join("、") || RESTAURANT_KEYWORD_FALLBACK, wide: true },
-    { label: "范围", value: restaurantPlanLocationDistanceText(plan, destination, meetup).replace(/^在/, "").replace(/找，/, " · ") },
+    { label: "范围", value: restaurantPlanLocationDistanceText(plan, destination, meetup, choice).replace(/^在/, "").replace(/找，/, " · ") },
     { label: "排序", value: normalizeAmapSortRule(plan.sortrule) === "weight" ? "综合推荐，兼看距离" : "距离优先，兼看评分" }
   ];
 }
@@ -3317,6 +3500,9 @@ module.exports = {
     filterRestaurantCardsWithinSearchRadius,
     isPreciseRestaurantSearchCenter,
     restaurantPlanMiddleText,
-    restaurantPlanLocationDistanceText
+    restaurantPlanLocationDistanceText,
+    restaurantMeetupExpectedLabels,
+    restaurantMeetupRouteItems,
+    detailRouteRowsForPoi
   }
 };

@@ -188,6 +188,39 @@ function decorateCard(card, index) {
   };
 }
 
+function withSelectedMeetupRoute(card, routeIndex) {
+  if (!card || !card.meetupPanel || !Array.isArray(card.meetupPanel.routes)) return card;
+  const routes = card.meetupPanel.routes;
+  if (!routes.length) return card;
+  const selectedIndex = Math.max(0, Math.min(routes.length - 1, Number(routeIndex) || 0));
+  return {
+    ...card,
+    meetupPanel: {
+      ...card.meetupPanel,
+      selectedIndex,
+      activeRoute: routes[selectedIndex]
+    }
+  };
+}
+
+function withSelectedDetailRoute(card, routeIndex) {
+  if (!card) return card;
+  const routes = Array.isArray(card.detailRoutes) ? card.detailRoutes : [];
+  if (!routes.length) return { ...card, detailRouteIndex: 0, activeDetailRoute: null };
+  const selectedIndex = Math.max(0, Math.min(routes.length - 1, Number(routeIndex) || 0));
+  return {
+    ...card,
+    detailRouteIndex: selectedIndex,
+    activeDetailRoute: routes[selectedIndex]
+  };
+}
+
+function sameCardIdentity(left, right) {
+  if (!left || !right) return false;
+  if (left.id && right.id) return left.id === right.id;
+  return left.name === right.name;
+}
+
 function decorateDetailCard(card) {
   if (!card) return null;
   const index = Math.max(0, Number(card.no || 1) - 1);
@@ -196,11 +229,11 @@ function decorateDetailCard(card) {
     ...card,
     photoItems: (card.detailPhotos || []).concat(card.photoItems || []).concat(card.carouselImages || [])
   }, 5);
-  return {
+  return withSelectedDetailRoute({
     ...base,
     detailPhotos,
     image: detailPhotos[0] ? detailPhotos[0].url : base.image
-  };
+  }, card.detailRouteIndex || 0);
 }
 
 function selectedTagTexts(groups) {
@@ -485,7 +518,7 @@ Page({
     needTags: makeTags(NEED_TAGS),
     moreTags: makeTags(MORE_TAGS),
     problem: "",
-    problemPlaceholder: "例如：和朋友吃火锅，人均150以内\n也可以说：下班想在附近吃点清淡的",
+    problemPlaceholder: "可以写餐厅偏好、此刻心情、最近场景\n比如：想吃热乎的、刚加完班、朋友在苏州街",
     partySize: 2,
     budgetPerPerson: 150,
     choiceHasInput: false,
@@ -1598,6 +1631,22 @@ Page({
     this.openCardDetail(this.data.activeCard);
   },
 
+  selectActiveMeetupRoute(event) {
+    const routeIndex = Number(event.currentTarget.dataset.index) || 0;
+    const activeCard = withSelectedMeetupRoute(this.data.activeCard, routeIndex);
+    const updateCard = (card) => sameCardIdentity(card, activeCard) ? activeCard : card;
+    this.setData({
+      activeCard,
+      deck: this.data.deck.map(updateCard),
+      activePool: this.data.activePool.map(updateCard)
+    });
+  },
+
+  selectDetailRoute(event) {
+    const routeIndex = Number(event.currentTarget.dataset.index) || 0;
+    this.setData({ detailCard: withSelectedDetailRoute(this.data.detailCard, routeIndex) });
+  },
+
   openWinnerDetail() {
     this.openCardDetail(this.data.winner);
   },
@@ -1609,7 +1658,7 @@ Page({
     this.setData({ showPoiDetail: true, detailCard: decorateDetailCard(card), detailPhotoIndex: 0 });
     loadRestaurantDetail(card).then((detailCard) => {
       if (this.detailSeq !== seq || !this.data.showPoiDetail) return;
-      this.setData({ detailCard: decorateDetailCard(detailCard), detailPhotoIndex: 0 });
+      this.setData({ detailCard: decorateDetailCard({ ...detailCard, detailRouteIndex: this.data.detailCard && this.data.detailCard.detailRouteIndex }), detailPhotoIndex: 0 });
     }).catch((error) => {
       console.warn("Restaurant detail load failed", error);
     });

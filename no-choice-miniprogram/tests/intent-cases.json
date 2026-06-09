@@ -161,6 +161,51 @@
     }
   },
   {
+    "id": "three-explicit-places-midpoint-keeps-all",
+    "input": "火锅 我和两个朋友，一个在苏州街，一个在北京大学，我在劲松",
+    "tags": ["朋友聚餐", "火锅"],
+    "remotePlan": {
+      "keywords": ["火锅"],
+      "locationHints": ["苏州街", "劲松"],
+      "includeCurrentLocationInMeetup": false,
+      "locationIntent": {
+        "strategy": "midpoint",
+        "participantLocations": ["苏州街", "劲松"],
+        "totalParticipantCount": 3
+      },
+      "radiusMeters": 5000,
+      "source": "deepseek"
+    },
+    "expected": {
+      "locationHints": ["苏州街", "北京大学", "劲松"],
+      "currentPlusFriendMeetup": false,
+      "locationHint": "",
+      "middleIncludes": "苏州街 / 北京大学 / 劲松",
+      "distanceIncludes": "苏州街 / 北京大学 / 劲松取中间点",
+      "remotePlan": {
+        "locationHints": ["苏州街", "北京大学", "劲松"],
+        "includeCurrentLocationInMeetup": false,
+        "locationHint": "",
+        "radiusMeters": 5000,
+        "keywords": ["火锅"],
+        "searchRequestKeywords": ["火锅"]
+      }
+    }
+  },
+  {
+    "id": "three-explicit-places-card-panel-keeps-360-building",
+    "input": "一个朋友在北京大学，一个在苏州街，我在360大厦 标签：火锅",
+    "tags": ["朋友聚餐", "火锅"],
+    "expected": {
+      "locationHints": ["北京大学", "苏州街", "360大厦"],
+      "currentPlusFriendMeetup": false,
+      "locationHint": "",
+      "middleIncludes": "北京大学 / 苏州街 / 360大厦",
+      "distanceIncludes": "北京大学 / 苏州街 / 360大厦取中间点",
+      "keywordsIncludes": "火锅"
+    }
+  },
+  {
     "id": "explicit-hotpot-keeps-type",
     "input": "想吃火锅",
     "tags": ["火锅"],
