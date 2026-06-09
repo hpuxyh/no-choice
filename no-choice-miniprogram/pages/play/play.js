@@ -489,7 +489,8 @@ function editableVoiceIntentDetails(details = []) {
       key: VOICE_INTENT_DETAIL_KEYS[label] || `field${index}`,
       value: String(item && item.value || "").trim(),
       editable: label !== "状态",
-      multiline: Boolean(item && item.wide)
+      multiline: Boolean(item && item.wide),
+      summary: index < 4
     };
   });
 }
@@ -518,15 +519,16 @@ Page({
     needTags: makeTags(NEED_TAGS),
     moreTags: makeTags(MORE_TAGS),
     problem: "",
-    problemPlaceholder: "可以写餐厅偏好、此刻心情、最近场景\n比如：想吃热乎的、刚加完班、朋友在苏州街",
+    problemPlaceholder: "比如：刚下班有点累，想吃热乎的，不想排队，朋友在苏州街",
     partySize: 2,
     budgetPerPerson: 150,
     choiceHasInput: false,
-    choiceNextText: "用这些线索，让 AI 选餐厅",
+    choiceNextText: "让 AI 理解这句话",
     showVoiceInsight: false,
     voiceInsightState: "ready",
     voiceInsightQuestion: "",
     voiceIntentDetails: [],
+    editingVoiceIntentIndex: -1,
     voiceAmapPreview: [],
     voiceSearchPlan: null,
     confirmedChoiceIntent: null,
@@ -754,6 +756,7 @@ Page({
     this.setData({
       problem: e.detail.value,
       showVoiceInsight: false,
+      editingVoiceIntentIndex: -1,
       confirmedChoiceIntent: null,
       voiceSearchPlan: null
     }, () => this.updateChoiceNextAction());
@@ -774,6 +777,7 @@ Page({
     ]);
     next.problem = withTagLine(this.data.problem, selected);
     next.showVoiceInsight = false;
+    next.editingVoiceIntentIndex = -1;
     next.confirmedChoiceIntent = null;
     next.voiceSearchPlan = null;
     if (willSelect && toggled.text === "一人食") next.partySize = 1;
@@ -784,7 +788,7 @@ Page({
 
   onPartySizeChange(e) {
     const value = Math.max(1, Math.min(8, Math.round(Number(e.detail.value) || 2)));
-    this.setData({ partySize: value, showVoiceInsight: false, confirmedChoiceIntent: null, voiceSearchPlan: null }, () => this.updateChoiceNextAction());
+    this.setData({ partySize: value, showVoiceInsight: false, editingVoiceIntentIndex: -1, confirmedChoiceIntent: null, voiceSearchPlan: null }, () => this.updateChoiceNextAction());
     this.invalidateRestaurantContext();
   },
 
@@ -792,7 +796,7 @@ Page({
     const numeric = Number(e.detail.value);
     const raw = Math.round((Number.isFinite(numeric) ? numeric : 150) / 10) * 10;
     const value = Math.max(0, Math.min(500, raw));
-    this.setData({ budgetPerPerson: value, showVoiceInsight: false, confirmedChoiceIntent: null, voiceSearchPlan: null }, () => this.updateChoiceNextAction());
+    this.setData({ budgetPerPerson: value, showVoiceInsight: false, editingVoiceIntentIndex: -1, confirmedChoiceIntent: null, voiceSearchPlan: null }, () => this.updateChoiceNextAction());
     this.invalidateRestaurantContext();
   },
 
@@ -810,7 +814,7 @@ Page({
     const choiceHasInput = Boolean(question || tags.length || this.data.partySize || this.data.budgetPerPerson);
     this.setData({
       choiceHasInput,
-      choiceNextText: question ? "让 AI 理解这句话" : (tags.length ? "用这些线索，让 AI 选餐厅" : "按人数预算找餐厅")
+      choiceNextText: question ? "让 AI 理解这句话" : (tags.length ? "让 AI 理解这些线索" : "按人数预算找餐厅")
     });
   },
 
@@ -827,8 +831,9 @@ Page({
       voiceInsightState: "loading",
       voiceInsightQuestion: "AI 正在理解中",
       voiceIntentDetails: [
-        { label: "状态", value: "正在理解你的场景、人数和位置", wide: true, editable: false }
+        { label: "状态", key: "status", value: "正在理解你的场景、人数和位置", wide: true, editable: false }
       ],
+      editingVoiceIntentIndex: -1,
       voiceAmapPreview: [],
       voiceSearchPlan: null,
       confirmedChoiceIntent: null
@@ -882,6 +887,7 @@ Page({
       voiceInsightState: "ready",
       voiceInsightQuestion: "我按下面这样理解，确认一下？",
       voiceIntentDetails: editableVoiceIntentDetails(details),
+      editingVoiceIntentIndex: -1,
       voiceAmapPreview: amapPreview,
       voiceSearchPlan: searchPlan,
       confirmedChoiceIntent: null
@@ -896,6 +902,14 @@ Page({
     ));
     this.setData({ voiceIntentDetails: details, confirmedChoiceIntent: null });
     this.invalidateRestaurantContext();
+  },
+
+  onVoiceIntentItemTap(e) {
+    if (this.data.voiceInsightState === "loading") return;
+    const index = Number(e.currentTarget.dataset.index);
+    const item = (this.data.voiceIntentDetails || [])[index];
+    if (!item || !item.editable) return;
+    this.setData({ editingVoiceIntentIndex: index });
   },
 
   buildConfirmedChoiceIntent() {
@@ -920,7 +934,7 @@ Page({
   },
 
   reviseChoiceIntent() {
-    this.setData({ showVoiceInsight: false, confirmedChoiceIntent: null, voiceSearchPlan: null }, () => this.updateChoiceNextAction());
+    this.setData({ showVoiceInsight: false, editingVoiceIntentIndex: -1, confirmedChoiceIntent: null, voiceSearchPlan: null }, () => this.updateChoiceNextAction());
     this.showToast("继续补充一句，我会重新理解");
   },
 

@@ -207,53 +207,175 @@
         </view>
 
         <view class="voiceBox {{showVoiceInsight ? 'hasInsight' : ''}}">
-          <view class="intentPrompt">
+          <view wx:if="{{!showVoiceInsight}}" class="intentPrompt">
             <text class="intentPromptTitle">随便写点什么</text>
-            <text class="intentPromptCopy">餐厅、心情、最近场景都可以写，AI 会理解口味和场景</text>
+            <text class="intentPromptCopy">一句话里混写心情、场景、预算、朋友位置</text>
           </view>
 
-          <view class="choiceComposer">
-            <textarea
-              class="field bigInput composerInput"
-              value="{{problem}}"
-              bindinput="onProblemInput"
-              maxlength="160"
-              placeholder="{{problemPlaceholder}}"
-            />
-            <button class="composerMic {{recording && voiceTarget == 'problem' ? 'rec' : ''}}" bindtap="startChoiceVoice">
-              <view wx:if="{{recording && voiceTarget == 'problem'}}" class="micRipple">
-                <text></text>
-                <text></text>
+          <view class="momentComposerShell {{showVoiceInsight ? 'insightMode' : ''}}">
+            <view class="choiceComposer">
+              <view class="composerInputPanel">
+                <view class="composerMiniHead">
+                  <text class="composerAiBadge">AI 读懂此刻</text>
+                  <text class="composerMiniHint">不用先选标签</text>
+                </view>
+                <textarea
+                  class="field bigInput composerInput"
+                  value="{{problem}}"
+                  bindinput="onProblemInput"
+                  maxlength="160"
+                  placeholder="{{problemPlaceholder}}"
+                />
               </view>
-              <text class="micGlyph">🎙️</text>
-              <text>{{recording && voiceTarget == 'problem' ? '听着' : '语音'}}</text>
-            </button>
+              <button class="composerMic {{recording && voiceTarget == 'problem' ? 'rec' : ''}}" bindtap="startChoiceVoice">
+                <view wx:if="{{recording && voiceTarget == 'problem'}}" class="micRipple">
+                  <text></text>
+                  <text></text>
+                </view>
+                <text class="micGlyph">🎙️</text>
+                <text>{{recording && voiceTarget == 'problem' ? '听着' : '语音'}}</text>
+              </button>
+            </view>
+
+            <view wx:if="{{!showVoiceInsight}}" class="quickTags momentSignals">
+              <view class="momentSignalsHead">
+                <text>灵感线索</text>
+                <text>横滑更多，点一下补进输入</text>
+              </view>
+              <view class="quickTagRow">
+                <text class="quickTagLabel">需求</text>
+                <view class="quickTagRail">
+                  <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
+                    <view class="quickTagTrack">
+                      <button wx:for="{{needTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="needTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+                    </view>
+                  </scroll-view>
+                  <view class="quickTagFade"></view>
+                </view>
+              </view>
+              <view class="quickTagRow">
+                <text class="quickTagLabel">场景</text>
+                <view class="quickTagRail">
+                  <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
+                    <view class="quickTagTrack">
+                      <button wx:for="{{sceneTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="sceneTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+                    </view>
+                  </scroll-view>
+                  <view class="quickTagFade"></view>
+                </view>
+              </view>
+              <view class="quickTagRow">
+                <text class="quickTagLabel">口味</text>
+                <view class="quickTagRail">
+                  <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
+                    <view class="quickTagTrack">
+                      <button wx:for="{{moreTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="moreTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+                    </view>
+                  </scroll-view>
+                  <view class="quickTagFade"></view>
+                </view>
+              </view>
+
+              <view class="preferenceSliders">
+                <view class="preferenceSliderRow">
+                  <view class="preferenceSliderHead">
+                    <text class="quickTagLabel">人数</text>
+                    <text class="preferenceValue">{{partySize}}人</text>
+                  </view>
+                  <slider
+                    class="preferenceSlider"
+                    min="1"
+                    max="8"
+                    step="1"
+                    value="{{partySize}}"
+                    activeColor="#f6c518"
+                    backgroundColor="#d8d0be"
+                    block-color="#1a1714"
+                    block-size="24"
+                    bindchanging="onPartySizeChange"
+                    bindchange="onPartySizeChange"
+                  />
+                </view>
+                <view class="preferenceSliderRow">
+                  <view class="preferenceSliderHead">
+                    <text class="quickTagLabel">预算</text>
+                    <text class="preferenceValue">人均{{budgetPerPerson}}元</text>
+                  </view>
+                  <slider
+                    class="preferenceSlider"
+                    min="0"
+                    max="500"
+                    step="10"
+                    value="{{budgetPerPerson}}"
+                    activeColor="#f6c518"
+                    backgroundColor="#d8d0be"
+                    block-color="#1a1714"
+                    block-size="24"
+                    bindchanging="onBudgetChange"
+                    bindchange="onBudgetChange"
+                  />
+                </view>
+              </view>
+            </view>
+
+            <view wx:if="{{!showVoiceInsight}}" class="momentParseStrip">
+              <view>
+                <text>AI 会从你的话里拆出搜索条件</text>
+                <text>口味 / 人数 / 位置 / 预算 / 距离</text>
+              </view>
+              <text class="mono">PARSE</text>
+            </view>
+
+            <view wx:if="{{!showVoiceInsight && photoThumbs.length}}" class="thumbRow">
+              <image wx:for="{{photoThumbs}}" wx:key="*this" class="thumb" src="{{item}}" mode="aspectFill"></image>
+            </view>
+
+            <view wx:if="{{!showVoiceInsight}}" class="choiceActionRow">
+              <button class="choiceNextBtn {{choiceHasInput ? '' : 'disabled'}}" bindtap="proceedChoiceToMode">{{choiceNextText}}</button>
+            </view>
           </view>
 
           <view wx:if="{{showVoiceInsight}}" class="voiceInsight {{voiceInsightState}}">
             <view class="voiceInsightHeader">
               <text>{{voiceInsightQuestion}}</text>
             </view>
-            <view class="voiceSectionTitle">我理解成，可直接改</view>
+            <view wx:if="{{voiceInsightState != 'loading'}}" class="voiceInsightSummary">
+              <view wx:for="{{voiceIntentDetails}}" wx:key="key" wx:if="{{item.summary}}" class="voiceSummaryChip">
+                <text>{{item.label}}</text>
+                <text>{{item.value}}</text>
+              </view>
+            </view>
+            <view class="voiceSectionTitle">{{voiceInsightState == 'loading' ? '理解进度' : '理解明细，点卡片可修改'}}</view>
             <view class="voiceInsightDetails">
-              <view wx:for="{{voiceIntentDetails}}" wx:key="label" class="voiceInsightItem {{item.wide ? 'wide' : ''}}">
-                <text class="voiceInsightKey">{{item.label}}</text>
-                <block wx:if="{{item.editable}}">
-	                  <textarea
-	                    wx:if="{{item.multiline}}"
-	                    class="voiceInsightInput multiline"
-	                    value="{{item.value}}"
-	                    auto-height="{{false}}"
-	                    show-confirm-bar="{{false}}"
-	                    maxlength="140"
-	                    data-index="{{index}}"
-	                    bindinput="onVoiceIntentFieldInput"
+              <view
+                wx:for="{{voiceIntentDetails}}"
+                wx:key="key"
+                class="voiceInsightItem {{item.wide ? 'wide' : ''}} {{editingVoiceIntentIndex == index ? 'editing' : ''}} {{item.editable ? 'editable' : ''}}"
+                data-index="{{index}}"
+                bindtap="onVoiceIntentItemTap"
+              >
+                <view class="voiceInsightItemTop">
+                  <text class="voiceInsightKey">{{item.label}}</text>
+                  <text wx:if="{{item.editable}}" class="voiceInsightEditHint">{{editingVoiceIntentIndex == index ? '编辑中' : '点改'}}</text>
+                </view>
+                <block wx:if="{{item.editable && editingVoiceIntentIndex == index}}">
+                  <textarea
+                    wx:if="{{item.multiline}}"
+                    class="voiceInsightInput multiline"
+                    value="{{item.value}}"
+                    auto-height="{{false}}"
+                    show-confirm-bar="{{false}}"
+                    maxlength="140"
+                    focus="{{editingVoiceIntentIndex == index}}"
+                    data-index="{{index}}"
+                    bindinput="onVoiceIntentFieldInput"
                   />
                   <input
                     wx:else
                     class="voiceInsightInput"
                     value="{{item.value}}"
                     maxlength="80"
+                    focus="{{editingVoiceIntentIndex == index}}"
                     data-index="{{index}}"
                     bindinput="onVoiceIntentFieldInput"
                   />
@@ -271,115 +393,6 @@
             </view>
           </view>
 
-          <view class="quickTags">
-            <view class="quickTagRow">
-              <text class="quickTagLabel">场景</text>
-              <view class="quickTagRail">
-                <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
-                  <view class="quickTagTrack">
-                    <button wx:for="{{sceneTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="sceneTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
-                  </view>
-                </scroll-view>
-                <view class="quickTagFade"></view>
-              </view>
-            </view>
-            <view class="quickTagRow">
-              <text class="quickTagLabel">需求</text>
-              <view class="quickTagRail">
-                <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
-                  <view class="quickTagTrack">
-                    <button wx:for="{{needTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="needTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
-                  </view>
-                </scroll-view>
-                <view class="quickTagFade"></view>
-              </view>
-            </view>
-            <view class="quickTagRow">
-              <text class="quickTagLabel">偏好</text>
-              <view class="quickTagRail">
-                <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
-                  <view class="quickTagTrack">
-                    <button wx:for="{{moreTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" data-group="moreTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
-                  </view>
-                </scroll-view>
-                <view class="quickTagFade"></view>
-              </view>
-            </view>
-          </view>
-
-          <view class="preferenceSliders">
-            <view class="preferenceSliderRow">
-              <view class="preferenceSliderHead">
-                <text class="quickTagLabel">人数</text>
-                <text class="preferenceValue">{{partySize}}人</text>
-              </view>
-              <slider
-                class="preferenceSlider"
-                min="1"
-                max="8"
-                step="1"
-                value="{{partySize}}"
-                activeColor="#f6c518"
-                backgroundColor="#d8d0be"
-                block-color="#1a1714"
-                block-size="30"
-                bindchanging="onPartySizeChange"
-                bindchange="onPartySizeChange"
-              />
-            </view>
-            <view class="preferenceSliderRow">
-              <view class="preferenceSliderHead">
-                <text class="quickTagLabel">预算</text>
-                <text class="preferenceValue">人均{{budgetPerPerson}}元</text>
-              </view>
-              <slider
-                class="preferenceSlider"
-                min="0"
-                max="500"
-                step="10"
-                value="{{budgetPerPerson}}"
-                activeColor="#f6c518"
-                backgroundColor="#d8d0be"
-                block-color="#1a1714"
-                block-size="30"
-                bindchanging="onBudgetChange"
-                bindchange="onBudgetChange"
-              />
-            </view>
-          </view>
-
-          <view class="thumbRow" wx:if="{{photoThumbs.length}}">
-            <image wx:for="{{photoThumbs}}" wx:key="*this" class="thumb" src="{{item}}" mode="aspectFill"></image>
-          </view>
-
-          <view class="choiceActionRow">
-            <button class="choiceNextBtn {{choiceHasInput ? '' : 'disabled'}}" bindtap="proceedChoiceToMode">{{choiceNextText}}</button>
-          </view>
-
-          <view class="choicePreviewPanel">
-            <view class="choicePreviewHead">
-              <text>AI 预理解</text>
-              <text class="mono">READY</text>
-            </view>
-            <view class="choicePreviewGrid">
-              <view>
-                <text>场景</text>
-                <text>输入和标签一起分析</text>
-              </view>
-              <view>
-                <text>口味</text>
-                <text>未明确时多类型推荐</text>
-              </view>
-              <view>
-                <text>人数</text>
-                <text>{{partySize}}人</text>
-              </view>
-              <view>
-                <text>预算</text>
-                <text>人均{{budgetPerPerson}}元</text>
-              </view>
-            </view>
-          </view>
         </view>
       </view>
     </view>

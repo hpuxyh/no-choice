@@ -1473,11 +1473,11 @@ button.back {
 .intentPrompt {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 14rpx;
   min-width: 0;
   padding: 0 4rpx 0 2rpx;
   color: #6f675a;
-  font-size: 22rpx;
+  font-size: 21rpx;
   font-weight: 900;
   line-height: 1.28;
 }
@@ -1500,13 +1500,13 @@ button.back {
   white-space: nowrap;
 }
 
-.choiceComposer {
+.momentComposerShell {
   flex: none;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
   gap: 14rpx;
   padding: 16rpx;
   border: 6rpx solid #1a1714;
@@ -1517,30 +1517,114 @@ button.back {
   overflow: hidden;
 }
 
+.momentComposerShell.insightMode {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.choiceComposer {
+  flex: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 14rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.momentComposerShell.insightMode .choiceComposer {
+  padding: 16rpx;
+  border: 6rpx solid #1a1714;
+  border-radius: 38rpx;
+  background: rgba(255, 253, 246, .96);
+  box-shadow: 0 10rpx 0 rgba(26, 23, 20, .68), inset 0 0 0 2rpx rgba(255, 255, 255, .7);
+}
+
+.composerInputPanel {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 198rpx;
+  min-height: 198rpx;
+  padding: 18rpx 22rpx 16rpx;
+  border: 4rpx solid #f6c518;
+  border-radius: 28rpx;
+  background: #fffefa;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.composerMiniHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+  min-width: 0;
+}
+
+.composerAiBadge {
+  flex: none;
+  min-height: 38rpx;
+  padding: 0 15rpx;
+  border: 4rpx solid #1a1714;
+  border-radius: 999rpx;
+  background: #e9fff5;
+  color: #0b754a;
+  display: flex;
+  align-items: center;
+  font-size: 21rpx;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.composerMiniHint {
+  min-width: 0;
+  color: #8a8378;
+  font-size: 20rpx;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .bigInput,
 .composerInput {
   flex: 1 1 0;
   min-width: 0;
   width: auto;
-  height: 164rpx;
-  min-height: 164rpx;
-  padding: 22rpx 24rpx;
-  border: 4rpx solid #f6c518;
-  border-radius: 28rpx;
-  background: #fffefa;
+  height: 118rpx;
+  min-height: 118rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #1a1714;
-  font-size: 28rpx;
-  font-weight: 900;
-  line-height: 1.34;
+  font-size: 29rpx;
+  font-weight: 950;
+  line-height: 1.28;
   box-sizing: border-box;
 }
 
 .composerMic {
-  flex: 0 0 108rpx;
-  width: 108rpx;
-  min-width: 108rpx;
-  max-width: 108rpx;
-  min-height: 164rpx;
+  flex: 0 0 100rpx;
+  width: 100rpx;
+  min-width: 100rpx;
+  max-width: 100rpx;
+  min-height: 198rpx;
   padding: 0;
   border: 4rpx solid rgba(26, 23, 20, .7);
   border-radius: 28rpx;
@@ -1550,7 +1634,7 @@ button.back {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 7rpx;
+  gap: 9rpx;
   font-size: 24rpx;
   font-weight: 950;
   box-sizing: border-box;
@@ -1600,7 +1684,7 @@ button.back {
 }
 
 .micGlyph {
-  font-size: 42rpx;
+  font-size: 38rpx;
   line-height: 1;
 }
 
@@ -1626,8 +1710,8 @@ button.back {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
-  padding: 16rpx;
+  gap: 14rpx;
+  padding: 18rpx;
   border: 5rpx solid #1a1714;
   border-radius: 30rpx;
   background: #fffdf6;
@@ -1675,7 +1759,7 @@ button.back {
   align-items: center;
   gap: 14rpx;
   color: #1a1714;
-  font-size: 23rpx;
+  font-size: 22rpx;
   font-weight: 950;
 }
 
@@ -1689,20 +1773,21 @@ button.back {
 .voiceInsightDetails {
   display: flex;
   flex-wrap: wrap;
-  gap: 10rpx;
+  gap: 12rpx;
 }
 
 .voiceInsightItem {
   flex: 1 1 calc(50% - 10rpx);
   width: calc(50% - 10rpx);
   min-width: 0;
-  padding: 11rpx 14rpx;
+  min-height: 92rpx;
+  padding: 13rpx 15rpx;
   border: 3rpx solid rgba(26, 23, 20, .22);
-  border-radius: 18rpx;
-  background: #f3ecdd;
+  border-radius: 20rpx;
+  background: #fffaf0;
   display: flex;
   flex-direction: column;
-  gap: 3rpx;
+  gap: 8rpx;
   box-sizing: border-box;
 }
 
@@ -1717,20 +1802,48 @@ button.back {
   font-weight: 900;
 }
 
+.voiceInsightItemTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  min-width: 0;
+}
+
+.voiceInsightEditHint {
+  flex: none;
+  min-height: 30rpx;
+  padding: 0 10rpx;
+  border: 2rpx solid rgba(26, 23, 20, .30);
+  border-radius: 999rpx;
+  background: #fffdf6;
+  color: #746b5e;
+  display: flex;
+  align-items: center;
+  font-size: 17rpx;
+  font-weight: 950;
+  line-height: 1;
+}
+
 .voiceInsightVal {
   color: #1a1714;
   font-size: 23rpx;
   font-weight: 950;
   line-height: 1.22;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .voiceInsightInput {
   width: 100%;
-  height: 44rpx;
-  min-height: 44rpx;
-  padding: 4rpx 0 0;
-  border: 0;
-  background: transparent;
+  height: 56rpx;
+  min-height: 56rpx;
+  padding: 8rpx 10rpx;
+  border: 2rpx solid rgba(26, 23, 20, .18);
+  border-radius: 12rpx;
+  background: #fffefa;
   color: #1a1714;
   font-size: 23rpx;
   font-weight: 950;
@@ -1739,17 +1852,71 @@ button.back {
 }
 
 .voiceInsightInput.multiline {
-  height: 64rpx;
-  min-height: 64rpx;
-  max-height: 64rpx;
+  height: 84rpx;
+  min-height: 84rpx;
+  max-height: 84rpx;
 }
 
 .voiceInsight.ready .voiceInsightItem {
   background: #fffaf0;
 }
 
-.voiceInsight.ready .voiceInsightItem:focus-within {
+.voiceInsightItem.editable {
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, .74);
+}
+
+.voiceInsightItem.editing {
   border-color: #f6c518;
+  background: #fff7df;
+  box-shadow: 0 5rpx 0 rgba(26, 23, 20, .18), inset 0 0 0 2rpx rgba(246, 197, 24, .18);
+}
+
+.voiceInsightItem.editing .voiceInsightEditHint {
+  background: #f6c518;
+  border-color: #1a1714;
+  color: #1a1714;
+}
+
+.voiceInsightSummary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10rpx;
+  padding: 16rpx;
+  border: 5rpx solid #1a1714;
+  border-radius: 24rpx;
+  background: #101b1b;
+  color: #eaffff;
+  box-shadow: 0 7rpx 0 rgba(26, 23, 20, .68);
+  box-sizing: border-box;
+}
+
+.voiceSummaryChip {
+  min-width: 0;
+  min-height: 68rpx;
+  padding: 11rpx 12rpx;
+  border: 3rpx solid rgba(138, 255, 255, .28);
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, .07);
+  display: flex;
+  flex-direction: column;
+  gap: 3rpx;
+  box-sizing: border-box;
+}
+
+.voiceSummaryChip text:first-child {
+  color: rgba(234, 255, 255, .68);
+  font-size: 17rpx;
+  font-weight: 900;
+}
+
+.voiceSummaryChip text:last-child {
+  color: #eaffff;
+  font-size: 20rpx;
+  font-weight: 950;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .voiceAmapLog {
@@ -1872,19 +2039,45 @@ button.back {
 }
 
 .voiceBox {
-  --quick-label-width: 68rpx;
+  --quick-label-width: 62rpx;
   --quick-column-gap: 12rpx;
 }
 
 .quickTags {
   flex: none;
   display: grid;
-  gap: 14rpx;
-  padding: 20rpx 18rpx 18rpx;
+  gap: 12rpx;
+  padding: 16rpx 18rpx 18rpx;
   border: 3rpx solid rgba(26,23,20,.10);
   border-radius: 28rpx;
   background: rgba(255, 250, 240, .72);
   box-shadow: inset 0 0 0 2rpx rgba(255, 255, 255, .62);
+}
+
+.momentSignalsHead {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  color: #71685d;
+  font-size: 21rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.momentSignalsHead text:first-child {
+  flex: none;
+  color: #1a1714;
+  font-size: 25rpx;
+  font-weight: 950;
+}
+
+.momentSignalsHead text:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quickTagRow {
@@ -1897,7 +2090,7 @@ button.back {
 
 .quickTagLabel {
   width: var(--quick-label-width);
-  font-size: 22rpx;
+  font-size: 21rpx;
   font-weight: 950;
   color: #6b6253;
   line-height: 1.1;
@@ -1929,24 +2122,23 @@ button.back {
 .quickTagTrack {
   display: inline-flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 10rpx;
   min-width: 100%;
   padding-right: 42rpx;
   box-sizing: border-box;
 }
 
 .quickTagRow .chip {
-  flex: 0 0 128rpx;
-  width: 128rpx;
-  min-width: 128rpx;
-  min-height: 54rpx;
-  padding: 0 10rpx;
+  flex: 0 0 auto;
+  min-width: 104rpx;
+  min-height: 50rpx;
+  padding: 0 18rpx;
   border-width: 3rpx;
   border-color: #66625b;
   border-radius: 999rpx;
   background: #fffdf6;
   box-shadow: 0 4rpx 0 rgba(26, 23, 20, .22);
-  font-size: 23rpx;
+  font-size: 22rpx;
   font-weight: 950;
   line-height: 1.08;
   white-space: nowrap;
@@ -1962,58 +2154,125 @@ button.back {
 .preferenceSliders {
   flex: none;
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14rpx;
-  margin-top: 0;
-  padding: 19rpx 18rpx 20rpx;
-  border: 3rpx solid rgba(26,23,20,.10);
-  border-radius: 28rpx;
-  background: rgba(255, 250, 240, .62);
-  box-shadow: inset 0 0 0 2rpx rgba(255, 255, 255, .58);
+  margin-top: 2rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .preferenceSliderRow {
   display: grid;
-  grid-template-columns: var(--quick-label-width) 116rpx minmax(0, 1fr);
-  align-items: center;
-  column-gap: var(--quick-column-gap);
+  grid-template-columns: 1fr;
+  gap: 8rpx;
+  align-items: stretch;
+  min-height: 88rpx;
+  padding: 12rpx 16rpx;
+  border: 4rpx solid rgba(26, 23, 20, .12);
+  border-radius: 24rpx;
+  background: #fffdf6;
   min-width: 0;
+  box-sizing: border-box;
 }
 
 .preferenceSliderHead {
-  display: contents;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  min-width: 0;
+}
+
+.preferenceSliderHead .quickTagLabel {
+  width: auto;
+  flex: none;
 }
 
 .preferenceValue {
   justify-self: start;
   min-width: 0;
-  padding: 6rpx 15rpx 5rpx;
+  max-width: 150rpx;
+  padding: 5rpx 13rpx 4rpx;
   border: 3rpx solid #66625b;
   border-radius: 999rpx;
   background: #fffdf6;
   color: #1a1714;
-  font-size: 22rpx;
+  font-size: 21rpx;
   font-weight: 950;
   line-height: 1.1;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .preferenceSlider {
-  grid-column: 3;
   width: 100%;
-  min-height: 48rpx;
-  margin: -4rpx 0 -4rpx;
+  min-height: 32rpx;
+  margin: 0;
   padding: 0;
   background: transparent;
   box-shadow: none;
 }
 
-.voiceBox.hasInsight .intentPrompt,
-.voiceBox.hasInsight .quickTags,
-.voiceBox.hasInsight .preferenceSliders,
-.voiceBox.hasInsight .choicePreviewPanel,
-.voiceBox.hasInsight .choiceActionRow,
-.voiceBox.hasInsight .choiceNextBtn {
-  display: none;
+.momentParseStrip {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 96rpx;
+  padding: 18rpx 20rpx;
+  border: 5rpx solid #0c2f2f;
+  border-radius: 26rpx;
+  background: #101b1b;
+  color: #eaffff;
+  box-shadow: inset 0 0 0 3rpx rgba(66, 230, 239, .12);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18rpx;
+  box-sizing: border-box;
+}
+
+.momentParseStrip view {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.momentParseStrip view text:first-child {
+  color: #eaffff;
+  font-size: 26rpx;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.momentParseStrip view text:last-child {
+  color: #42e6ef;
+  font-size: 22rpx;
+  font-weight: 950;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.momentParseStrip > text {
+  flex: none;
+  min-width: 104rpx;
+  min-height: 56rpx;
+  padding: 0 18rpx;
+  border: 4rpx solid rgba(66, 230, 239, .58);
+  border-radius: 999rpx;
+  color: #42e6ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18rpx;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .choiceActionRow {
@@ -2051,71 +2310,6 @@ button.back {
   background: #f8d76a;
 }
 
-.choicePreviewPanel {
-  flex: none;
-  width: 100%;
-  min-width: 0;
-  margin-top: 18rpx;
-  padding: 20rpx;
-  border: 5rpx solid #1a1714;
-  border-radius: 30rpx;
-  background: #101b1b;
-  box-shadow: 0 10rpx 0 rgba(26, 23, 20, .68), 0 0 0 8rpx rgba(53, 220, 135, .08);
-  color: #eaffff;
-  box-sizing: border-box;
-}
-
-.choicePreviewHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-  margin-bottom: 14rpx;
-  color: #48f3ff;
-  font-size: 27rpx;
-  font-weight: 950;
-  text-shadow: 0 0 12rpx rgba(72, 243, 255, .42);
-}
-
-.choicePreviewHead text:last-child {
-  flex: none;
-  color: #fffdf6;
-  font-size: 18rpx;
-  text-shadow: none;
-}
-
-.choicePreviewGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12rpx;
-}
-
-.choicePreviewGrid view {
-  min-width: 0;
-  min-height: 68rpx;
-  padding: 12rpx 14rpx;
-  border: 3rpx solid rgba(138, 255, 255, .28);
-  border-radius: 18rpx;
-  background: rgba(255, 255, 255, .07);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4rpx;
-  box-sizing: border-box;
-}
-
-.choicePreviewGrid text:first-child {
-  color: rgba(234, 255, 255, .66);
-  font-size: 18rpx;
-  font-weight: 900;
-}
-
-.choicePreviewGrid text:last-child {
-  color: #eaffff;
-  font-size: 21rpx;
-  font-weight: 950;
-  line-height: 1.18;
-}
 
 .thumbRow {
   display: flex;
