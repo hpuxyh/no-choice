@@ -209,7 +209,7 @@
         <view class="voiceBox {{showVoiceInsight ? 'hasInsight' : ''}}">
           <view class="intentPrompt">
             <text class="intentPromptTitle">随便写点什么</text>
-            <text class="intentPromptCopy">餐厅、心情、最近场景都可以写，AI 会帮你解析口味和餐厅</text>
+            <text class="intentPromptCopy">餐厅、心情、最近场景都可以写，AI 会理解口味和场景</text>
           </view>
 
           <view class="choiceComposer">
@@ -354,6 +354,31 @@
 
           <view class="choiceActionRow">
             <button class="choiceNextBtn {{choiceHasInput ? '' : 'disabled'}}" bindtap="proceedChoiceToMode">{{choiceNextText}}</button>
+          </view>
+
+          <view class="choicePreviewPanel">
+            <view class="choicePreviewHead">
+              <text>AI 预理解</text>
+              <text class="mono">READY</text>
+            </view>
+            <view class="choicePreviewGrid">
+              <view>
+                <text>场景</text>
+                <text>输入和标签一起分析</text>
+              </view>
+              <view>
+                <text>口味</text>
+                <text>未明确时多类型推荐</text>
+              </view>
+              <view>
+                <text>人数</text>
+                <text>{{partySize}}人</text>
+              </view>
+              <view>
+                <text>预算</text>
+                <text>人均{{budgetPerPerson}}元</text>
+              </view>
+            </view>
           </view>
         </view>
       </view>

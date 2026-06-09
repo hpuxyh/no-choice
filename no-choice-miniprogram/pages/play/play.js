@@ -522,7 +522,7 @@ Page({
     partySize: 2,
     budgetPerPerson: 150,
     choiceHasInput: false,
-    choiceNextText: "用标签让 AI 理解",
+    choiceNextText: "用这些线索，让 AI 选餐厅",
     showVoiceInsight: false,
     voiceInsightState: "ready",
     voiceInsightQuestion: "",
@@ -810,7 +810,7 @@ Page({
     const choiceHasInput = Boolean(question || tags.length || this.data.partySize || this.data.budgetPerPerson);
     this.setData({
       choiceHasInput,
-      choiceNextText: question ? "让 AI 理解一下" : (tags.length ? "用标签和条件理解" : "按人数预算找餐厅")
+      choiceNextText: question ? "让 AI 理解这句话" : (tags.length ? "用这些线索，让 AI 选餐厅" : "按人数预算找餐厅")
     });
   },
 

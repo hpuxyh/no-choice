@@ -1373,7 +1373,7 @@ button.back {
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 22rpx;
+  gap: 20rpx;
   padding-top: 2rpx;
   box-sizing: border-box;
   overflow: hidden;
@@ -1386,7 +1386,7 @@ button.back {
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 18rpx;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -1473,22 +1473,23 @@ button.back {
 .intentPrompt {
   display: flex;
   align-items: center;
-  gap: 14rpx;
+  gap: 16rpx;
   min-width: 0;
-  padding: 0 4rpx;
+  padding: 0 4rpx 0 2rpx;
   color: #6f675a;
-  font-size: 23rpx;
+  font-size: 22rpx;
   font-weight: 900;
   line-height: 1.28;
 }
 
 .intentPromptTitle {
   flex: none;
-  padding: 6rpx 16rpx;
+  padding: 7rpx 18rpx 6rpx;
   border: 3rpx solid rgba(26, 23, 20, .28);
   border-radius: 999rpx;
   background: #fffdf6;
   color: #1a1714;
+  box-shadow: 0 3rpx 0 rgba(26, 23, 20, .22);
 }
 
 .intentPromptCopy {
@@ -1506,12 +1507,12 @@ button.back {
   min-width: 0;
   display: flex;
   align-items: stretch;
-  gap: 12rpx;
-  padding: 12rpx;
+  gap: 14rpx;
+  padding: 16rpx;
   border: 6rpx solid #1a1714;
   border-radius: 38rpx;
   background: rgba(255, 253, 246, .96);
-  box-shadow: 0 10rpx 0 rgba(26, 23, 20, .72);
+  box-shadow: 0 10rpx 0 rgba(26, 23, 20, .68), inset 0 0 0 2rpx rgba(255, 255, 255, .7);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -1521,12 +1522,12 @@ button.back {
   flex: 1 1 0;
   min-width: 0;
   width: auto;
-  height: 152rpx;
-  min-height: 152rpx;
-  padding: 20rpx 22rpx;
+  height: 164rpx;
+  min-height: 164rpx;
+  padding: 22rpx 24rpx;
   border: 4rpx solid #f6c518;
   border-radius: 28rpx;
-  background: #fffdf6;
+  background: #fffefa;
   color: #1a1714;
   font-size: 28rpx;
   font-weight: 900;
@@ -1535,11 +1536,11 @@ button.back {
 }
 
 .composerMic {
-  flex: 0 0 102rpx;
-  width: 102rpx;
-  min-width: 102rpx;
-  max-width: 102rpx;
-  min-height: 152rpx;
+  flex: 0 0 108rpx;
+  width: 108rpx;
+  min-width: 108rpx;
+  max-width: 108rpx;
+  min-height: 164rpx;
   padding: 0;
   border: 4rpx solid rgba(26, 23, 20, .7);
   border-radius: 28rpx;
@@ -1878,11 +1879,12 @@ button.back {
 .quickTags {
   flex: none;
   display: grid;
-  gap: 12rpx;
-  padding: 16rpx 16rpx 14rpx;
-  border: 3rpx solid rgba(26,23,20,.14);
-  border-radius: 24rpx;
-  background: rgba(255,253,246,.54);
+  gap: 14rpx;
+  padding: 20rpx 18rpx 18rpx;
+  border: 3rpx solid rgba(26,23,20,.10);
+  border-radius: 28rpx;
+  background: rgba(255, 250, 240, .72);
+  box-shadow: inset 0 0 0 2rpx rgba(255, 255, 255, .62);
 }
 
 .quickTagRow {
@@ -1895,7 +1897,7 @@ button.back {
 
 .quickTagLabel {
   width: var(--quick-label-width);
-  font-size: 21rpx;
+  font-size: 22rpx;
   font-weight: 950;
   color: #6b6253;
   line-height: 1.1;
@@ -1921,7 +1923,7 @@ button.back {
   width: 42rpx;
   height: 100%;
   pointer-events: none;
-  background: linear-gradient(90deg, rgba(255,253,246,0), rgba(255,253,246,.92));
+  background: linear-gradient(90deg, rgba(255,250,240,0), rgba(255,250,240,.94));
 }
 
 .quickTagTrack {
@@ -1934,45 +1936,46 @@ button.back {
 }
 
 .quickTagRow .chip {
-  flex: 0 0 132rpx;
-  width: 132rpx;
-  min-width: 132rpx;
-  min-height: 58rpx;
-  padding: 0 8rpx;
+  flex: 0 0 128rpx;
+  width: 128rpx;
+  min-width: 128rpx;
+  min-height: 54rpx;
+  padding: 0 10rpx;
   border-width: 3rpx;
   border-color: #66625b;
   border-radius: 999rpx;
   background: #fffdf6;
-  box-shadow: none;
-  font-size: 24rpx;
+  box-shadow: 0 4rpx 0 rgba(26, 23, 20, .22);
+  font-size: 23rpx;
   font-weight: 950;
   line-height: 1.08;
   white-space: nowrap;
 }
 
 .quickTagRow .chip.on {
-  background: #f0eadb;
-  color: #8a806e;
-  border-color: #beb5a2;
+  background: #1a1714;
+  color: #fffdf6;
+  border-color: #1a1714;
+  box-shadow: 0 4rpx 0 rgba(26, 23, 20, .34);
 }
 
 .preferenceSliders {
   flex: none;
   display: grid;
-  gap: 12rpx;
+  gap: 14rpx;
   margin-top: 0;
-  padding: 16rpx;
-  border: 3rpx solid rgba(26,23,20,.12);
-  border-radius: 24rpx;
-  background: rgba(246,239,224,.68);
+  padding: 19rpx 18rpx 20rpx;
+  border: 3rpx solid rgba(26,23,20,.10);
+  border-radius: 28rpx;
+  background: rgba(255, 250, 240, .62);
+  box-shadow: inset 0 0 0 2rpx rgba(255, 255, 255, .58);
 }
 
 .preferenceSliderRow {
   display: grid;
-  grid-template-columns: var(--quick-label-width) minmax(0, 1fr);
+  grid-template-columns: var(--quick-label-width) 116rpx minmax(0, 1fr);
   align-items: center;
   column-gap: var(--quick-column-gap);
-  row-gap: 6rpx;
   min-width: 0;
 }
 
@@ -1995,10 +1998,10 @@ button.back {
 }
 
 .preferenceSlider {
-  grid-column: 2;
+  grid-column: 3;
   width: 100%;
-  min-height: 44rpx;
-  margin: -6rpx 0 -4rpx;
+  min-height: 48rpx;
+  margin: -4rpx 0 -4rpx;
   padding: 0;
   background: transparent;
   box-shadow: none;
@@ -2007,6 +2010,7 @@ button.back {
 .voiceBox.hasInsight .intentPrompt,
 .voiceBox.hasInsight .quickTags,
 .voiceBox.hasInsight .preferenceSliders,
+.voiceBox.hasInsight .choicePreviewPanel,
 .voiceBox.hasInsight .choiceActionRow,
 .voiceBox.hasInsight .choiceNextBtn {
   display: none;
@@ -2019,7 +2023,7 @@ button.back {
   justify-content: center;
   width: 100%;
   min-width: 0;
-  margin-top: 6rpx;
+  margin-top: 8rpx;
   box-sizing: border-box;
 }
 
@@ -2027,14 +2031,14 @@ button.back {
   flex: 1 1 auto;
   width: 100%;
   max-width: 100%;
-  min-height: 90rpx;
+  min-height: 88rpx;
   margin: 0;
   box-sizing: border-box;
   border: 6rpx solid #1a1714;
   border-radius: 30rpx;
   background: #f6c518;
   color: #1a1714;
-  box-shadow: 0 10rpx 0 rgba(26, 23, 20, .72);
+  box-shadow: 0 10rpx 0 rgba(26, 23, 20, .68);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2043,7 +2047,74 @@ button.back {
 }
 
 .choiceNextBtn.disabled {
-  opacity: .62;
+  opacity: .72;
+  background: #f8d76a;
+}
+
+.choicePreviewPanel {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  margin-top: 18rpx;
+  padding: 20rpx;
+  border: 5rpx solid #1a1714;
+  border-radius: 30rpx;
+  background: #101b1b;
+  box-shadow: 0 10rpx 0 rgba(26, 23, 20, .68), 0 0 0 8rpx rgba(53, 220, 135, .08);
+  color: #eaffff;
+  box-sizing: border-box;
+}
+
+.choicePreviewHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 14rpx;
+  color: #48f3ff;
+  font-size: 27rpx;
+  font-weight: 950;
+  text-shadow: 0 0 12rpx rgba(72, 243, 255, .42);
+}
+
+.choicePreviewHead text:last-child {
+  flex: none;
+  color: #fffdf6;
+  font-size: 18rpx;
+  text-shadow: none;
+}
+
+.choicePreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.choicePreviewGrid view {
+  min-width: 0;
+  min-height: 68rpx;
+  padding: 12rpx 14rpx;
+  border: 3rpx solid rgba(138, 255, 255, .28);
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, .07);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4rpx;
+  box-sizing: border-box;
+}
+
+.choicePreviewGrid text:first-child {
+  color: rgba(234, 255, 255, .66);
+  font-size: 18rpx;
+  font-weight: 900;
+}
+
+.choicePreviewGrid text:last-child {
+  color: #eaffff;
+  font-size: 21rpx;
+  font-weight: 950;
+  line-height: 1.18;
 }
 
 .thumbRow {
