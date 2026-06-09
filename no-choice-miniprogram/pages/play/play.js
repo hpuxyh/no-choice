@@ -692,7 +692,6 @@ Page({
       this.setData({ homeCoverIndex: 1 });
       return;
     }
-    this.goGame();
   },
 
   onHomeCoverTouchStart(event) {
@@ -705,7 +704,6 @@ Page({
     const startX = Number(this.homeCoverStartX) || 0;
     this.homeCoverStartX = 0;
     if (Number(this.data.homeCoverIndex) !== 1) return;
-    if (changed && startX && changed.clientX - startX > 80) this.goGame();
   },
 
   goGame() {

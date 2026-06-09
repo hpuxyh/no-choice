@@ -115,7 +115,7 @@
         </swiper-item>
 
         <swiper-item>
-          <view class="homeSlide homeSlideGroup" data-index="1" bindtap="onHomeCoverTap" bindtouchstart="onHomeCoverTouchStart" bindtouchend="onHomeGroupCoverTouchEnd">
+          <view class="homeSlide homeSlideGroup" data-index="1">
             <view class="homeTop">
               <view class="homeModePill">
                 <text class="homeStatusDot"></text>
@@ -204,7 +204,7 @@
             </view>
 
             <view class="homeBottomDock">
-              <view class="homeStartBtn groupStartBtn">
+              <view class="homeStartBtn groupStartBtn" catchtap="goGame">
                 <view class="homeStartCoin"></view>
                 <text>确认订位，中轴小锅</text>
               </view>
