@@ -1,0 +1,13 @@
+{
+  "description": "CHOICE OVER native WeChat Mini Program",
+  "appid": "wxc88a06d5bf13c2bc",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "./",
+  "projectname": "no-choice-miniprogram",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": true,
+    "minified": true
+  }
+}

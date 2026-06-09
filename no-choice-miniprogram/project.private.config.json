@@ -1,0 +1,14 @@
+{
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "不做选择首页",
+          "pathName": "pages/play/play",
+          "query": "",
+          "scene": null
+        }
+      ]
+    }
+  }
+}
