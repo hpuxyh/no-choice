@@ -123,6 +123,10 @@ async function handlePoiRequest(url, env) {
   const moduleId = url.searchParams.get("module") || "dinner";
   const config = poiConfigs[moduleId] || poiConfigs.dinner;
   const keyword = cleanKeyword(url.searchParams.get("keyword")) || config.keyword;
+  const requestConfig = {
+    ...config,
+    allowedCity: cityLabelFromText(url.searchParams.get("city") || url.searchParams.get("allowedCity") || ""),
+  };
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return json({ ok: false, message: "缺少有效经纬度" }, 400);
@@ -130,7 +134,7 @@ async function handlePoiRequest(url, env) {
 
   try {
     const center = await convertToAmap({ lat, lng, key });
-    const pois = await fetchAroundPois({ center, key, keyword, config });
+    const pois = await fetchAroundPois({ center, key, keyword, config: requestConfig });
     return json({
       ok: true,
       provider: "amap",
@@ -1496,7 +1500,10 @@ async function fetchAroundPois({ center, key, keyword, config }) {
   const hasEnoughDinnerCandidates = () =>
     config.minCost &&
     diverseRestaurantPois(
-      pois.map(normalizeAmapPoi).filter((poi) => isTargetPoi(poi, config)),
+      filterPoisWithinAllowedCity(
+        pois.map(normalizeAmapPoi).filter((poi) => isTargetPoi(poi, config)),
+        config.allowedCity,
+      ),
       DINNER_PRICE_POOL_SIZE,
     ).length >= DINNER_PRICE_POOL_SIZE;
 
@@ -1530,11 +1537,108 @@ async function fetchAroundPois({ center, key, keyword, config }) {
     }
   }
 
-  const normalized = pois.map(normalizeAmapPoi).filter((poi) => isTargetPoi(poi, config));
+  const normalized = filterPoisWithinAllowedCity(
+    pois.map(normalizeAmapPoi).filter((poi) => isTargetPoi(poi, config)),
+    config.allowedCity,
+  );
   if (!config.minCost) {
     return uniquePois(normalized).slice(0, DECIDE_POI_LIMIT);
   }
   return diverseRestaurantPois(normalized, DINNER_PRICE_POOL_SIZE);
+}
+
+function cityLabelFromText(value) {
+  const text = String(value || "").trim();
+  if (!text || /^(当前|附近|周边|GPS|正在)/.test(text)) {
+    return "";
+  }
+  const directCityMap = {
+    北京: "北京市",
+    上海: "上海市",
+    天津: "天津市",
+    重庆: "重庆市",
+  };
+  const directMatch = text.match(/^(北京|上海|天津|重庆)(?:市|城区|市区)?$/u)
+    || text.match(/^(北京|上海|天津|重庆)(?=[市区县路街道乡镇村])/u);
+  if (directMatch) {
+    return directCityMap[directMatch[1]];
+  }
+  const match = text.match(/([\u4e00-\u9fa5]{2,}(?:市|自治州|地区|盟))/u);
+  if (match) {
+    return match[1];
+  }
+  return /(?:市|自治州|地区|盟)$/.test(text) ? text : "";
+}
+
+function cityLabelsFromText(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return [];
+  }
+  const labels = [];
+  const seen = new Set();
+  const push = (city) => {
+    const label = cityLabelFromText(city);
+    if (label && !seen.has(label)) {
+      seen.add(label);
+      labels.push(label);
+    }
+  };
+  const matches = text.match(/[\u4e00-\u9fa5]{2,}(?:市|自治州|地区|盟)/gu) || [];
+  matches.forEach(push);
+  if (labels.length) {
+    return labels;
+  }
+  const direct = text.match(/(?:^|[\s,，。;；、])?(北京|上海|天津|重庆)(?=市|城区|市区|[区县路街道乡镇村]|$)/g) || [];
+  direct.forEach((item) => push(String(item).replace(/^[\s,，。;；、]+/, "")));
+  return labels;
+}
+
+function cityBaseName(city) {
+  return String(city || "").replace(/(?:市|自治州|地区|盟)$/u, "");
+}
+
+function sameCity(left, right) {
+  const a = cityLabelFromText(left);
+  const b = cityLabelFromText(right);
+  if (!a || !b) {
+    return false;
+  }
+  return a === b || cityBaseName(a) === cityBaseName(b);
+}
+
+function poiCityText(poi) {
+  return [
+    poi?.city,
+    poi?.area,
+    poi?.address,
+    poi?.district,
+    poi?.businessArea,
+  ].filter(Boolean).join(" ");
+}
+
+function poiMatchesAllowedCity(poi, allowedCity) {
+  const city = cityLabelFromText(allowedCity);
+  if (!city) {
+    return true;
+  }
+  const text = poiCityText(poi);
+  if (!text) {
+    return true;
+  }
+  const labels = cityLabelsFromText(text);
+  if (labels.length) {
+    return labels.some((label) => sameCity(label, city));
+  }
+  return true;
+}
+
+function filterPoisWithinAllowedCity(pois, allowedCity) {
+  const city = cityLabelFromText(allowedCity);
+  if (!city) {
+    return (pois || []).filter(Boolean);
+  }
+  return (pois || []).filter((poi) => poiMatchesAllowedCity(poi, city));
 }
 
 function normalizeAmapPoi(poi) {
@@ -1553,6 +1657,8 @@ function normalizeAmapPoi(poi) {
     name: poi.name,
     address: Array.isArray(poi.address) ? poi.address.join("") : poi.address || "",
     area: [poi.cityname, poi.adname].filter(Boolean).join(" "),
+    city: poi.cityname || "",
+    district: poi.adname || "",
     type: typeParts[typeParts.length - 1] || typeParts[0] || "",
     distance: Number(poi.distance) || 0,
     rating: poi.business?.rating || "",
