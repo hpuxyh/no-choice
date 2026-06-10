@@ -4,6 +4,22 @@
   "compileType": "miniprogram",
   "miniprogramRoot": "./",
   "projectname": "no-choice-miniprogram",
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "docs"
+      },
+      {
+        "type": "folder",
+        "value": "tests"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      }
+    ]
+  },
   "setting": {
     "urlCheck": false,
     "es6": true,
