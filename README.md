@@ -7,6 +7,7 @@
 ## Demo
 
 - 游戏版：https://no-choice.pages.dev/play.html
+- 小程序版：微信小程序 AppID `wxc88a06d5bf13c2bc`
 - 简洁版：https://no-choice-lite.pages.dev/play.html
 - 原始版：https://no-choice.pages.dev/
 - GitHub Pages 镜像：https://hpuxyh.github.io/no-choice/
@@ -14,14 +15,15 @@
 
 ## 版本命名
 
-以后项目里严格按这三个名字区分：
+以后项目里严格按这些名字区分：
 
-| 版本 | 代码位置 | 线上地址 | 说明 |
+| 版本 | 代码位置 | 线上地址/访问方式 | 说明 |
 | --- | --- | --- | --- |
 | 游戏版 | `no-choice-demo/public/play.html` | https://no-choice.pages.dev/play.html | 像素/抽卡/模式卡片风格，对应“霸总模式 / AI 模式 / 玄学模式”的游戏化入口。 |
+| 小程序版 | `no-choice-miniprogram/` | 微信小程序 AppID `wxc88a06d5bf13c2bc` | 原生微信小程序版本，承接当前游戏版餐厅选择主流程，用于开发版、体验版、审核和正式发布。 |
 | 简洁版 | `no-choice-lite/public/play.html` | https://no-choice-lite.pages.dev/play.html | 克制、工具化移动端样式，复用游戏版 API。 |
 | 原始版 | `no-choice-demo/src` 与 `no-choice-demo/index.html` | https://no-choice.pages.dev/ | 最早的 React + Vite Web 原型，用于验证四模块和基础拍板流程。 |
-| iOS 原型 | `NoChoiceMobile/` | 本地 Xcode/模拟器 | 原生 SwiftUI 原型，不纳入上面三个 Web 版本命名。 |
+| iOS 原型 | `NoChoiceMobile/` | 本地 Xcode/模拟器 | 原生 SwiftUI 原型，不纳入 Web 版本命名。 |
 
 ## 核心体验
 
@@ -61,6 +63,7 @@
 ## Project Structure
 
 - `no-choice-demo/`：包含原始版 React + Vite Web 原型，以及 `public/play.html` 游戏版
+- `no-choice-miniprogram/`：微信小程序版，AppID 为 `wxc88a06d5bf13c2bc`
 - `no-choice-lite/`：简洁版 Web
 - `NoChoiceMobile/`：SwiftUI 原生 iOS 原型
 - `screenshots/`：演示截图
