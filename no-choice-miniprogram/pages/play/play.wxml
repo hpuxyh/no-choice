@@ -240,7 +240,7 @@
             <view wx:if="{{!showVoiceInsight}}" class="quickTags momentSignals">
               <view class="momentSignalsHead">
                 <text>灵感线索</text>
-                <text>横滑更多，点一下补进输入</text>
+                <text>横滑添加</text>
               </view>
               <view class="quickTagRow">
                 <text class="quickTagLabel">需求</text>

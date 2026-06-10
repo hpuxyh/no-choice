@@ -2059,7 +2059,7 @@ button.back {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16rpx;
+  gap: 12rpx;
   color: #71685d;
   font-size: 21rpx;
   font-weight: 900;
@@ -2074,9 +2074,15 @@ button.back {
 }
 
 .momentSignalsHead text:last-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: none;
+  max-width: 150rpx;
+  padding: 5rpx 12rpx 4rpx;
+  border: 3rpx solid rgba(26, 23, 20, .32);
+  border-radius: 999rpx;
+  background: #fffdf6;
+  color: #6f6659;
+  font-size: 19rpx;
+  box-sizing: border-box;
   white-space: nowrap;
 }
 
@@ -2123,16 +2129,18 @@ button.back {
   display: inline-flex;
   align-items: center;
   gap: 10rpx;
-  min-width: 100%;
+  min-width: 0;
   padding-right: 42rpx;
   box-sizing: border-box;
 }
 
 .quickTagRow .chip {
   flex: 0 0 auto;
-  min-width: 104rpx;
+  width: auto;
+  min-width: 92rpx;
+  max-width: 176rpx;
   min-height: 50rpx;
-  padding: 0 18rpx;
+  padding: 0 22rpx;
   border-width: 3rpx;
   border-color: #66625b;
   border-radius: 999rpx;
@@ -2141,6 +2149,9 @@ button.back {
   font-size: 22rpx;
   font-weight: 950;
   line-height: 1.08;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
