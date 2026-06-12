@@ -1,0 +1,244 @@
+[
+  {
+    "id": "tag-line-friend-location",
+    "input": "标签：朋友聚餐 我的另外一个朋友在苏州街",
+    "tags": ["朋友聚餐"],
+    "expected": {
+      "questionIncludes": "我的另外一个朋友在苏州街",
+      "locationHints": ["苏州街"],
+      "currentPlusFriendMeetup": true,
+      "locationHint": "",
+      "middleIncludes": "当前位置 / 苏州街",
+      "distanceIncludes": "苏州街取中间点"
+    }
+  },
+  {
+    "id": "friend-location-inline",
+    "input": "朋友聚餐 我朋友在苏州街",
+    "tags": ["朋友聚餐"],
+    "expected": {
+      "locationHints": ["苏州街"],
+      "currentPlusFriendMeetup": true,
+      "locationHint": "",
+      "middleIncludes": "当前位置 / 苏州街",
+      "distanceIncludes": "苏州街取中间点"
+    }
+  },
+  {
+    "id": "friend-at-guomao-overrides-bad-remote-location",
+    "input": "标签：朋友聚餐 朋友在国贸",
+    "tags": ["朋友聚餐"],
+    "remotePlan": {
+      "keywords": ["中餐", "火锅", "西餐"],
+      "locationHints": ["道酒仙桥路", "共2人"],
+      "includeCurrentLocationInMeetup": true,
+      "locationIntent": {
+        "strategy": "midpoint",
+        "participantLocations": ["道酒仙桥路", "共2人"],
+        "totalParticipantCount": 2
+      },
+      "radiusMeters": 30000,
+      "source": "deepseek"
+    },
+    "expected": {
+      "questionIncludes": "朋友在国贸",
+      "locationHints": ["国贸"],
+      "currentPlusFriendMeetup": true,
+      "locationHint": "",
+      "middleIncludes": "当前位置 / 国贸",
+      "distanceIncludes": "国贸取中间点",
+      "remotePlan": {
+        "locationHints": ["国贸"],
+        "includeCurrentLocationInMeetup": true,
+        "locationHint": "",
+        "radiusMeters": 10000,
+        "typeDiversity": true,
+        "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+        "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"]
+      }
+    }
+  },
+  {
+    "id": "date-location-inline",
+    "input": "约会吃饭 女朋友在国贸",
+    "tags": ["约会吃饭"],
+    "expected": {
+      "locationHints": ["国贸"],
+      "currentPlusFriendMeetup": true,
+      "locationHint": "",
+      "middleIncludes": "当前位置 / 国贸",
+      "distanceIncludes": "国贸取中间点"
+    }
+  },
+  {
+    "id": "friend-tag-missing-location",
+    "input": "标签：朋友聚餐",
+    "tags": ["朋友聚餐"],
+    "expected": {
+      "locationHints": [],
+      "currentPlusFriendMeetup": false,
+      "needsCompanionLocation": true,
+      "middleIncludes": "还缺同伴位置",
+      "distanceIncludes": "补充同伴位置"
+    }
+  },
+  {
+    "id": "explicit-5km-radius",
+    "input": "想吃烤肉，限制5公里以内",
+    "tags": ["烧烤"],
+    "expected": {
+      "locationHints": [],
+      "currentPlusFriendMeetup": false,
+      "radiusMeters": 5000,
+      "typeDiversity": false,
+      "keywordsIncludes": "烤肉",
+      "distanceIncludes": "5km内"
+    }
+  },
+  {
+    "id": "generic-dinner-diverse-types",
+    "input": "今天想吃饭",
+    "tags": [],
+    "expected": {
+      "locationHints": [],
+      "currentPlusFriendMeetup": false,
+      "typeDiversity": true,
+      "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"]
+    }
+  },
+  {
+    "id": "generic-meetup-diverse-types",
+    "input": "朋友聚餐 我的另外一个朋友在苏州街",
+    "tags": ["朋友聚餐"],
+    "expected": {
+      "locationHints": ["苏州街"],
+      "currentPlusFriendMeetup": true,
+      "typeDiversity": true,
+      "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "middleIncludes": "当前位置 / 苏州街",
+      "distanceIncludes": "苏州街取中间点"
+    }
+  },
+  {
+    "id": "generic-date-remote-plan-diverse-types",
+    "input": "约会吃饭",
+    "tags": ["约会吃饭"],
+    "remotePlan": {
+      "keywords": ["约会餐厅", "西餐", "日料"],
+      "searchRequests": [
+        { "keyword": "约会餐厅" },
+        { "keyword": "西餐" },
+        { "keyword": "日料" }
+      ],
+      "radiusMeters": 5000,
+      "source": "deepseek"
+    },
+    "expected": {
+      "locationHints": [],
+      "currentPlusFriendMeetup": false,
+      "typeDiversity": true,
+      "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+      "remotePlan": {
+        "typeDiversity": true,
+        "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
+        "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"]
+      }
+    }
+  },
+  {
+    "id": "two-explicit-districts-midpoint-label",
+    "input": "朋友聚餐 一个人在海淀苏州街，一个人在劲松",
+    "tags": ["朋友聚餐"],
+    "expected": {
+      "locationHints": ["海淀苏州街", "劲松"],
+      "currentPlusFriendMeetup": false,
+      "locationHint": "",
+      "middleIncludes": "海淀苏州街 / 劲松",
+      "distanceIncludes": "海淀苏州街 / 劲松取中间点"
+    }
+  },
+  {
+    "id": "three-explicit-places-midpoint-keeps-all",
+    "input": "火锅 我和两个朋友，一个在苏州街，一个在北京大学，我在劲松",
+    "tags": ["朋友聚餐", "火锅"],
+    "remotePlan": {
+      "keywords": ["火锅"],
+      "locationHints": ["苏州街", "劲松"],
+      "includeCurrentLocationInMeetup": false,
+      "locationIntent": {
+        "strategy": "midpoint",
+        "participantLocations": ["苏州街", "劲松"],
+        "totalParticipantCount": 3
+      },
+      "radiusMeters": 5000,
+      "source": "deepseek"
+    },
+    "expected": {
+      "locationHints": ["苏州街", "北京大学", "劲松"],
+      "currentPlusFriendMeetup": false,
+      "locationHint": "",
+      "middleIncludes": "苏州街 / 北京大学 / 劲松",
+      "distanceIncludes": "苏州街 / 北京大学 / 劲松取中间点",
+      "remotePlan": {
+        "locationHints": ["苏州街", "北京大学", "劲松"],
+        "includeCurrentLocationInMeetup": false,
+        "locationHint": "",
+        "radiusMeters": 5000,
+        "keywords": ["火锅"],
+        "searchRequestKeywords": ["火锅"]
+      }
+    }
+  },
+  {
+    "id": "three-explicit-places-card-panel-keeps-360-building",
+    "input": "一个朋友在北京大学，一个在苏州街，我在360大厦 标签：火锅",
+    "tags": ["朋友聚餐", "火锅"],
+    "expected": {
+      "locationHints": ["北京大学", "苏州街", "360大厦"],
+      "currentPlusFriendMeetup": false,
+      "locationHint": "",
+      "middleIncludes": "北京大学 / 苏州街 / 360大厦",
+      "distanceIncludes": "北京大学 / 苏州街 / 360大厦取中间点",
+      "keywordsIncludes": "火锅"
+    }
+  },
+  {
+    "id": "space-separated-friend-and-self-locations",
+    "input": "朋友聚餐 朋友在上海静安 我在徐家汇",
+    "tags": ["朋友聚餐"],
+    "expected": {
+      "locationHints": ["上海静安", "徐家汇"],
+      "currentPlusFriendMeetup": false,
+      "locationHint": "",
+      "middleIncludes": "上海静安 / 徐家汇",
+      "distanceIncludes": "上海静安 / 徐家汇取中间点"
+    }
+  },
+  {
+    "id": "compound-food-keywords-split",
+    "input": "想吃火锅和烤肉",
+    "tags": [],
+    "expected": {
+      "locationHints": [],
+      "currentPlusFriendMeetup": false,
+      "typeDiversity": false,
+      "keywords": ["火锅", "烤肉"],
+      "searchRequestKeywords": ["火锅", "烤肉"]
+    }
+  },
+  {
+    "id": "explicit-hotpot-keeps-type",
+    "input": "想吃火锅",
+    "tags": ["火锅"],
+    "expected": {
+      "locationHints": [],
+      "currentPlusFriendMeetup": false,
+      "typeDiversity": false,
+      "keywordsIncludes": "火锅",
+      "searchRequestKeywords": ["火锅"]
+    }
+  }
+]

@@ -1,0 +1,701 @@
+<button class="soundGate mono {{bgmPlaying ? 'ready' : ''}} {{bgmLoading ? 'loading' : ''}} {{bgmMuted ? 'muted' : ''}}" style="top: {{soundTop}}px;" catchtap="toggleBgm">
+  {{bgmLabel}}
+</button>
+
+<view class="phone screen-{{screen}}" style="--page-top: {{pageTop}}px; --menu-avoid: {{menuRightPad}}px;">
+  <view class="screens">
+    <view wx:if="{{screen == 'welcome'}}" class="screen homeScreen active">
+      <swiper class="homeSwiper" current="{{homeCoverIndex}}" circular="{{true}}" indicator-dots="{{true}}" indicator-color="rgba(26,23,20,.22)" indicator-active-color="#ff5a4d" duration="260" bindchange="onHomeCoverChange">
+        <swiper-item>
+          <view class="homeSlide homeSlideSolo" data-index="0" bindtap="onHomeCoverTap">
+            <view class="homeTop">
+              <view class="homeModePill">
+                <text class="homeStatusDot"></text>
+                <text>外挂模式</text>
+                <text class="mono">v2.0</text>
+              </view>
+              <view class="homeTopControls soloTopControls">
+                <view class="homeMore">••</view>
+              </view>
+            </view>
+
+            <view class="homeHeroCopy soloHeroCopy">
+              <text class="homeEnglish mono">CHOICE HACK</text>
+              <text class="homeTitle">选择困难症外挂</text>
+              <text class="homeDesc">写一句吃饭需求，<text class="homeRed">我会结合心情、场景、预算和位置来选择餐厅。</text></text>
+            </view>
+
+            <view class="homeMagicTile">
+              <text></text>
+            </view>
+
+            <view class="homeMomentCard">
+              <text>随便说一句</text>
+              <text>我今天<text>有点累</text>，想找个<text>安静、不催人</text>的地方坐坐。</text>
+            </view>
+
+            <view class="homeScenarioGrid">
+              <text>刚运动完想吃肉</text>
+              <text>第一次约会好聊天</text>
+              <text>加班晚想喝热汤</text>
+              <text>庆祝一下要热闹</text>
+            </view>
+
+            <view class="homeMachineWrap homeMachineWrapSolo">
+              <view class="homeFloatingCard cardLeft">
+                <image src="/assets/food/pasta.jpg" mode="aspectFill"></image>
+                <text>咖啡</text>
+                <text class="homeDistance">放松</text>
+              </view>
+              <view class="homeFloatingCard cardRightTop">
+                <image src="/assets/food/izakaya.jpg" mode="aspectFill"></image>
+                <text>烧鸟</text>
+                <text class="homeDistance">安静</text>
+              </view>
+              <view class="homeFloatingCard cardRightBottom">
+                <image src="/assets/food/steak.jpg" mode="aspectFill"></image>
+                <text>火锅</text>
+                <text class="homeDistance">庆祝</text>
+              </view>
+
+              <view class="homeMachine">
+                <view class="homeMachineLabel">AI 选餐机</view>
+                <view class="homeMachineScreen">
+                  <text>读懂此刻</text>
+                  <text>心情 / 场景 / 偏好 正在提取</text>
+                </view>
+                <view class="homeMachineControls">
+                  <view class="homeSlot"></view>
+                  <view class="homeLever">
+                    <text></text>
+                    <text></text>
+                  </view>
+                </view>
+              </view>
+            </view>
+
+            <view class="homeBottomDock">
+              <view class="homeStartBtn" catchtap="goGame" hover-class="is-press" hover-stay-time="80">
+                <view class="homeStartLight"></view>
+                <view class="homeStartCoin"></view>
+                <text>输入一句话，抽餐厅卡</text>
+              </view>
+              <text class="homeFooter">我会根据你此刻输入的信息来选餐厅</text>
+            </view>
+          </view>
+        </swiper-item>
+
+        <swiper-item>
+          <view class="homeSlide homeSlideGroup" data-index="1">
+            <view class="homeTop">
+              <view class="homeModePill">
+                <text class="homeStatusDot"></text>
+                <text>多人选餐局</text>
+              </view>
+              <view class="homeTopControls">
+                <view class="homeMore menu">≡</view>
+              </view>
+            </view>
+
+            <view class="homeHeroCopy groupHeroCopy">
+              <text class="homeEnglish mono">CHOICE HACK</text>
+              <text class="groupTitle">今晚<text>4 人</text>订哪家?</text>
+              <text class="homeDesc">每个人只说一句偏好，AI 自动合并预算、口味和出发地区，给出适合聚餐的候选餐厅。</text>
+            </view>
+
+            <view class="groupBoard">
+              <view class="groupBoardHead">
+                <text>群局：下班后吃饭</text>
+                <text>参考时间 19:30</text>
+              </view>
+              <view class="groupPeople">
+                <view class="personCard me">
+                  <view><text>我</text><text>东区</text></view>
+                  <text>想吃热乎</text>
+                  <text>别太远</text>
+                </view>
+                <view class="personCard warm">
+                  <view><text>雅</text><text>西区</text></view>
+                  <text>能聊天</text>
+                  <text>别太吵</text>
+                </view>
+                <view class="personCard green">
+                  <view><text>王</text><text>南区</text></view>
+                  <text>人均 100</text>
+                  <text>少排队</text>
+                </view>
+                <view class="personCard red">
+                  <view><text>陈</text><text>北区</text></view>
+                  <text>要有座</text>
+                  <text>要有座</text>
+                </view>
+              </view>
+            </view>
+
+            <view class="groupActions">
+              <text>发起</text>
+              <text>收集</text>
+              <text class="active">计算</text>
+              <text>选中</text>
+            </view>
+
+            <view class="groupAiPanel">
+              <view class="groupAiHead">
+                <text>AI 已合并 4 人 + 4 区出发</text>
+                <text>92%</text>
+              </view>
+              <view class="groupAiFacts">
+                <view><text>冲突点：</text><text>四区分散，最远到店 42 分</text></view>
+                <view><text>解法：</text><text>选中轴商圈，平均 24 分</text></view>
+                <view><text>偏好：</text><text>能聊天、少排队、有座位</text></view>
+                <view><text>结果：</text><text>更适合 19:30 的 4 人聚餐</text></view>
+              </view>
+              <view class="groupTimeRow">
+                <text>东 22分</text>
+                <text>西 25分</text>
+                <text>南 23分</text>
+                <text>北 28分</text>
+              </view>
+            </view>
+
+            <view class="groupResult">
+              <image src="/assets/food/steak.jpg" mode="aspectFill"></image>
+              <view class="groupResultMain">
+                <text>中轴小锅</text>
+                <text>中轴商圈 · 四区平均 24 分 · 适合 4 人</text>
+                <text>位置最均衡的 4 人桌</text>
+              </view>
+              <view class="groupScore">
+                <text>均程</text>
+                <text>24分</text>
+                <text>最佳</text>
+              </view>
+            </view>
+
+            <view class="homeBottomDock">
+              <view class="homeTapGuide groupTapGuide">
+                <text class="mono">STEP 02</text>
+                <text>点击红色按钮进入下一页</text>
+              </view>
+              <view class="homeStartBtn groupStartBtn" catchtap="goGroupGame" hover-class="is-press" hover-stay-time="80">
+                <view class="homeStartCoin"></view>
+                <text>创建多人饭局草稿</text>
+              </view>
+              <text class="homeFooter">已整理：中轴商圈 · 4 人需求</text>
+            </view>
+          </view>
+        </swiper-item>
+      </swiper>
+    </view>
+
+    <view wx:if="{{screen == 'game'}}" class="screen gameScreen active">
+      <view class="topbar">
+        <text class="badge yellow mono">CHOICE OVER</text>
+      </view>
+
+      <view class="gameHero">
+        <view class="lead gameLead">
+          <text>选择难？</text>
+          <text>开一局就有答案</text>
+        </view>
+
+        <view class="locationStatus {{locationState}}">
+          <view class="locationInner">
+            <text class="locationMain">{{locationText}}</text>
+            <text wx:if="{{locationMeta}}" class="locationMeta">{{locationMeta}}</text>
+          </view>
+        </view>
+
+        <view class="voiceBox {{showVoiceInsight ? 'hasInsight' : ''}}">
+          <view wx:if="{{!showVoiceInsight && areaStep == 'multi'}}" class="meetupRoomPanel">
+            <view class="multiAreaHeader meetupRoomHeader">
+              <view>
+                <text>饭局位置房间</text>
+                <text>先收集每个人从哪里出发，再让 AI 算中间商圈</text>
+              </view>
+              <button hover-class="is-press" hover-stay-time="80" data-mode="single" bindtap="selectAreaMode">回单区域</button>
+            </view>
+
+            <view class="meetupMapShell">
+              <map
+                class="meetupRoomMap"
+                latitude="{{meetupRoomMapLat}}"
+                longitude="{{meetupRoomMapLng}}"
+                scale="13"
+                markers="{{meetupRoomMarkers}}"
+                show-location="{{true}}"
+              ></map>
+              <view class="meetupMapCard">
+                <view>
+                  <text>{{meetupRoomStatus}}</text>
+                  <text>{{multiAreaSummary}}</text>
+                </view>
+                <button hover-class="is-press" hover-stay-time="80" bindtap="refreshMeetupRoomLocation">更新我的位置</button>
+              </view>
+            </view>
+
+            <view class="meetupPeopleHead">
+              <view>
+                <text>成员出发地</text>
+                <text>好友打开后会带上当前出发地信息</text>
+              </view>
+              <button open-type="share" hover-class="is-press" hover-stay-time="80" bindtap="inviteMeetupFriend">发给好友</button>
+            </view>
+
+            <view class="meetupPeopleGrid">
+              <view wx:for="{{multiAreaRows}}" wx:key="id" class="meetupPersonCard {{item.location ? 'joined' : ''}} {{item.isHost ? 'host' : ''}}">
+                <view class="meetupPersonTop">
+                  <view class="meetupAvatar">{{item.roleShort}}</view>
+                  <view class="meetupPersonTitle">
+                    <text>{{item.role}}</text>
+                    <text>{{item.statusText}}</text>
+                  </view>
+                  <button wx:if="{{multiAreaRows.length > 2 && !item.isHost}}" data-index="{{index}}" bindtap="removeMultiAreaRow">删</button>
+                </view>
+                <view class="meetupPersonFields">
+                  <view class="peopleStepper compact">
+                    <button data-index="{{index}}" data-delta="-1" bindtap="adjustMultiAreaPeople">-</button>
+                    <input type="number" value="{{item.people}}" data-index="{{index}}" bindinput="onMultiAreaPeopleInput" />
+                    <button data-index="{{index}}" data-delta="1" bindtap="adjustMultiAreaPeople">+</button>
+                  </view>
+                  <input class="multiAreaLocationInput meetupLocationInput" value="{{item.location}}" placeholder="{{item.placeholder}}" data-index="{{index}}" bindinput="onMultiAreaLocationInput" />
+                </view>
+              </view>
+
+              <button wx:if="{{multiAreaRows.length < 6}}" class="meetupInviteCard" hover-class="is-press" hover-stay-time="80" bindtap="addMultiAreaRow">
+                <text>+ 加人</text>
+                <text>先加一个朋友位，或点上面发给好友</text>
+              </button>
+            </view>
+
+            <view class="meetupRoomFoot">
+              <text>{{meetupRoomHint}}</text>
+              <button class="areaPrimaryBtn {{multiAreaReady ? '' : 'disabled'}}" hover-class="{{multiAreaReady ? 'is-press' : ''}}" hover-stay-time="100" bindtap="confirmMultiAreaSetup">继续写饭局需求</button>
+            </view>
+          </view>
+
+          <view wx:if="{{!showVoiceInsight && areaStep == 'input'}}" class="intentPrompt">
+            <text class="intentPromptTitle">随便写点什么</text>
+            <text class="intentPromptCopy">一句话里混写心情、场景、预算、朋友位置</text>
+          </view>
+
+          <view wx:if="{{areaStep == 'input' || showVoiceInsight}}" class="momentComposerShell {{showVoiceInsight ? 'insightMode' : ''}}">
+            <view wx:if="{{!showVoiceInsight}}" class="modeSegment">
+              <button class="modeSegBtn {{areaMode == 'multi' ? '' : 'on'}}" hover-class="is-press" hover-stay-time="80" data-mode="single" bindtap="selectAreaMode">
+                <text>按附近找</text>
+                <text>一个人 / 同一区域</text>
+              </button>
+              <button class="modeSegBtn segMulti {{areaMode == 'multi' ? 'on' : ''}}" hover-class="is-press" hover-stay-time="80" data-mode="multi" bindtap="selectAreaMode">
+                <text>多区域饭局</text>
+                <text>朋友不同区出发，AI 算中间</text>
+              </button>
+            </view>
+            <view wx:if="{{!showVoiceInsight && areaMode == 'multi'}}" class="multiSummaryRow">
+              <text>{{multiAreaSummary}}</text>
+              <button hover-class="is-press" hover-stay-time="80" bindtap="goMultiAreaSetup">改区域</button>
+            </view>
+            <view class="choiceComposer">
+              <view class="composerInputPanel {{composerFocused ? 'is-focused' : ''}}">
+                <view class="composerMiniHead">
+                  <text class="composerAiBadge">整理搜索条件</text>
+                  <text class="composerMiniHint">不用先选标签</text>
+                </view>
+                <textarea
+                  class="field bigInput composerInput"
+                  value="{{problem}}"
+                  bindinput="onProblemInput"
+                  bindfocus="onComposerFocus"
+                  bindblur="onComposerBlur"
+                  maxlength="160"
+                  placeholder="{{problemPlaceholder}}"
+                />
+              </view>
+              <button class="composerMic {{recording && voiceTarget == 'problem' ? 'rec' : ''}}" hover-class="is-press" hover-stay-time="80" bindtap="startChoiceVoice">
+                <view wx:if="{{recording && voiceTarget == 'problem'}}" class="micRipple">
+                  <text></text>
+                  <text></text>
+                </view>
+                <text class="micGlyph">🎙️</text>
+                <text>{{recording && voiceTarget == 'problem' ? '听着' : '语音'}}</text>
+              </button>
+            </view>
+
+            <view wx:if="{{!showVoiceInsight}}" class="quickTags momentSignals">
+              <view class="momentSignalsHead">
+                <text>灵感线索</text>
+                <text>横滑添加</text>
+              </view>
+              <view class="quickTagRow">
+                <text class="quickTagLabel">需求</text>
+                <view class="quickTagRail">
+                  <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
+                    <view class="quickTagTrack">
+                      <button wx:for="{{needTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" hover-class="is-press" hover-stay-time="60" data-group="needTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+                    </view>
+                  </scroll-view>
+                  <view class="quickTagFade"></view>
+                </view>
+              </view>
+              <view class="quickTagRow">
+                <text class="quickTagLabel">场景</text>
+                <view class="quickTagRail">
+                  <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
+                    <view class="quickTagTrack">
+                      <button wx:for="{{sceneTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" hover-class="is-press" hover-stay-time="60" data-group="sceneTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+                    </view>
+                  </scroll-view>
+                  <view class="quickTagFade"></view>
+                </view>
+              </view>
+              <view class="quickTagRow">
+                <text class="quickTagLabel">口味</text>
+                <view class="quickTagRail">
+                  <scroll-view class="quickTagScroller" scroll-x enhanced show-scrollbar="{{false}}">
+                    <view class="quickTagTrack">
+                      <button wx:for="{{moreTags}}" wx:key="text" class="chip {{item.selected ? 'on' : ''}}" hover-class="is-press" hover-stay-time="60" data-group="moreTags" data-index="{{index}}" bindtap="toggleTag">{{item.text}}</button>
+                    </view>
+                  </scroll-view>
+                  <view class="quickTagFade"></view>
+                </view>
+              </view>
+
+              <view class="preferenceSliders">
+                <view class="preferenceSliderRow">
+                  <view class="preferenceSliderHead">
+                    <text class="quickTagLabel">人数</text>
+                    <text class="preferenceValue">{{partySize}}人</text>
+                  </view>
+                  <slider
+                    class="preferenceSlider"
+                    min="1"
+                    max="8"
+                    step="1"
+                    value="{{partySize}}"
+                    activeColor="#f6c518"
+                    backgroundColor="#d8d0be"
+                    block-color="#1a1714"
+                    block-size="24"
+                    bindchanging="onPartySizeChange"
+                    bindchange="onPartySizeChange"
+                  />
+                </view>
+                <view class="preferenceSliderRow">
+                  <view class="preferenceSliderHead">
+                    <text class="quickTagLabel">预算</text>
+                    <text class="preferenceValue">人均{{budgetPerPerson}}元</text>
+                  </view>
+                  <slider
+                    class="preferenceSlider"
+                    min="0"
+                    max="500"
+                    step="10"
+                    value="{{budgetPerPerson}}"
+                    activeColor="#f6c518"
+                    backgroundColor="#d8d0be"
+                    block-color="#1a1714"
+                    block-size="24"
+                    bindchanging="onBudgetChange"
+                    bindchange="onBudgetChange"
+                  />
+                </view>
+              </view>
+            </view>
+
+            <view wx:if="{{!showVoiceInsight}}" class="momentParseStrip">
+              <view>
+                <text>会从你的话里拆出搜索条件</text>
+                <text>口味 / 位置 / 预算 / 距离</text>
+              </view>
+              <text class="mono">PARSE</text>
+            </view>
+
+            <view wx:if="{{!showVoiceInsight && photoThumbs.length}}" class="thumbRow">
+              <image wx:for="{{photoThumbs}}" wx:key="*this" class="thumb" src="{{item}}" mode="aspectFill" lazy-load="{{true}}"></image>
+            </view>
+
+            <view wx:if="{{!showVoiceInsight}}" class="choiceActionRow">
+              <button class="choiceNextBtn {{choiceHasInput ? '' : 'disabled'}}" hover-class="{{choiceHasInput ? 'is-press' : ''}}" hover-stay-time="100" bindtap="proceedChoiceToMode">{{choiceNextText}}</button>
+            </view>
+          </view>
+
+          <view wx:if="{{showVoiceInsight}}" class="voiceInsight {{voiceInsightState}}">
+            <view class="voiceInsightHeader">
+              <text>{{voiceInsightQuestion}}</text>
+            </view>
+            <view wx:if="{{voiceInsightState != 'loading'}}" class="voiceInsightSummary">
+              <view wx:for="{{voiceIntentDetails}}" wx:key="key" wx:if="{{item.summary}}" class="voiceSummaryChip">
+                <text>{{item.label}}</text>
+                <text>{{item.value}}</text>
+              </view>
+            </view>
+            <view class="voiceSectionTitle">{{voiceInsightState == 'loading' ? '理解进度' : '理解明细，点卡片可修改'}}</view>
+            <view class="voiceInsightDetails">
+              <view
+                wx:for="{{voiceIntentDetails}}"
+                wx:key="key"
+                class="voiceInsightItem {{item.wide ? 'wide' : ''}} {{editingVoiceIntentIndex == index ? 'editing' : ''}} {{item.editable ? 'editable' : ''}}"
+                data-index="{{index}}"
+                bindtap="onVoiceIntentItemTap"
+              >
+                <view class="voiceInsightItemTop">
+                  <text class="voiceInsightKey">{{item.label}}</text>
+                  <text wx:if="{{item.editable}}" class="voiceInsightEditHint">{{editingVoiceIntentIndex == index ? '编辑中' : '点改'}}</text>
+                </view>
+                <block wx:if="{{item.editable && editingVoiceIntentIndex == index}}">
+                  <textarea
+                    wx:if="{{item.multiline}}"
+                    class="voiceInsightInput multiline"
+                    value="{{item.value}}"
+                    auto-height="{{false}}"
+                    show-confirm-bar="{{false}}"
+                    maxlength="140"
+                    focus="{{editingVoiceIntentIndex == index}}"
+                    data-index="{{index}}"
+                    bindinput="onVoiceIntentFieldInput"
+                  />
+                  <input
+                    wx:else
+                    class="voiceInsightInput"
+                    value="{{item.value}}"
+                    maxlength="80"
+                    focus="{{editingVoiceIntentIndex == index}}"
+                    data-index="{{index}}"
+                    bindinput="onVoiceIntentFieldInput"
+                  />
+                </block>
+                <text wx:else class="voiceInsightVal">{{item.value}}</text>
+              </view>
+            </view>
+            <view wx:if="{{voiceInsightState == 'loading'}}" class="voiceInsightLoading">
+              <text class="voiceLoadingDot"></text>
+              <text>理解完成后再确认</text>
+            </view>
+            <view wx:else class="voiceInsightActions">
+              <button class="intentBtn primary" hover-class="is-press" hover-stay-time="80" bindtap="confirmChoiceIntent">按这个找</button>
+              <button class="intentBtn ghost" hover-class="is-press" hover-stay-time="80" bindtap="reviseChoiceIntent">再补充</button>
+            </view>
+          </view>
+
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{screen == 'deck'}}" class="screen deckScreen active">
+      <view class="topbar">
+        <text class="badge purple mono">{{modeLabel}} · DECK</text>
+        <button class="back" bindtap="goBackGame">← 返回</button>
+      </view>
+
+      <view class="counter">
+        <text>这局只有</text>
+        <view class="pips">
+          <text wx:for="{{pips}}" wx:key="index" class="pip {{item.spent ? 'spent' : ''}}"></text>
+        </view>
+        <text class="leftN">{{leftN}}</text>
+        <text>张 · 看清楚再滑</text>
+      </view>
+
+      <view wx:if="{{roundSlogan}}" class="roundSlogan">{{roundSlogan}}</view>
+
+      <view class="deckWrap">
+        <view class="deck">
+          <view wx:if="{{loadingDeck}}" class="gcard loadingCard">
+            <text class="spinner"></text>
+            <text class="loadingTitle">{{loadingTitle}}</text>
+            <text class="loadingText">{{loadingText}}</text>
+            <view wx:if="{{loadingProgressVisible}}" class="loadingProgress">
+              <view class="loadingBar" style="width: {{loadingPercent}}%;"></view>
+            </view>
+            <text wx:if="{{loadingProgressVisible}}" class="loadingCount mono">{{loadingDone}}/{{loadingTotal}} READY</text>
+            <button wx:if="{{loadingError}}" class="loadingRetry" bindtap="retryDeckSearch">{{loadingActionText}}</button>
+          </view>
+
+          <block wx:elif="{{activeCard}}">
+            <view wx:for="{{deckLayers}}" wx:key="level" class="gcard backCard layer{{item.level}}"></view>
+            <view
+              class="gcard faceCard {{cardMotionClass}}"
+              style="transform: {{cardTransform}};"
+              bindtouchstart="onCardTouchStart"
+              bindtouchmove="onCardTouchMove"
+              bindtouchend="onCardTouchEnd"
+              bindtouchcancel="onCardTouchEnd"
+              bindtap="openActiveCardDetail"
+            >
+              <view wx:if="{{activeCard.photoSlides && activeCard.photoSlides.length}}" class="art photoCarouselWrap">
+                <swiper class="photoCarousel" circular="{{false}}" current="0" duration="220" indicator-dots="{{false}}">
+                  <swiper-item wx:for="{{activeCard.photoSlides}}" wx:key="url" class="photoSlide">
+                    <image class="artPhoto" src="{{item.url}}" mode="aspectFill" data-url="{{item.url}}" binderror="onCardImageError"></image>
+                    <view class="photoShade"></view>
+                    <text class="photoChip">{{item.label}}</text>
+                  </swiper-item>
+                </swiper>
+                <view class="photoDetailHint">点击查看详情</view>
+                <view wx:if="{{activeCard.photoSlides.length > 1}}" class="photoDots">
+                  <text wx:for="{{activeCard.photoSlides}}" wx:key="url" class="photoDot {{index == 0 ? 'on' : ''}}"></text>
+                </view>
+              </view>
+              <view wx:else class="art foodArt" style="background: {{activeCard.artBg}};">
+                <view class="artOrb top" style="background: {{activeCard.artAccent}};"></view>
+                <view class="artOrb bottom"></view>
+                <view class="artLine top"></view>
+                <view class="artLine bottom"></view>
+                <view class="artMark m1"></view>
+                <view class="artMark m2"></view>
+                <view class="artMark m3"></view>
+                <view class="artMark m4"></view>
+                <view class="artCenter"><text>{{activeCard.emoji}}</text></view>
+              </view>
+              <view class="info" style="background: {{activeCard.infoBg}}; color: {{activeCard.infoFg}};">
+                <text class="cnum mono" style="color: {{activeCard.infoMuted}};">NO.{{activeCard.no}} / {{totalCards}} · 按当前定位搜索</text>
+                <text class="cardName">{{activeCard.name}}</text>
+                <view wx:if="{{activeCard.summaryPills && activeCard.summaryPills.length}}" class="summaryGrid">
+                  <text wx:for="{{activeCard.summaryPills}}" wx:key="text" class="summaryPill {{item.wide ? 'wide' : 'compact'}}">{{item.text}}</text>
+                </view>
+                <view wx:elif="{{activeCard.meta && activeCard.meta.length}}" class="metaRow">
+                  <text wx:for="{{activeCard.meta}}" wx:key="*this" class="mtag" style="background: {{activeCard.tagBg}}; color: {{activeCard.tagFg}};">{{item}}</text>
+                </view>
+                <view wx:if="{{activeCard.meetupPanel}}" class="meetupPanel" data-card-action="meetup">
+                  <view wx:if="{{activeCard.meetupPanel.summaryPills && activeCard.meetupPanel.summaryPills.length}}" class="meetupSummary">
+                    <text wx:for="{{activeCard.meetupPanel.summaryPills}}" wx:key="text" class="meetupSummaryPill">{{item.text}}</text>
+                  </view>
+                  <view wx:if="{{activeCard.meetupPanel.routes && activeCard.meetupPanel.routes.length}}" class="meetupTabs">
+                    <button wx:for="{{activeCard.meetupPanel.routes}}" wx:key="label" class="meetupTab {{item.long ? 'long' : ''}} {{index == activeCard.meetupPanel.selectedIndex ? 'on' : ''}}" data-index="{{index}}" data-card-action="meetup" hover-stop-propagation="{{true}}" catchtap="selectActiveMeetupRoute">{{item.label}}</button>
+                  </view>
+                  <text wx:if="{{activeCard.meetupPanel.activeRoute}}" class="meetupRouteText">{{activeCard.meetupPanel.activeRoute.text}}</text>
+                </view>
+                <button wx:if="{{activeCard.location || activeCard.navLocation || activeCard.poi.location || activeCard.poi.navLocation}}" class="navMini" data-card-action="navigation" hover-stop-propagation="{{true}}" catchtap="openActiveCardNavigation">
+                  <text class="navMiniIcon" data-card-action="navigation">📍</text>
+                  <text class="navMiniText" data-card-action="navigation">去导航</text>
+                </button>
+              </view>
+              <text class="stamp s-r mono" style="opacity: {{stampPick}};">Pick</text>
+              <text class="stamp s-l mono" style="opacity: {{stampPass}};">Pass</text>
+            </view>
+          </block>
+        </view>
+      </view>
+
+      <view wx:if="{{activeCard && !loadingDeck}}" class="deckControls">
+        <button class="ctrlSide ctrlPass" hover-class="is-press" hover-stay-time="80" data-dir="left" bindtap="tapDecision">
+          <text class="big mono">Pass</text>
+          <text class="sm">左滑待定</text>
+        </button>
+        <button class="ctrlSide ctrlPick" hover-class="is-press" hover-stay-time="80" data-dir="right" bindtap="tapDecision">
+          <text class="big mono">Pick</text>
+          <text class="sm">右滑就它</text>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{toastText}}" class="toast show">{{toastText}}</view>
+
+  <view wx:if="{{showWin}}" class="confetti">
+    <text wx:for="{{confettiPieces}}" wx:key="index" class="conf conf{{index}}" style="left: {{item.left}}%; background: {{item.color}}; animation-delay: {{item.delay}}ms; animation-duration: {{item.duration}}ms;"></text>
+  </view>
+
+  <view wx:if="{{showWin}}" class="win show">
+    <view class="winCard">
+      <text class="tag mono">CHOICE OVER</text>
+      <text class="cg mono">Congratulations!</text>
+      <text class="settleBig">{{settleText}}</text>
+      <view wx:if="{{winner.image}}" class="face photo">
+        <image class="artPhoto" src="{{winner.image}}" mode="aspectFill" binderror="onWinnerImageError"></image>
+        <view class="photoShade"></view>
+      </view>
+      <view wx:else class="face foodArt" style="background: {{winner.artBg}};">
+        <view class="artOrb top" style="background: {{winner.artAccent}};"></view>
+        <view class="artOrb bottom"></view>
+        <view class="artLine top"></view>
+        <view class="artLine bottom"></view>
+        <view class="artMark m1"></view>
+        <view class="artMark m2"></view>
+        <view class="artMark m3"></view>
+        <view class="artMark m4"></view>
+        <view class="artCenter"><text>{{winner.emoji}}</text></view>
+      </view>
+      <text class="winName">{{winner.name}}</text>
+      <text class="winReason">{{winner.winReason}}</text>
+      <view class="metaRow winMeta">
+        <text wx:for="{{winner.meta}}" wx:key="*this" class="mtag">{{item}}</text>
+      </view>
+      <view class="links">
+        <button class="btn ghost" hover-class="is-press" hover-stay-time="80" bindtap="openWinnerDetail">ℹ️ 详情</button>
+        <button class="btn alt" hover-class="is-press" hover-stay-time="80" bindtap="openWinnerNavigation">🗺️ 导航</button>
+      </view>
+      <button class="btn" hover-class="is-press" hover-stay-time="80" bindtap="resetAll">🔁 再来一局</button>
+    </view>
+  </view>
+
+  <view wx:if="{{showPoiDetail}}" class="poiDetail">
+      <view class="poiDetailCard">
+        <view class="poiDetailHero" bindtap="previewDetailHeroPhoto">
+        <image wx:if="{{detailCard.image}}" class="poiDetailHeroImage" src="{{detailCard.image}}" mode="aspectFill" data-url="{{detailCard.image}}" binderror="onDetailImageError"></image>
+        <view class="poiDetailHeroShade"></view>
+        <view class="poiDetailTop">
+          <text class="poiDetailBadge mono">SHOP DETAIL</text>
+          <button class="detailClose" hover-class="is-press" hover-stay-time="80" catchtap="closePoiDetail">×</button>
+        </view>
+        <text class="detailName">{{detailCard.name}}</text>
+      </view>
+      <scroll-view class="detailBody" scroll-y enhanced show-scrollbar="{{false}}">
+        <view class="detailFactGrid">
+          <view wx:for="{{detailCard.detailFacts}}" wx:key="label" class="detailFact">
+            <text>{{item.value}}</text>
+            <text>{{item.label}}</text>
+          </view>
+        </view>
+        <view class="detailDecision">
+          <view class="detailDecisionTitle">
+            <text>先判断值不值得去</text>
+            <text>营业 {{detailCard.openTimeText || '以高德为准'}}</text>
+          </view>
+          <view class="detailFeatureBlock">
+            <text class="detailFeatureTitle">菜品 / 类型线索</text>
+            <view class="detailFeatureChips">
+              <text wx:for="{{detailCard.detailFeatures}}" wx:key="*this" class="detailFeatureChip">{{item}}</text>
+            </view>
+            <text wx:if="{{!detailCard.detailFeatures || !detailCard.detailFeatures.length}}" class="detailFeatureEmpty">暂无明确菜品或类型线索</text>
+          </view>
+          <view class="detailQualityGrid">
+            <view class="detailQualityItem"><text>评分</text><text>{{detailCard.ratingText || '暂无'}}</text></view>
+            <view class="detailQualityItem"><text>人均</text><text>{{detailCard.costText || '暂无'}}</text></view>
+          </view>
+          <view class="detailCommuteBlock">
+            <text class="detailFeatureTitle">到店成本</text>
+            <view class="detailRouteList">
+              <scroll-view wx:if="{{detailCard.detailRoutes && detailCard.detailRoutes.length > 1}}" class="detailRouteTabs" scroll-x enhanced show-scrollbar="{{false}}">
+                <view class="detailRouteTabTrack">
+                  <button wx:for="{{detailCard.detailRoutes}}" wx:key="label" class="detailRouteTab {{item.long ? 'long' : ''}} {{index == detailCard.detailRouteIndex ? 'on' : ''}}" data-index="{{index}}" catchtap="selectDetailRoute">{{item.label}}</button>
+                </view>
+              </scroll-view>
+              <view wx:if="{{detailCard.activeDetailRoute}}" class="detailRouteRow">
+                <text class="detailRouteName {{detailCard.activeDetailRoute.long ? 'long' : ''}}">{{detailCard.activeDetailRoute.label}}</text>
+                <view class="detailRouteStats">
+                  <text wx:for="{{detailCard.activeDetailRoute.stats}}" wx:key="*this" class="detailRouteStat">{{item}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+        <scroll-view wx:if="{{detailCard.detailPhotos && detailCard.detailPhotos.length}}" class="detailPhotoStrip" scroll-x enhanced show-scrollbar="{{false}}">
+          <view wx:for="{{detailCard.detailPhotos}}" wx:key="url" class="detailPhoto {{index == detailPhotoIndex ? 'active' : ''}}" data-url="{{item.url}}" data-index="{{index}}" bindtap="previewDetailPhoto">
+            <image src="{{item.url}}" mode="aspectFill" data-url="{{item.url}}" binderror="onDetailImageError" lazy-load="{{true}}"></image>
+            <text>{{item.label}}</text>
+          </view>
+        </scroll-view>
+        <view class="detailSectionTitle">实用信息</view>
+        <view class="detailGrid">
+          <view wx:for="{{detailCard.detailRows}}" wx:key="label" class="detailItem {{item.wide ? 'wide' : ''}} {{item.secondary ? 'secondary' : ''}}">
+            <text>{{item.label}}</text>
+            <text>{{item.value}}</text>
+          </view>
+        </view>
+        <view class="detailActions">
+          <button wx:if="{{detailCard.location || detailCard.navLocation || detailCard.poi.location || detailCard.poi.navLocation}}" class="btn alt" hover-class="is-press" hover-stay-time="80" bindtap="openDetailNavigation">📍 去导航</button>
+          <button wx:if="{{detailCard.location || detailCard.navLocation || detailCard.poi.location || detailCard.poi.navLocation}}" class="btn ghost" hover-class="is-press" hover-stay-time="80" bindtap="openDetailAmapLink">打开地图</button>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>
