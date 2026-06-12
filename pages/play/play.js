@@ -758,7 +758,7 @@ Page({
     meetupRoomMapLng: DEFAULT_MEETUP_MAP.lng,
     meetupRoomMarkers: [],
     meetupRoomShareTitle: "把这次饭局草稿发给好友",
-    meetupRoomHint: "先把每个人的出发地收齐，再交给 AI 算中间商圈。",
+    meetupRoomHint: "先把每个人的出发地收齐，会自动算出对谁都公平的中间点。",
     meetupOpenedFromShare: false,
     partySize: 2,
     budgetPerPerson: 150,
@@ -1521,7 +1521,7 @@ Page({
 
   confirmChoiceIntent() {
     if (this.data.voiceInsightState === "loading") {
-      this.showToast("AI 还在理解，等结果出来再确认");
+      this.showToast("条件还在整理，马上就好");
       return;
     }
     const confirmedChoiceIntent = this.buildConfirmedChoiceIntent();

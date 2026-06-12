@@ -104,7 +104,7 @@
               </button>
               <button class="modeSegBtn segMulti {{areaMode == 'multi' ? 'on' : ''}}" hover-class="is-press" hover-stay-time="80" data-mode="multi" bindtap="selectAreaMode">
                 <text>多区域饭局</text>
-                <text>朋友不同区出发，AI 算中间</text>
+                <text>朋友不同区出发，自动算中间点</text>
               </button>
             </view>
             <view wx:if="{{!showVoiceInsight && areaMode == 'multi'}}" class="multiSummaryRow">
