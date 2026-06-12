@@ -670,9 +670,69 @@ function readableCurrentLocation(coords) {
   return text;
 }
 
+function collectCardCommuteTexts(card) {
+  const texts = [];
+  ((card && card.summaryPills) || []).forEach((pill) => texts.push(String((pill && pill.text) || pill || "")));
+  ((card && card.meta) || []).forEach((item) => texts.push(String(item || "")));
+  return texts;
+}
+
+function extractMinutesByLabel(texts, label) {
+  for (const text of texts) {
+    if (!text.includes(label)) continue;
+    const match = text.match(/(\d+)\s*分钟/);
+    if (match) return Number(match[1]);
+  }
+  return 0;
+}
+
+function formatClockTime(date) {
+  const h = String(date.getHours()).padStart(2, "0");
+  const m = String(date.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+// 拍板后的出发建议:把“多远”翻译成“几点出发、几点到店”
+function buildDepartureAdvice(card) {
+  const texts = collectCardCommuteTexts(card);
+  const walk = extractMinutesByLabel(texts, "步行");
+  const drive = extractMinutesByLabel(texts, "驾车");
+  const subway = extractMinutesByLabel(texts, "地铁");
+  const lines = [];
+  const now = new Date();
+  let mode = "";
+  let minutes = 0;
+  if (walk > 0 && walk <= 30) {
+    mode = "步行";
+    minutes = walk;
+  } else if (drive > 0 && (subway <= 0 || drive <= subway)) {
+    mode = "驾车";
+    minutes = drive;
+  } else if (subway > 0) {
+    mode = "地铁";
+    minutes = subway;
+  } else if (walk > 0) {
+    mode = "步行";
+    minutes = walk;
+  }
+  if (minutes > 0) {
+    const arrive = new Date(now.getTime() + (minutes + 3) * 60000);
+    lines.push(`现在 ${formatClockTime(now)} 出发，${mode}约 ${minutes} 分钟`);
+    lines.push(`预计 ${formatClockTime(arrive)} 前后到店`);
+  }
+  const poi = (card && card.poi) || {};
+  const openTime = String((card && card.openTimeText) || poi.opentimeToday || poi.opentimeWeek || "").trim();
+  if (openTime) lines.push(`营业时间 ${openTime}`);
+  const hour = now.getHours();
+  if ((hour >= 11 && hour < 13) || (hour >= 18 && hour < 20)) {
+    lines.push("饭点高峰，到店建议先取号再等人");
+  }
+  return lines;
+}
+
 Page({
   data: {
-    screen: "welcome",
+    screen: "game",
     pageTop: 14,
     soundTop: 10,
     menuRightPad: 96,
@@ -703,7 +763,9 @@ Page({
     partySize: 2,
     budgetPerPerson: 150,
     choiceHasInput: false,
-    choiceNextText: "让 AI 理解这句话",
+    choiceNextText: "开局，抽餐厅卡",
+    showInspiration: false,
+    departureAdvice: [],
     showVoiceInsight: false,
     voiceInsightState: "ready",
     voiceInsightQuestion: "",
@@ -771,6 +833,8 @@ Page({
     this.voiceManager = null;
     this.setupVoiceRecognizer();
     this.startBgm();
+    this.updateChoiceNextAction();
+    this.primeLocationStatus();
     const roomId = String((options && options.roomId) || "").trim();
     const sharedRows = decodeMeetupRoomRows((options && (options.room || options.rs)) || "");
     if (roomId) this.openSharedMeetupRoom(decodeURIComponent(roomId), sharedRows);
@@ -998,6 +1062,10 @@ Page({
   goBackGame() {
     this.startBgm();
     this.setData({ screen: "game" });
+  },
+
+  toggleInspiration() {
+    this.setData({ showInspiration: !this.data.showInspiration });
   },
 
   selectAreaMode(e) {
@@ -1323,7 +1391,7 @@ Page({
     const choiceHasInput = Boolean(question || tags.length || hasMultiArea || this.data.partySize || this.data.budgetPerPerson);
     this.setData({
       choiceHasInput,
-      choiceNextText: question ? "让 AI 理解这句话" : (tags.length ? "让 AI 理解这些线索" : (hasMultiArea ? "按区域和预算找餐厅" : "按人数预算找餐厅"))
+      choiceNextText: question ? "开局，抽餐厅卡" : (tags.length ? "按这些线索开局" : (hasMultiArea ? "按区域和预算开局" : "按人数预算开局"))
     });
   },
 
@@ -1344,14 +1412,23 @@ Page({
       return;
     }
     this.startBgm();
+    this.setData({ showVoiceInsight: false, editingVoiceIntentIndex: -1 });
+    this.startAiModeGame();
+  },
+
+  // 修正入口后置:从抽卡页回来打开“理解明细”编辑面板,改完直接重新发牌
+  async openIntentEditor() {
+    this.startBgm();
     const intentPreviewId = (this.intentPreviewId || 0) + 1;
     this.intentPreviewId = intentPreviewId;
     this.setData({
+      screen: "game",
+      areaStep: "input",
       showVoiceInsight: true,
       voiceInsightState: "loading",
-      voiceInsightQuestion: "AI 正在理解中",
+      voiceInsightQuestion: "正在整理这局用的条件",
       voiceIntentDetails: [
-        { label: "状态", key: "status", value: "正在理解你的场景、口味和位置", wide: true, editable: false }
+        { label: "状态", key: "status", value: "马上列出这局的搜索条件，点卡片可改", wide: true, editable: false }
       ],
       editingVoiceIntentIndex: -1,
       voiceAmapPreview: [],
@@ -1405,7 +1482,7 @@ Page({
     this.setData({
       showVoiceInsight: true,
       voiceInsightState: "ready",
-      voiceInsightQuestion: "我按下面这样理解，确认一下？",
+      voiceInsightQuestion: "这局按这些条件找，点卡片可改",
       voiceIntentDetails: editableVoiceIntentDetails(details),
       editingVoiceIntentIndex: -1,
       voiceAmapPreview: amapPreview,
@@ -1686,8 +1763,8 @@ Page({
       modeName,
       modeLabel,
       loadingDeck: true,
-      loadingTitle: "正在定位附近餐厅",
-      loadingText: "读取你的位置，再从高德拿真实餐厅。",
+      loadingTitle: "发牌中…",
+      loadingText: "正在按你这句话找真实餐厅，先发 5 张。",
       loadingProgressVisible: false,
       loadingDone: 0,
       loadingTotal: TOTAL,
@@ -1900,6 +1977,7 @@ Page({
       showWin: true,
       winner,
       settleText,
+      departureAdvice: buildDepartureAdvice(card),
       confettiPieces: this.makeConfetti()
     });
   },

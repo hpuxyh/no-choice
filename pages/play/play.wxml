@@ -4,193 +4,10 @@
 
 <view class="phone screen-{{screen}}" style="--page-top: {{pageTop}}px; --menu-avoid: {{menuRightPad}}px;">
   <view class="screens">
-    <view wx:if="{{screen == 'welcome'}}" class="screen homeScreen active">
-      <swiper class="homeSwiper" current="{{homeCoverIndex}}" circular="{{true}}" indicator-dots="{{true}}" indicator-color="rgba(26,23,20,.22)" indicator-active-color="#ff5a4d" duration="260" bindchange="onHomeCoverChange">
-        <swiper-item>
-          <view class="homeSlide homeSlideSolo" data-index="0" bindtap="onHomeCoverTap">
-            <view class="homeTop">
-              <view class="homeModePill">
-                <text class="homeStatusDot"></text>
-                <text>外挂模式</text>
-                <text class="mono">v2.0</text>
-              </view>
-              <view class="homeTopControls soloTopControls">
-                <view class="homeMore">••</view>
-              </view>
-            </view>
-
-            <view class="homeHeroCopy soloHeroCopy">
-              <text class="homeEnglish mono">CHOICE HACK</text>
-              <text class="homeTitle">选择困难症外挂</text>
-              <text class="homeDesc">写一句吃饭需求，<text class="homeRed">我会结合心情、场景、预算和位置来选择餐厅。</text></text>
-            </view>
-
-            <view class="homeMagicTile">
-              <text></text>
-            </view>
-
-            <view class="homeMomentCard">
-              <text>随便说一句</text>
-              <text>我今天<text>有点累</text>，想找个<text>安静、不催人</text>的地方坐坐。</text>
-            </view>
-
-            <view class="homeScenarioGrid">
-              <text>刚运动完想吃肉</text>
-              <text>第一次约会好聊天</text>
-              <text>加班晚想喝热汤</text>
-              <text>庆祝一下要热闹</text>
-            </view>
-
-            <view class="homeMachineWrap homeMachineWrapSolo">
-              <view class="homeFloatingCard cardLeft">
-                <image src="/assets/food/pasta.jpg" mode="aspectFill"></image>
-                <text>咖啡</text>
-                <text class="homeDistance">放松</text>
-              </view>
-              <view class="homeFloatingCard cardRightTop">
-                <image src="/assets/food/izakaya.jpg" mode="aspectFill"></image>
-                <text>烧鸟</text>
-                <text class="homeDistance">安静</text>
-              </view>
-              <view class="homeFloatingCard cardRightBottom">
-                <image src="/assets/food/steak.jpg" mode="aspectFill"></image>
-                <text>火锅</text>
-                <text class="homeDistance">庆祝</text>
-              </view>
-
-              <view class="homeMachine">
-                <view class="homeMachineLabel">AI 选餐机</view>
-                <view class="homeMachineScreen">
-                  <text>读懂此刻</text>
-                  <text>心情 / 场景 / 偏好 正在提取</text>
-                </view>
-                <view class="homeMachineControls">
-                  <view class="homeSlot"></view>
-                  <view class="homeLever">
-                    <text></text>
-                    <text></text>
-                  </view>
-                </view>
-              </view>
-            </view>
-
-            <view class="homeBottomDock">
-              <view class="homeStartBtn" catchtap="goGame" hover-class="is-press" hover-stay-time="80">
-                <view class="homeStartLight"></view>
-                <view class="homeStartCoin"></view>
-                <text>输入一句话，抽餐厅卡</text>
-              </view>
-              <text class="homeFooter">我会根据你此刻输入的信息来选餐厅</text>
-            </view>
-          </view>
-        </swiper-item>
-
-        <swiper-item>
-          <view class="homeSlide homeSlideGroup" data-index="1">
-            <view class="homeTop">
-              <view class="homeModePill">
-                <text class="homeStatusDot"></text>
-                <text>多人选餐局</text>
-              </view>
-              <view class="homeTopControls">
-                <view class="homeMore menu">≡</view>
-              </view>
-            </view>
-
-            <view class="homeHeroCopy groupHeroCopy">
-              <text class="homeEnglish mono">CHOICE HACK</text>
-              <text class="groupTitle">今晚<text>4 人</text>订哪家?</text>
-              <text class="homeDesc">每个人只说一句偏好，AI 自动合并预算、口味和出发地区，给出适合聚餐的候选餐厅。</text>
-            </view>
-
-            <view class="groupBoard">
-              <view class="groupBoardHead">
-                <text>群局：下班后吃饭</text>
-                <text>参考时间 19:30</text>
-              </view>
-              <view class="groupPeople">
-                <view class="personCard me">
-                  <view><text>我</text><text>东区</text></view>
-                  <text>想吃热乎</text>
-                  <text>别太远</text>
-                </view>
-                <view class="personCard warm">
-                  <view><text>雅</text><text>西区</text></view>
-                  <text>能聊天</text>
-                  <text>别太吵</text>
-                </view>
-                <view class="personCard green">
-                  <view><text>王</text><text>南区</text></view>
-                  <text>人均 100</text>
-                  <text>少排队</text>
-                </view>
-                <view class="personCard red">
-                  <view><text>陈</text><text>北区</text></view>
-                  <text>要有座</text>
-                  <text>要有座</text>
-                </view>
-              </view>
-            </view>
-
-            <view class="groupActions">
-              <text>发起</text>
-              <text>收集</text>
-              <text class="active">计算</text>
-              <text>选中</text>
-            </view>
-
-            <view class="groupAiPanel">
-              <view class="groupAiHead">
-                <text>AI 已合并 4 人 + 4 区出发</text>
-                <text>92%</text>
-              </view>
-              <view class="groupAiFacts">
-                <view><text>冲突点：</text><text>四区分散，最远到店 42 分</text></view>
-                <view><text>解法：</text><text>选中轴商圈，平均 24 分</text></view>
-                <view><text>偏好：</text><text>能聊天、少排队、有座位</text></view>
-                <view><text>结果：</text><text>更适合 19:30 的 4 人聚餐</text></view>
-              </view>
-              <view class="groupTimeRow">
-                <text>东 22分</text>
-                <text>西 25分</text>
-                <text>南 23分</text>
-                <text>北 28分</text>
-              </view>
-            </view>
-
-            <view class="groupResult">
-              <image src="/assets/food/steak.jpg" mode="aspectFill"></image>
-              <view class="groupResultMain">
-                <text>中轴小锅</text>
-                <text>中轴商圈 · 四区平均 24 分 · 适合 4 人</text>
-                <text>位置最均衡的 4 人桌</text>
-              </view>
-              <view class="groupScore">
-                <text>均程</text>
-                <text>24分</text>
-                <text>最佳</text>
-              </view>
-            </view>
-
-            <view class="homeBottomDock">
-              <view class="homeTapGuide groupTapGuide">
-                <text class="mono">STEP 02</text>
-                <text>点击红色按钮进入下一页</text>
-              </view>
-              <view class="homeStartBtn groupStartBtn" catchtap="goGroupGame" hover-class="is-press" hover-stay-time="80">
-                <view class="homeStartCoin"></view>
-                <text>创建多人饭局草稿</text>
-              </view>
-              <text class="homeFooter">已整理：中轴商圈 · 4 人需求</text>
-            </view>
-          </view>
-        </swiper-item>
-      </swiper>
-    </view>
 
     <view wx:if="{{screen == 'game'}}" class="screen gameScreen active">
       <view class="topbar">
-        <text class="badge yellow mono">CHOICE OVER</text>
+        <text class="badge yellow">不做选择</text>
       </view>
 
       <view class="gameHero">
@@ -210,8 +27,8 @@
           <view wx:if="{{!showVoiceInsight && areaStep == 'multi'}}" class="meetupRoomPanel">
             <view class="multiAreaHeader meetupRoomHeader">
               <view>
-                <text>饭局位置房间</text>
-                <text>先收集每个人从哪里出发，再让 AI 算中间商圈</text>
+                <text>多人组局</text>
+                <text>每人报一个出发位置，自动找对谁都公平的中间点</text>
               </view>
               <button hover-class="is-press" hover-stay-time="80" data-mode="single" bindtap="selectAreaMode">回单区域</button>
             </view>
@@ -239,7 +56,7 @@
                 <text>成员出发地</text>
                 <text>好友打开后会带上当前出发地信息</text>
               </view>
-              <button open-type="share" hover-class="is-press" hover-stay-time="80" bindtap="inviteMeetupFriend">发给好友</button>
+              <button open-type="share" class="meetupShareBtn" hover-class="is-press" hover-stay-time="80" bindtap="inviteMeetupFriend">发到群里喊人</button>
             </view>
 
             <view class="meetupPeopleGrid">
@@ -321,10 +138,11 @@
             </view>
 
             <view wx:if="{{!showVoiceInsight}}" class="quickTags momentSignals">
-              <view class="momentSignalsHead">
-                <text>灵感线索</text>
-                <text>横滑添加</text>
+              <view class="momentSignalsHead inspireToggle" bindtap="toggleInspiration">
+                <text>没灵感？看看线索</text>
+                <text>{{showInspiration ? '收起 ▲' : '展开 ▼'}}</text>
               </view>
+              <block wx:if="{{showInspiration}}">
               <view class="quickTagRow">
                 <text class="quickTagLabel">需求</text>
                 <view class="quickTagRail">
@@ -399,14 +217,7 @@
                   />
                 </view>
               </view>
-            </view>
-
-            <view wx:if="{{!showVoiceInsight}}" class="momentParseStrip">
-              <view>
-                <text>会从你的话里拆出搜索条件</text>
-                <text>口味 / 位置 / 预算 / 距离</text>
-              </view>
-              <text class="mono">PARSE</text>
+              </block>
             </view>
 
             <view wx:if="{{!showVoiceInsight && photoThumbs.length}}" class="thumbRow">
@@ -471,8 +282,8 @@
               <text>理解完成后再确认</text>
             </view>
             <view wx:else class="voiceInsightActions">
-              <button class="intentBtn primary" hover-class="is-press" hover-stay-time="80" bindtap="confirmChoiceIntent">按这个找</button>
-              <button class="intentBtn ghost" hover-class="is-press" hover-stay-time="80" bindtap="reviseChoiceIntent">再补充</button>
+              <button class="intentBtn primary" hover-class="is-press" hover-stay-time="80" bindtap="confirmChoiceIntent">按改好的条件重新发牌</button>
+              <button class="intentBtn ghost" hover-class="is-press" hover-stay-time="80" bindtap="reviseChoiceIntent">回去改原话</button>
             </view>
           </view>
 
@@ -482,7 +293,8 @@
 
     <view wx:if="{{screen == 'deck'}}" class="screen deckScreen active">
       <view class="topbar">
-        <text class="badge purple mono">{{modeLabel}} · DECK</text>
+        <text class="badge purple">{{loadingDeck ? '牌局开始' : '第 ' + (activeCard ? activeCard.no : 1) + ' / ' + totalCards + ' 张'}}</text>
+        <button class="intentEditLink" bindtap="openIntentEditor">条件不对？改一下</button>
         <button class="back" bindtap="goBackGame">← 返回</button>
       </view>
 
@@ -506,7 +318,7 @@
             <view wx:if="{{loadingProgressVisible}}" class="loadingProgress">
               <view class="loadingBar" style="width: {{loadingPercent}}%;"></view>
             </view>
-            <text wx:if="{{loadingProgressVisible}}" class="loadingCount mono">{{loadingDone}}/{{loadingTotal}} READY</text>
+            <text wx:if="{{loadingProgressVisible}}" class="loadingCount">已备好 {{loadingDone}} / {{loadingTotal}} 张</text>
             <button wx:if="{{loadingError}}" class="loadingRetry" bindtap="retryDeckSearch">{{loadingActionText}}</button>
           </view>
 
@@ -546,7 +358,7 @@
                 <view class="artCenter"><text>{{activeCard.emoji}}</text></view>
               </view>
               <view class="info" style="background: {{activeCard.infoBg}}; color: {{activeCard.infoFg}};">
-                <text class="cnum mono" style="color: {{activeCard.infoMuted}};">NO.{{activeCard.no}} / {{totalCards}} · 按当前定位搜索</text>
+                <text class="cnum" style="color: {{activeCard.infoMuted}};">第 {{activeCard.no}} / {{totalCards}} 家 · 按当前定位找</text>
                 <text class="cardName">{{activeCard.name}}</text>
                 <view wx:if="{{activeCard.summaryPills && activeCard.summaryPills.length}}" class="summaryGrid">
                   <text wx:for="{{activeCard.summaryPills}}" wx:key="text" class="summaryPill {{item.wide ? 'wide' : 'compact'}}">{{item.text}}</text>
@@ -568,8 +380,8 @@
                   <text class="navMiniText" data-card-action="navigation">去导航</text>
                 </button>
               </view>
-              <text class="stamp s-r mono" style="opacity: {{stampPick}};">Pick</text>
-              <text class="stamp s-l mono" style="opacity: {{stampPass}};">Pass</text>
+              <text class="stamp s-r" style="opacity: {{stampPick}};">就它</text>
+              <text class="stamp s-l" style="opacity: {{stampPass}};">换</text>
             </view>
           </block>
         </view>
@@ -577,12 +389,12 @@
 
       <view wx:if="{{activeCard && !loadingDeck}}" class="deckControls">
         <button class="ctrlSide ctrlPass" hover-class="is-press" hover-stay-time="80" data-dir="left" bindtap="tapDecision">
-          <text class="big mono">Pass</text>
-          <text class="sm">左滑待定</text>
+          <text class="big">✕ 换一家</text>
+          <text class="sm">左滑换</text>
         </button>
         <button class="ctrlSide ctrlPick" hover-class="is-press" hover-stay-time="80" data-dir="right" bindtap="tapDecision">
-          <text class="big mono">Pick</text>
-          <text class="sm">右滑就它</text>
+          <text class="big">✓ 就这家</text>
+          <text class="sm">右滑要</text>
         </button>
       </view>
     </view>
@@ -596,8 +408,8 @@
 
   <view wx:if="{{showWin}}" class="win show">
     <view class="winCard">
-      <text class="tag mono">CHOICE OVER</text>
-      <text class="cg mono">Congratulations!</text>
+      <text class="tag">拍板</text>
+      <text class="cg">就这家，别纠结了！</text>
       <text class="settleBig">{{settleText}}</text>
       <view wx:if="{{winner.image}}" class="face photo">
         <image class="artPhoto" src="{{winner.image}}" mode="aspectFill" binderror="onWinnerImageError"></image>
@@ -619,11 +431,15 @@
       <view class="metaRow winMeta">
         <text wx:for="{{winner.meta}}" wx:key="*this" class="mtag">{{item}}</text>
       </view>
-      <view class="links">
-        <button class="btn ghost" hover-class="is-press" hover-stay-time="80" bindtap="openWinnerDetail">ℹ️ 详情</button>
-        <button class="btn alt" hover-class="is-press" hover-stay-time="80" bindtap="openWinnerNavigation">🗺️ 导航</button>
+      <view wx:if="{{departureAdvice && departureAdvice.length}}" class="departAdvice">
+        <text class="departTitle">出发建议</text>
+        <text wx:for="{{departureAdvice}}" wx:key="*this" class="departLine">{{item}}</text>
       </view>
-      <button class="btn" hover-class="is-press" hover-stay-time="80" bindtap="resetAll">🔁 再来一局</button>
+      <view class="links">
+        <button class="btn alt" hover-class="is-press" hover-stay-time="80" bindtap="openWinnerNavigation">去导航</button>
+        <button class="btn ghost" hover-class="is-press" hover-stay-time="80" bindtap="openWinnerDetail">看详情</button>
+      </view>
+      <button class="btn" hover-class="is-press" hover-stay-time="80" bindtap="resetAll">不满意？再来一局</button>
     </view>
   </view>
 
@@ -633,7 +449,7 @@
         <image wx:if="{{detailCard.image}}" class="poiDetailHeroImage" src="{{detailCard.image}}" mode="aspectFill" data-url="{{detailCard.image}}" binderror="onDetailImageError"></image>
         <view class="poiDetailHeroShade"></view>
         <view class="poiDetailTop">
-          <text class="poiDetailBadge mono">SHOP DETAIL</text>
+          <text class="poiDetailBadge">餐厅详情</text>
           <button class="detailClose" hover-class="is-press" hover-stay-time="80" catchtap="closePoiDetail">×</button>
         </view>
         <text class="detailName">{{detailCard.name}}</text>
