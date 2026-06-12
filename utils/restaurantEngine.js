@@ -1933,13 +1933,24 @@ function restaurantCardSummaryPills(p, options = {}) {
   const rating = p && p.rating ? { text: `${p.rating}分`, wide: false } : null;
   const cost = p && p.cost ? { text: `人均${formatCost(p.cost)}`, wide: false } : null;
   if (meetup.length) return [rating, cost].filter(Boolean);
-  const travel = restaurantTravelTags(p, options)
+  const travelTexts = restaurantTravelTags(p, options)
     .map(metaTagText)
     .filter(Boolean)
-    .filter((text) => !/：/.test(text))
-    .slice(0, 3)
-    .map((text, index) => ({ text, wide: index < 2 }));
-  return [...travel, rating, cost].filter(Boolean).slice(0, 5);
+    .filter((text) => !/：/.test(text));
+  const commute = pickPrimaryCommuteText(travelTexts);
+  return [commute ? { text: commute, wide: true } : null, rating, cost].filter(Boolean);
+}
+
+// 卡面只保留一个“到达成本”:可步行优先步行,否则驾车/地铁取其一,细节进详情页
+function pickPrimaryCommuteText(texts = []) {
+  const walk = texts.find((text) => text.startsWith("步行"));
+  if (walk) {
+    const match = walk.match(/(\d+)\s*分钟/);
+    if (match && Number(match[1]) <= 30) return walk;
+  }
+  const drive = texts.find((text) => text.startsWith("驾车"));
+  const subway = texts.find((text) => text.startsWith("地铁"));
+  return drive || subway || walk || texts[0] || "";
 }
 
 function restaurantMeetupSummaryPills(p = {}) {
