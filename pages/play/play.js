@@ -780,7 +780,7 @@ Page({
     recording: false,
     voiceTarget: "",
     modeName: "AI 模式",
-    modeLabel: "AI INTEL",
+    modeLabel: "智选",
     locationState: "loading",
     locationText: "定位：正在获取当前城市…",
     locationMeta: "",
@@ -1745,7 +1745,7 @@ Page({
   startAiModeGame() {
     this.modeStarting = false;
     clearTimeout(this.modeTimer);
-    this.startGame("AI 模式", "AI INTEL");
+    this.startGame("AI 模式", "智选");
   },
 
   isActiveSearchRun(searchRunId) {
@@ -2037,7 +2037,7 @@ Page({
   },
 
   retryDeckSearch() {
-    this.startGame(this.data.modeName || "AI 模式", this.data.modeLabel || "AI INTEL", { forceLocationRefresh: true });
+    this.startGame(this.data.modeName || "AI 模式", this.data.modeLabel || "智选", { forceLocationRefresh: true });
   },
 
   async prepareVisualCards(cards, searchRunId = this.searchRunId) {
@@ -2069,7 +2069,7 @@ Page({
       if (this.isActiveSearchRun(searchRunId)) this.showToast(text);
     };
     try {
-      guardedSetLoading("正在读取当前位置", "3 秒内拿不到 GPS，就先按城市定位发牌。");
+      guardedSetLoading("正在读取当前位置", "3 秒内拿不到精准定位，就先按城市定位发牌。");
       const coords = await this.ensureLocation({ forceGps: Boolean(options.forceLocationRefresh) });
       if (!this.isActiveSearchRun(searchRunId)) return [];
       if (!coords) throw new Error("no location");
@@ -2234,7 +2234,7 @@ Page({
         this.showToast(error.message || "定位失败，改用城市定位");
         this.setData({
           locationState: "error",
-          locationText: "定位：GPS 不可用，改用城市定位",
+          locationText: "定位：精准定位不可用，改用城市定位",
           locationMeta: ""
         });
         return getApproxPosition().then((coords) => {
