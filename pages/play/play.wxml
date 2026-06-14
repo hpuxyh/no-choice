@@ -25,12 +25,12 @@
 
         <view class="voiceBox {{showVoiceInsight ? 'hasInsight' : ''}}">
           <view wx:if="{{!showVoiceInsight && areaStep == 'multi'}}" class="meetupRoomPanel">
-            <view class="multiAreaHeader meetupRoomHeader">
-              <view>
-                <text>多人组局</text>
-                <text>每人报一个出发位置，自动找对谁都公平的中间点</text>
+            <view class="mrHeader">
+              <view class="mrHeaderText">
+                <text class="mrTitle">多人组局</text>
+                <text class="mrSub">每人报一个出发位置，自动找对谁都公平的中间点</text>
               </view>
-              <button hover-class="is-press" hover-stay-time="80" data-mode="single" bindtap="selectAreaMode">回单区域</button>
+              <text class="mrBack" data-mode="single" bindtap="selectAreaMode">← 回单人</text>
             </view>
 
             <view class="meetupMapShell">
@@ -42,52 +42,41 @@
                 markers="{{meetupRoomMarkers}}"
                 show-location="{{true}}"
               ></map>
-              <view class="meetupMapCard">
-                <view>
-                  <text>{{meetupRoomStatus}}</text>
-                  <text>{{multiAreaSummary}}</text>
-                </view>
-                <button hover-class="is-press" hover-stay-time="80" bindtap="refreshMeetupRoomLocation">更新我的位置</button>
+              <view class="mrMapStatus">
+                <text class="mrMapStatusText">{{meetupRoomStatus}}</text>
+                <text class="mrMapStatusBtn" bindtap="refreshMeetupRoomLocation">更新我的位置</text>
               </view>
             </view>
 
-            <view class="meetupPeopleHead">
-              <view>
-                <text>成员出发地</text>
-                <text>好友打开后会带上当前出发地信息</text>
-              </view>
+            <view class="mrPeopleHead">
+              <text class="mrPeopleTitle">成员出发地</text>
               <button open-type="share" class="meetupShareBtn" hover-class="is-press" hover-stay-time="80" bindtap="inviteMeetupFriend">发到群里喊人</button>
             </view>
 
-            <view class="meetupPeopleGrid">
-              <view wx:for="{{multiAreaRows}}" wx:key="id" class="meetupPersonCard {{item.location ? 'joined' : ''}} {{item.isHost ? 'host' : ''}}">
-                <view class="meetupPersonTop">
-                  <view class="meetupAvatar">{{item.roleShort}}</view>
-                  <view class="meetupPersonTitle">
-                    <text>{{item.role}}</text>
-                    <text>{{item.statusText}}</text>
+            <view class="mrPeopleList">
+              <view wx:for="{{multiAreaRows}}" wx:key="id" class="mrPerson {{item.location ? 'joined' : 'pending'}} {{item.isHost ? 'host' : ''}}">
+                <view class="mrPersonTop">
+                  <text class="mrAvatar">{{item.roleShort}}</text>
+                  <view class="mrNameWrap">
+                    <text class="mrName">{{item.role}}</text>
+                    <text class="mrStatus">{{item.statusText}}</text>
                   </view>
-                  <button wx:if="{{multiAreaRows.length > 2 && !item.isHost}}" data-index="{{index}}" bindtap="removeMultiAreaRow">删</button>
-                </view>
-                <view class="meetupPersonFields">
-                  <view class="peopleStepper compact">
-                    <button data-index="{{index}}" data-delta="-1" bindtap="adjustMultiAreaPeople">-</button>
-                    <input type="number" value="{{item.people}}" data-index="{{index}}" bindinput="onMultiAreaPeopleInput" />
-                    <button data-index="{{index}}" data-delta="1" bindtap="adjustMultiAreaPeople">+</button>
+                  <view class="mrStepper">
+                    <text class="mrStepBtn" data-index="{{index}}" data-delta="-1" catchtap="adjustMultiAreaPeople">−</text>
+                    <text class="mrStepVal">{{item.people}}人</text>
+                    <text class="mrStepBtn" data-index="{{index}}" data-delta="1" catchtap="adjustMultiAreaPeople">＋</text>
                   </view>
-                  <input class="multiAreaLocationInput meetupLocationInput" value="{{item.location}}" placeholder="{{item.placeholder}}" data-index="{{index}}" bindinput="onMultiAreaLocationInput" />
+                  <text wx:if="{{multiAreaRows.length > 2 && !item.isHost}}" class="mrRemove" data-index="{{index}}" catchtap="removeMultiAreaRow">×</text>
                 </view>
+                <input class="mrLocation" value="{{item.location}}" placeholder="{{item.placeholder}}" data-index="{{index}}" bindinput="onMultiAreaLocationInput" />
               </view>
 
-              <button wx:if="{{multiAreaRows.length < 6}}" class="meetupInviteCard" hover-class="is-press" hover-stay-time="80" bindtap="addMultiAreaRow">
-                <text>+ 加人</text>
-                <text>先加一个朋友位，或点上面发给好友</text>
-              </button>
+              <button wx:if="{{multiAreaRows.length < 6}}" class="mrAddPerson" hover-class="is-press" hover-stay-time="80" bindtap="addMultiAreaRow">＋ 加一个朋友位</button>
             </view>
 
-            <view class="meetupRoomFoot">
-              <text>{{meetupRoomHint}}</text>
-              <button class="areaPrimaryBtn {{multiAreaReady ? '' : 'disabled'}}" hover-class="{{multiAreaReady ? 'is-press' : ''}}" hover-stay-time="100" bindtap="confirmMultiAreaSetup">继续写饭局需求</button>
+            <view class="mrFoot">
+              <text class="mrFootHint">收齐位置后，自动算出对谁都公平的中间点</text>
+              <button class="mrPrimaryBtn {{multiAreaReady ? '' : 'disabled'}}" hover-class="{{multiAreaReady ? 'is-press' : ''}}" hover-stay-time="100" bindtap="confirmMultiAreaSetup">{{multiAreaReady ? '收齐了，继续写饭局需求' : '至少收齐 2 个出发地'}}</button>
             </view>
           </view>
 

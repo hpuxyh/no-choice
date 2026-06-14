@@ -80,7 +80,6 @@ button.chip,
 button.btn,
 button.mode,
 button.ctrlSide,
-button.navMini,
 button.composerMic,
 button.choiceNextBtn,
 button.intentBtn,
@@ -428,59 +427,12 @@ button.back {
   box-sizing: border-box;
   overflow: hidden;
 }
-.multiAreaHeader view text:first-child {
-  color: #1a1714;
-  font-size: 34rpx;
-  font-weight: 950;
-  line-height: 1.08;
-}
-.multiAreaHeader view text:last-child {
-  color: #756d60;
-  font-size: 22rpx;
-  font-weight: 900;
-  line-height: 1.25;
-}
 
 .meetupRoomPanel {
   display: flex;
   flex-direction: column;
   gap: 14rpx;
   background: rgba(255, 253, 246, .98);
-}
-
-.multiAreaHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16rpx;
-  min-width: 0;
-}
-
-.multiAreaHeader view {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-
-.multiAreaHeader button{
-  flex: none;
-  min-width: 92rpx;
-  min-height: 52rpx;
-  margin: 0;
-  padding: 0 18rpx;
-  border: 4rpx solid #1a1714;
-  border-radius: 999rpx;
-  background: #fffdf6;
-  color: #1a1714;
-  box-shadow: 0 4rpx 0 rgba(26, 23, 20, .28);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 21rpx;
-  font-weight: 950;
-  line-height: 1;
 }
 
 .multiAreaRows {
@@ -495,67 +447,6 @@ button.back {
   border: 4rpx solid rgba(26, 23, 20, .14);
   border-radius: 24rpx;
   background: #fffefa;
-  box-sizing: border-box;
-}
-
-.peopleStepper {
-  height: 64rpx;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 50rpx minmax(0, 1fr) 50rpx;
-  align-items: center;
-  overflow: hidden;
-  border: 4rpx solid #1a1714;
-  border-radius: 18rpx;
-  background: #fffdf6;
-}
-
-.peopleStepper button {
-  width: 50rpx;
-  min-width: 50rpx;
-  height: 64rpx;
-  min-height: 64rpx;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: #f6c518;
-  color: #1a1714;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28rpx;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.peopleStepper input {
-  width: 100%;
-  min-width: 0;
-  height: 64rpx;
-  min-height: 64rpx;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #1a1714;
-  text-align: center;
-  font-size: 24rpx;
-  font-weight: 950;
-  box-sizing: border-box;
-}
-
-.multiAreaLocationInput {
-  width: 100%;
-  min-width: 0;
-  height: 64rpx;
-  min-height: 64rpx;
-  padding: 0 18rpx;
-  border: 4rpx solid #1a1714;
-  border-radius: 18rpx;
-  background: #fffdf6;
-  color: #1a1714;
-  font-size: 24rpx;
-  font-weight: 950;
   box-sizing: border-box;
 }
 
@@ -574,306 +465,6 @@ button.back {
 .meetupRoomMap {
   width: 100%;
   height: 100%;
-}
-
-.meetupMapCard {
-  position: absolute;
-  left: 14rpx;
-  right: 14rpx;
-  bottom: 14rpx;
-  min-height: 88rpx;
-  padding: 14rpx 16rpx;
-  border: 4rpx solid rgba(26, 23, 20, .16);
-  border-radius: 22rpx;
-  background: rgba(255, 253, 246, .94);
-  box-shadow: 0 8rpx 22rpx rgba(26, 23, 20, .14);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12rpx;
-  box-sizing: border-box;
-}
-
-.meetupMapCard view {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-}
-
-.meetupMapCard view text:first-child {
-  color: #1a1714;
-  font-size: 24rpx;
-  font-weight: 950;
-  line-height: 1.1;
-}
-
-.meetupMapCard view text:last-child {
-  color: #756d60;
-  font-size: 20rpx;
-  font-weight: 900;
-  line-height: 1.18;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.meetupMapCard button,
-.meetupPeopleHead button {
-  flex: none;
-  min-width: 112rpx;
-  min-height: 54rpx;
-  margin: 0;
-  padding: 0 16rpx;
-  border: 4rpx solid #1a1714;
-  border-radius: 999rpx;
-  background: #fffdf6;
-  color: #1a1714;
-  box-shadow: 0 4rpx 0 rgba(26, 23, 20, .28);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20rpx;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.meetupPeopleHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14rpx;
-  padding: 2rpx 4rpx 0;
-}
-
-.meetupPeopleHead view {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-}
-
-.meetupPeopleHead view text:first-child {
-  color: #1a1714;
-  font-size: 28rpx;
-  font-weight: 950;
-  line-height: 1.08;
-}
-
-.meetupPeopleHead view text:last-child {
-  color: #756d60;
-  font-size: 20rpx;
-  font-weight: 900;
-  line-height: 1.18;
-}
-
-.meetupPeopleHead button {
-  min-width: 142rpx;
-  background: #34db87;
-  color: #123426;
-}
-
-.meetupPeopleGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12rpx;
-  min-width: 0;
-}
-
-.meetupPersonCard,
-.meetupInviteCard {
-  min-width: 0;
-  min-height: 184rpx;
-  padding: 14rpx;
-  border: 4rpx solid rgba(26, 23, 20, .22);
-  border-radius: 24rpx;
-  background: #fffefa;
-  box-sizing: border-box;
-}
-
-.meetupPersonCard.host {
-  background: #e9fff5;
-}
-
-.meetupPersonCard.joined {
-  border-color: rgba(16, 120, 77, .52);
-}
-
-.meetupPersonTop {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  min-width: 0;
-  margin-bottom: 12rpx;
-}
-
-.meetupAvatar {
-  flex: none;
-  width: 48rpx;
-  height: 48rpx;
-  border: 4rpx solid #1a1714;
-  border-radius: 999rpx;
-  background: #48f3ff;
-  color: #1a1714;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20rpx;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.meetupPersonCard:nth-child(2n) .meetupAvatar { background: #f6c518; }
-.meetupPersonCard:nth-child(3n) .meetupAvatar { background: #ff5a4d; color: #fffdf6; }
-
-.meetupPersonTitle {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-}
-
-.meetupPersonTitle text:first-child {
-  color: #1a1714;
-  font-size: 23rpx;
-  font-weight: 950;
-  line-height: 1.08;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.meetupPersonTitle text:last-child {
-  color: #756d60;
-  font-size: 18rpx;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.meetupPersonTop button {
-  flex: none;
-  width: 48rpx;
-  min-width: 48rpx;
-  min-height: 40rpx;
-  margin: 0;
-  padding: 0;
-  border: 3rpx solid rgba(26, 23, 20, .56);
-  border-radius: 999rpx;
-  background: #fffdf6;
-  color: #756d60;
-  font-size: 18rpx;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.meetupPersonFields {
-  display: flex;
-  flex-direction: column;
-  gap: 10rpx;
-}
-
-.peopleStepper.compact {
-  width: 150rpx;
-  height: 54rpx;
-  min-height: 54rpx;
-  grid-template-columns: 44rpx minmax(0, 1fr) 44rpx;
-  border-radius: 16rpx;
-}
-
-.peopleStepper.compact button {
-  width: 44rpx;
-  min-width: 44rpx;
-  height: 54rpx;
-  min-height: 54rpx;
-  font-size: 24rpx;
-}
-
-.peopleStepper.compact input {
-  height: 54rpx;
-  min-height: 54rpx;
-  font-size: 22rpx;
-}
-
-.meetupLocationInput {
-  height: 58rpx;
-  min-height: 58rpx;
-  padding: 0 14rpx;
-  border-width: 3rpx;
-  border-radius: 16rpx;
-  font-size: 22rpx;
-}
-
-.meetupInviteCard {
-  width: 100%;
-  margin: 0;
-  border-style: dashed;
-  background: #fff4cf;
-  box-shadow: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 12rpx;
-  text-align: left;
-}
-
-.meetupInviteCard text:first-child {
-  color: #1a1714;
-  font-size: 30rpx;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.meetupInviteCard text:last-child {
-  color: #756d60;
-  font-size: 20rpx;
-  font-weight: 900;
-  line-height: 1.22;
-}
-
-.meetupRoomFoot {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 220rpx;
-  gap: 14rpx;
-  align-items: center;
-  min-width: 0;
-}
-
-.meetupRoomFoot > text {
-  min-width: 0;
-  padding: 12rpx 14rpx;
-  border: 3rpx dashed rgba(26, 23, 20, .32);
-  border-radius: 18rpx;
-  background: rgba(233, 255, 245, .72);
-  color: #10784d;
-  font-size: 20rpx;
-  font-weight: 950;
-  line-height: 1.22;
-}
-.areaPrimaryBtn {
-  width: 100%;
-  min-height: 76rpx;
-  margin: 0;
-  border: 5rpx solid #1a1714;
-  border-radius: 24rpx;
-  box-shadow: 0 8rpx 0 rgba(26, 23, 20, .56);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 25rpx;
-  font-weight: 950;
-  line-height: 1;
-  box-sizing: border-box;
-}
-
-.areaPrimaryBtn {
-  background: #28c76f;
-  color: #fff;
-}
-
-.areaPrimaryBtn.disabled {
-  opacity: .6;
 }
 
 .momentComposerShell {
@@ -2048,48 +1639,6 @@ button.meetupTab.on,
   box-sizing: border-box;
 }
 
-button.navMini,
-.navMini {
-  flex: none;
-  position: absolute;
-  left: 24rpx;
-  right: 24rpx;
-  bottom: 24rpx;
-  z-index: 3;
-  width: auto;
-  height: 78rpx;
-  min-height: 78rpx;
-  border: 6rpx solid #1a1714;
-  border-radius: 999rpx;
-  background: #fffdf6;
-  color: #1a1714;
-  box-shadow: 6rpx 6rpx 0 #1a1714;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 14rpx;
-  margin-top: 0;
-  padding: 0;
-  font-size: 27rpx;
-  font-weight: 950;
-  line-height: 1;
-  text-align: center;
-  box-sizing: border-box;
-}
-
-.navMiniIcon,
-.navMiniText {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-.navMiniIcon {
-  font-size: 25rpx;
-  transform: translateY(-1rpx);
-}
-
 .mtag {
   min-height: 40rpx;
   padding: 8rpx 14rpx 6rpx;
@@ -3139,20 +2688,6 @@ button.meetupTab.long,
   max-height: 84rpx;
 }
 
-button.navMini,
-.navMini {
-  min-height: 86rpx;
-  height: 86rpx;
-  left: 28rpx;
-  right: 28rpx;
-  bottom: 28rpx;
-  margin-top: 0;
-  border-width: 6rpx;
-  border-radius: 999rpx;
-  box-shadow: 7rpx 7rpx 0 #1a1714;
-  font-size: 30rpx;
-}
-
 .deckControls {
   height: 136rpx;
   margin: 0;
@@ -3766,12 +3301,6 @@ button.intentBtn.is-press,
   box-shadow: 0 2rpx 0 rgba(26, 23, 20, .7);
 }
 
-button.areaPrimaryBtn.is-press,
-.areaPrimaryBtn.is-press{
-  transform: translate(2rpx, 4rpx);
-  box-shadow: 0 4rpx 0 rgba(26, 23, 20, .56);
-}
-
 button.is-press::after { border: 0; }
 
 /* --- 2. Composer textarea — drop the permanent yellow border
@@ -3836,13 +3365,6 @@ button.is-press::after { border: 0; }
   background: #efe7d2;
   color: rgba(26, 23, 20, .42);
   box-shadow: 0 4rpx 0 rgba(26, 23, 20, .18);
-  opacity: 1;
-}
-
-.areaPrimaryBtn.disabled {
-  background: rgba(40, 199, 111, .42);
-  color: rgba(255, 255, 255, .78);
-  box-shadow: 0 4rpx 0 rgba(26, 23, 20, .26);
   opacity: 1;
 }
 
@@ -4071,16 +3593,8 @@ button.detailClose.is-press,
 }
 
 /* header buttons (改模式 / 更新我的位置 / 发给好友): all quiet
-   outline pills — they are secondary actions, not CTAs */
-.meetupPeopleHead button {
+   outline pills — they are secondary actions{
   min-width: 132rpx;
-  background: #fffdf6;
-  color: #1a1714;
-  border-color: rgba(26, 23, 20, .8);
-  box-shadow: 0 3rpx 0 rgba(26, 23, 20, .22);
-}
-
-.meetupMapCard button {
   background: #fffdf6;
   color: #1a1714;
   border-color: rgba(26, 23, 20, .8);
@@ -4093,106 +3607,19 @@ button.detailClose.is-press,
   box-shadow: 0 5rpx 0 rgba(26, 23, 20, .28);
 }
 
-.meetupMapCard {
-  border: 3rpx solid rgba(26, 23, 20, .14);
-  background: rgba(255, 253, 246, .96);
-  box-shadow: 0 6rpx 18rpx rgba(26, 23, 20, .12);
-}
-
 /* person cards: flat cream, hairline border; "joined" shows as
-   a subtle ink border, host gets a tiny corner tag feel via
-   slightly stronger border — no more mint/yellow card fills */
-.meetupPersonCard,
-.meetupInviteCard {
+   a subtle ink border{
   border: 3rpx solid rgba(26, 23, 20, .16);
   background: #fffefa;
 }
 
-.meetupPersonCard.host {
-  background: #fffefa;
-  border-color: rgba(26, 23, 20, .42);
-}
-
-.meetupPersonCard.joined {
-  border-color: rgba(26, 23, 20, .42);
-}
-
-/* avatars: one ink style for everyone (host keeps inverse to
-   stand out as "you") — kills the cyan/yellow/red carnival */
-.meetupAvatar,
-.meetupPersonCard:nth-child(2n) .meetupAvatar,
-.meetupPersonCard:nth-child(3n) .meetupAvatar {
-  background: #fffdf6;
-  color: #1a1714;
-  border-color: rgba(26, 23, 20, .7);
-}
-
-.meetupPersonCard.host .meetupAvatar {
-  background: #1a1714;
-  color: #fffdf6;
-  border-color: #1a1714;
-}
-
-/* steppers: neutral +/- keys instead of yellow blocks */
-.peopleStepper button {
-  background: #f1ead9;
-  color: #1a1714;
-}
-
-.peopleStepper.compact {
-  border-color: rgba(26, 23, 20, .5);
-}
-
-/* location inputs inside person cards: hairline instead of
-   full ink border */
-.multiAreaLocationInput,
-.meetupLocationInput {
-  border-color: rgba(26, 23, 20, .3);
-}
-
-/* invite card: same cream as siblings, dashed hairline; the
-   yellow fill made an optional action the loudest element */
-.meetupInviteCard {
+/* invite card: same cream as siblings{
   background: #fffefa;
   border-style: dashed;
   border-color: rgba(26, 23, 20, .34);
 }
 
-.meetupInviteCard text:first-child {
-  font-size: 28rpx;
-}
-
-.meetupInviteCard text:last-child {
-  color: #8a8276;
-}
-
-/* footer: stack vertically — the 220rpx side column clipped the
-   CTA text ("继续写饭局需求" needs ~230rpx); full-width CTA also
-   matches the input page's choiceNextBtn pattern */
-.meetupRoomFoot {
-  grid-template-columns: 1fr;
-  gap: 10rpx;
-}
-
-.meetupRoomFoot > text {
-  padding: 0 4rpx;
-  border: 0;
-  background: transparent;
-  color: #8a8276;
-  font-weight: 900;
-}
-
-/* primary CTA keeps the one allowed accent; disabled state is
-   covered by section 4 above */
-.meetupRoomFoot .areaPrimaryBtn {
-  width: 100%;
-  min-height: 84rpx;
-  border-radius: 24rpx;
-  font-size: 27rpx;
-}
-
-/* delete button on guest cards: ghost circle, not another pill */
-.meetupPersonTop button {
+/* delete button on guest cards: ghost circle{
   border-color: rgba(26, 23, 20, .3);
   color: #9a9285;
   background: transparent;
@@ -4342,31 +3769,6 @@ button.detailClose,
   min-height: 88rpx !important;
   max-height: 88rpx !important;
   line-height: 78rpx;
-}
-
-.meetupPersonTop button {
-  width: 64rpx;
-  min-width: 64rpx;
-  min-height: 56rpx;
-}
-
-.peopleStepper.compact {
-  width: 174rpx;
-  height: 62rpx;
-  min-height: 62rpx;
-  grid-template-columns: 56rpx minmax(0, 1fr) 56rpx;
-}
-
-.peopleStepper.compact button {
-  width: 56rpx;
-  min-width: 56rpx;
-  height: 62rpx;
-  min-height: 62rpx;
-}
-
-.peopleStepper.compact input {
-  height: 62rpx;
-  min-height: 62rpx;
 }
 
 .quickTagRow .chip {
@@ -4740,4 +4142,297 @@ button.detailRouteTab,
   font-weight: 700;
   color: #8a8270;
   margin-top: 8rpx;
+}
+
+/* 组局房间·收集出发地 — 样式优化(瘦身横排) */
+.mrHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14rpx;
+  margin-bottom: 12rpx;
+}
+
+.mrHeaderText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.mrTitle {
+  font-size: 34rpx;
+  font-weight: 950;
+  color: #1a1714;
+}
+
+.mrSub {
+  font-size: 21rpx;
+  color: #8a8270;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.mrBack {
+  flex: none;
+  font-size: 23rpx;
+  color: #6b6353;
+  font-weight: 800;
+  text-decoration: underline;
+  padding: 4rpx 0;
+}
+
+.meetupMapShell {
+  position: relative;
+  height: 200rpx;
+  border: 5rpx solid #1a1714;
+  border-radius: 20rpx;
+  overflow: hidden;
+  margin-bottom: 14rpx;
+}
+
+.meetupRoomMap {
+  width: 100%;
+  height: 100%;
+}
+
+.mrMapStatus {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  padding: 10rpx 16rpx;
+  background: rgba(26, 23, 20, .82);
+}
+
+.mrMapStatusText {
+  flex: 1;
+  min-width: 0;
+  color: #fffdf6;
+  font-size: 22rpx;
+  font-weight: 800;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mrMapStatusBtn {
+  flex: none;
+  color: #ffe27a;
+  font-size: 22rpx;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.mrPeopleHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.mrPeopleTitle {
+  font-size: 26rpx;
+  font-weight: 950;
+  color: #1a1714;
+}
+
+.mrPeopleList {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.mrPerson {
+  border: 5rpx solid #1a1714;
+  border-radius: 20rpx;
+  background: #fffdf6;
+  box-shadow: 5rpx 5rpx 0 rgba(26, 23, 20, .8);
+  padding: 14rpx 16rpx;
+  box-sizing: border-box;
+}
+
+.mrPerson.pending {
+  background: #f6f2e6;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.mrPersonTop {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.mrAvatar {
+  flex: none;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  border: 4rpx solid #1a1714;
+  background: #1a1714;
+  color: #fffdf6;
+  font-size: 24rpx;
+  font-weight: 950;
+  text-align: center;
+  line-height: 50rpx;
+}
+
+.mrPerson.pending .mrAvatar {
+  background: #fffdf6;
+  color: #a89f8c;
+  border-style: dashed;
+}
+
+.mrNameWrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rpx;
+}
+
+.mrName {
+  font-size: 26rpx;
+  font-weight: 950;
+  color: #1a1714;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mrPerson.pending .mrName {
+  color: #8a8270;
+}
+
+.mrStatus {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: #8a8270;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mrStepper {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  border: 3rpx solid #1a1714;
+  border-radius: 12rpx;
+  overflow: hidden;
+  background: #fffdf6;
+}
+
+.mrStepBtn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  background: #f3ecdd;
+  color: #1a1714;
+  font-size: 28rpx;
+  font-weight: 950;
+  text-align: center;
+}
+
+.mrStepVal {
+  min-width: 52rpx;
+  text-align: center;
+  font-size: 22rpx;
+  font-weight: 900;
+  color: #1a1714;
+}
+
+.mrRemove {
+  flex: none;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #f0d6d2;
+  color: #b93a32;
+  font-size: 26rpx;
+  font-weight: 950;
+  text-align: center;
+  line-height: 38rpx;
+}
+
+.mrLocation {
+  width: 100%;
+  margin-top: 12rpx;
+  padding: 12rpx 14rpx;
+  border: 3rpx solid #d6ccb4;
+  border-radius: 12rpx;
+  background: #fff;
+  font-size: 23rpx;
+  font-weight: 700;
+  color: #1a1714;
+  box-sizing: border-box;
+}
+
+.mrPerson.pending .mrLocation {
+  background: #fffdf6;
+  color: #8a8270;
+}
+
+.mrAddPerson {
+  width: 100%;
+  margin: 0;
+  padding: 16rpx 0;
+  border: 4rpx dashed #b8ae97;
+  border-radius: 18rpx;
+  background: transparent;
+  color: #8a8270;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.mrAddPerson::after {
+  border: 0;
+}
+
+.mrFoot {
+  margin-top: 16rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.mrFootHint {
+  text-align: center;
+  font-size: 21rpx;
+  font-weight: 700;
+  color: #9a917f;
+}
+
+.mrPrimaryBtn {
+  width: 100%;
+  margin: 0;
+  padding: 22rpx 0;
+  border: 5rpx solid #1a1714;
+  border-radius: 18rpx;
+  background: #f6c518;
+  color: #1a1714;
+  font-size: 30rpx;
+  font-weight: 950;
+  box-shadow: 6rpx 6rpx 0 #1a1714;
+}
+
+.mrPrimaryBtn::after {
+  border: 0;
+}
+
+.mrPrimaryBtn.disabled {
+  background: #e7decb;
+  color: #a89f8c;
+  box-shadow: 4rpx 4rpx 0 rgba(26, 23, 20, .35);
 }
