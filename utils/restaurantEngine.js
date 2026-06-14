@@ -505,7 +505,7 @@ async function aiRestaurantSearchPlan(choice, coords, { setLoading, toast } = {}
   });
   if (restaurantSearchPlan && restaurantSearchPlanSignature === signature) return restaurantSearchPlan;
   if (restaurantSearchPlanPromise && restaurantSearchPlanPromise.signature === signature) return restaurantSearchPlanPromise;
-  if (setLoading) setLoading("AI 正在理解中", "正在理解你的场景、口味和位置。");
+  if (setLoading) setLoading("发牌中…", "正在按你这句话挑真实餐厅，先发 5 张。");
   restaurantSearchPlanPromise = fetchRestaurantSearchPlan(choice, coords).then((plan) => {
     const resolved = normalizeRestaurantSearchPlan(plan, choice);
     if (!resolved.keywords.length) throw new Error("AI 没有返回有效搜索关键词");
@@ -1891,6 +1891,7 @@ function poisToCards(pois, options = {}) {
       meta: restaurantPoiMeta(p, options),
       summaryPills: restaurantCardSummaryPills(p, options),
       meetupPanel: restaurantMeetupPanelForPoi(p),
+      arrivalBoard: restaurantArrivalBoard(p),
       routeTags: restaurantTravelTags(p, options).map(metaTagText).filter(Boolean),
       ratingText: p.rating ? `${p.rating}分` : "",
       costText: p.cost ? `${formatCost(p.cost)}元` : "",
@@ -1995,6 +1996,84 @@ function restaurantMeetupPanelForPoi(p = {}) {
     selectedIndex: 0,
     activeRoute: routeItems[0] || null
   };
+}
+
+// 到达榜:逐人到店的推荐方式 + 分钟数 + 地铁分段,点开看驾车/地铁/步行三方式
+function restaurantArrivalBoard(p = {}) {
+  const routes = Array.isArray(p && p.participantRoutes) ? p.participantRoutes : [];
+  if (routes.length < 2) return null;
+  const rows = routes.map((route, index) => {
+    const label = restaurantRoutePlaceLabel(route, index);
+    const walkMin = minutesFromSeconds(route.walkingDurationSeconds);
+    const driveMin = minutesFromSeconds(route.drivingDurationSeconds);
+    const subwayMin = minutesFromSeconds(route.subwayDurationSeconds);
+    const subwayWalkMeters = Math.round(Number(route.subwayWalkingDistanceMeters) || 0);
+    const subwayWalkMin = subwayWalkMeters ? Math.max(1, Math.round(subwayWalkMeters / 75)) : 0;
+    const subwayRideMin = subwayMin ? Math.max(1, subwayMin - subwayWalkMin * 2) : 0;
+    const recommendedKey = pickArrivalMode({ walkMin, driveMin, subwayMin });
+    const modes = [];
+    if (driveMin) {
+      modes.push({ key: "drive", icon: "🚗", name: "驾车", min: driveMin, minText: `${driveMin} 分钟`, note: "晚高峰已计入", on: recommendedKey === "drive" });
+    }
+    if (subwayMin) {
+      modes.push({
+        key: "subway", icon: "🚇", name: "地铁", min: subwayMin, minText: `${subwayMin} 分钟`,
+        walkMin: subwayWalkMin, rideMin: subwayRideMin,
+        note: subwayWalkMin ? `含步行换乘 ${subwayWalkMin * 2} 分` : "", on: recommendedKey === "subway"
+      });
+    }
+    if (walkMin) {
+      modes.push({ key: "walk", icon: "🚶", name: "步行", min: walkMin, minText: `${walkMin} 分钟`, tooFar: walkMin > 30, note: walkMin > 30 ? "太远，不推荐" : "", on: recommendedKey === "walk" });
+    }
+    const recMode = modes.find((m) => m.key === recommendedKey) || modes[0] || null;
+    return {
+      label,
+      short: (label || "友").slice(0, 1),
+      modes,
+      recommendedKey: recMode ? recMode.key : "",
+      recommendedIcon: recMode ? recMode.icon : "",
+      recommendedMin: recMode ? recMode.min : 0,
+      recommendedText: recMode ? `${recMode.icon} ${recMode.min} 分钟` : "",
+      farthest: false,
+      expanded: false
+    };
+  }).filter((row) => row.recommendedMin > 0);
+  if (rows.length < 2) return null;
+  let farthestIndex = -1;
+  let farthestMin = 0;
+  rows.forEach((row, index) => {
+    if (row.recommendedMin > farthestMin) {
+      farthestMin = row.recommendedMin;
+      farthestIndex = index;
+    }
+  });
+  if (farthestIndex >= 0) rows[farthestIndex].farthest = true;
+  return {
+    rows,
+    expandedIndex: -1,
+    farthestLabel: farthestIndex >= 0 ? rows[farthestIndex].label : "",
+    farthestMin,
+    summary: farthestMin ? `最远的${rows[farthestIndex].label}到这儿 ${farthestMin} 分钟` : ""
+  };
+}
+
+function minutesFromSeconds(value) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return 0;
+  return Math.max(1, Math.round(seconds / 60));
+}
+
+// 自动推荐:可步行(≤15分)优先步行;否则驾车与地铁取更快;只有一种则用它
+function pickArrivalMode({ walkMin, driveMin, subwayMin }) {
+  if (walkMin && walkMin <= 15) return "walk";
+  const candidates = [];
+  if (driveMin) candidates.push(["drive", driveMin]);
+  if (subwayMin) candidates.push(["subway", subwayMin]);
+  if (candidates.length) {
+    candidates.sort((a, b) => a[1] - b[1]);
+    return candidates[0][0];
+  }
+  return walkMin ? "walk" : "";
 }
 
 function restaurantMeetupRouteItems(p = {}) {
@@ -3514,6 +3593,7 @@ module.exports = {
   buildRestaurantIntentPreview,
   RESTAURANT_SEARCH_PLAN_ENDPOINT,
   __test: {
+    restaurantArrivalBoard,
     cleanChoiceQuestion,
     extractedRestaurantParticipantLocationNames,
     shouldUseCurrentLocationForMeetup,

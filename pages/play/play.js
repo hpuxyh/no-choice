@@ -2286,6 +2286,25 @@ Page({
     this.setData({ detailCard: withSelectedDetailRoute(this.data.detailCard, routeIndex) });
   },
 
+  toggleArrivalRow(event) {
+    const card = this.data.activeCard;
+    if (!card || !card.arrivalBoard || !Array.isArray(card.arrivalBoard.rows)) return;
+    const rowIndex = Number(event.currentTarget.dataset.index);
+    const nextIndex = card.arrivalBoard.expandedIndex === rowIndex ? -1 : rowIndex;
+    const arrivalBoard = {
+      ...card.arrivalBoard,
+      expandedIndex: nextIndex,
+      rows: card.arrivalBoard.rows.map((row, index) => ({ ...row, expanded: index === nextIndex }))
+    };
+    const activeCard = { ...card, arrivalBoard };
+    const updateCard = (item) => sameCardIdentity(item, activeCard) ? activeCard : item;
+    this.setData({
+      activeCard,
+      deck: this.data.deck.map(updateCard),
+      activePool: this.data.activePool.map(updateCard)
+    });
+  },
+
   openWinnerDetail() {
     this.openCardDetail(this.data.winner);
   },

@@ -4508,3 +4508,163 @@ button.detailRouteTab,
   color: #fffdf6 !important;
   border-color: #1a1714 !important;
 }
+
+.arrivalBoard {
+  margin-top: 2rpx;
+  padding: 12rpx 14rpx;
+  border: 5rpx solid #1a1714;
+  border-radius: 18rpx;
+  background: rgba(255, 250, 242, .65);
+  color: #1a1714;
+  box-sizing: border-box;
+}
+
+.arrivalBoardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6rpx;
+}
+
+.arrivalBoardHead text:first-child {
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.arrivalBoardHint {
+  font-size: 20rpx;
+  color: #8a8270;
+}
+
+.arrivalRow {
+  padding: 10rpx 0;
+  border-bottom: 2rpx dashed #e2d8bf;
+}
+
+.arrivalRow:last-child {
+  border-bottom: none;
+}
+
+.arrivalRowTop {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.arrivalAvatar {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 3rpx solid #1a1714;
+  background: #f6c518;
+  font-size: 22rpx;
+  font-weight: 900;
+  text-align: center;
+  line-height: 40rpx;
+  flex: none;
+}
+
+.arrivalPlace {
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.arrivalFarTag {
+  font-size: 18rpx;
+  color: #fffdf6;
+  background: #b93a32;
+  border-radius: 6rpx;
+  padding: 1rpx 8rpx;
+}
+
+.arrivalMin {
+  margin-left: auto;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.arrivalMin.far {
+  color: #b93a32;
+}
+
+.arrivalCaret {
+  font-size: 18rpx;
+  color: #b0a78f;
+  flex: none;
+}
+
+.arrivalModes {
+  margin: 8rpx 0 2rpx 56rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.arrivalMode {
+  border: 3rpx solid #d6ccb4;
+  border-radius: 12rpx;
+  padding: 10rpx 12rpx;
+}
+
+.arrivalMode.on {
+  border-color: #1a1714;
+  background: #f6c518;
+}
+
+.arrivalMode.dim {
+  opacity: .55;
+}
+
+.arrivalModeLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8rpx;
+}
+
+.arrivalModeName {
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.arrivalModeNote {
+  font-size: 19rpx;
+  color: #6b5b1d;
+}
+
+.arrivalSeg {
+  margin-top: 8rpx;
+}
+
+.arrivalSegBar {
+  display: flex;
+  gap: 3rpx;
+  height: 14rpx;
+}
+
+.arrivalSegBar .segWalk {
+  background: #c9bfa8;
+  border-radius: 5rpx;
+}
+
+.arrivalSegBar .segRide {
+  background: #1a1714;
+}
+
+.arrivalSegText {
+  display: flex;
+  justify-content: space-between;
+  font-size: 19rpx;
+  color: #8a8270;
+  margin-top: 4rpx;
+}
+
+.arrivalSummary {
+  display: block;
+  margin-top: 10rpx;
+  padding: 8rpx 12rpx;
+  background: #15281f;
+  border-radius: 12rpx;
+  font-size: 21rpx;
+  color: #7df59b;
+}

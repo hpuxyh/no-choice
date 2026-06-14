@@ -366,7 +366,43 @@
                 <view wx:elif="{{activeCard.meta && activeCard.meta.length}}" class="metaRow">
                   <text wx:for="{{activeCard.meta}}" wx:key="*this" class="mtag" style="background: {{activeCard.tagBg}}; color: {{activeCard.tagFg}};">{{item}}</text>
                 </view>
-                <view wx:if="{{activeCard.meetupPanel}}" class="meetupPanel" data-card-action="meetup">
+                <view wx:if="{{activeCard.arrivalBoard}}" class="arrivalBoard" data-card-action="meetup">
+                  <view class="arrivalBoardHead">
+                    <text>谁到这儿要多久</text>
+                    <text class="arrivalBoardHint">点一行换交通方式</text>
+                  </view>
+                  <view wx:for="{{activeCard.arrivalBoard.rows}}" wx:key="label" class="arrivalRow {{item.expanded ? 'open' : ''}}" data-index="{{index}}" data-card-action="meetup" hover-stop-propagation="{{true}}" catchtap="toggleArrivalRow">
+                    <view class="arrivalRowTop">
+                      <text class="arrivalAvatar">{{item.short}}</text>
+                      <text class="arrivalPlace">{{item.label}}</text>
+                      <text wx:if="{{item.farthest}}" class="arrivalFarTag">最远</text>
+                      <text class="arrivalMin {{item.farthest ? 'far' : ''}}">{{item.recommendedText}}</text>
+                      <text class="arrivalCaret">{{item.expanded ? '▲' : '▼'}}</text>
+                    </view>
+                    <view wx:if="{{item.expanded}}" class="arrivalModes">
+                      <view wx:for="{{item.modes}}" wx:for-item="mode" wx:key="key" class="arrivalMode {{mode.on ? 'on' : ''}} {{mode.tooFar ? 'dim' : ''}}">
+                        <view class="arrivalModeLine">
+                          <text class="arrivalModeName">{{mode.icon}} {{mode.name}} {{mode.minText}}</text>
+                          <text wx:if="{{mode.note}}" class="arrivalModeNote">{{mode.note}}</text>
+                        </view>
+                        <view wx:if="{{mode.key == 'subway' && mode.rideMin}}" class="arrivalSeg">
+                          <view class="arrivalSegBar">
+                            <view class="segWalk" style="flex: {{mode.walkMin}};"></view>
+                            <view class="segRide" style="flex: {{mode.rideMin}};"></view>
+                            <view class="segWalk" style="flex: {{mode.walkMin}};"></view>
+                          </view>
+                          <view class="arrivalSegText">
+                            <text>步行 {{mode.walkMin}} 分</text>
+                            <text>乘车 {{mode.rideMin}} 分</text>
+                            <text>步行 {{mode.walkMin}} 分</text>
+                          </view>
+                        </view>
+                      </view>
+                    </view>
+                  </view>
+                  <text wx:if="{{activeCard.arrivalBoard.summary}}" class="arrivalSummary">{{activeCard.arrivalBoard.summary}}</text>
+                </view>
+                <view wx:elif="{{activeCard.meetupPanel}}" class="meetupPanel" data-card-action="meetup">
                   <view wx:if="{{activeCard.meetupPanel.summaryPills && activeCard.meetupPanel.summaryPills.length}}" class="meetupSummary">
                     <text wx:for="{{activeCard.meetupPanel.summaryPills}}" wx:key="text" class="meetupSummaryPill">{{item.text}}</text>
                   </view>
