@@ -332,7 +332,7 @@
           <block wx:elif="{{activeCard}}">
             <view wx:for="{{deckLayers}}" wx:key="level" class="gcard backCard layer{{item.level}}"></view>
             <view
-              class="gcard faceCard {{cardMotionClass}}"
+              class="gcard faceCard {{cardMotionClass}} {{activeCard.arrivalBoard ? 'hasBoard' : ''}}"
               style="transform: {{cardTransform}};"
               bindtouchstart="onCardTouchStart"
               bindtouchmove="onCardTouchMove"
@@ -418,10 +418,7 @@
                   </view>
                   <text wx:if="{{activeCard.meetupPanel.activeRoute}}" class="meetupRouteText">{{activeCard.meetupPanel.activeRoute.text}}</text>
                 </view>
-                <button wx:if="{{activeCard.location || activeCard.navLocation || activeCard.poi.location || activeCard.poi.navLocation}}" class="navMini" data-card-action="navigation" hover-stop-propagation="{{true}}" catchtap="openActiveCardNavigation">
-                  <text class="navMiniIcon" data-card-action="navigation">📍</text>
-                  <text class="navMiniText" data-card-action="navigation">去导航</text>
-                </button>
+                <text class="cardDetailHint">点卡片看招牌菜和导航</text>
               </view>
               <text class="stamp s-r" style="opacity: {{stampPick}};">就它</text>
               <text class="stamp s-l" style="opacity: {{stampPass}};">换</text>
