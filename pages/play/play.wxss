@@ -4238,11 +4238,7 @@ button.detailClose.is-press,
    20. MODE SEGMENT — multi-area promoted to a first-class
    mode switcher (2026-06-11). Two cells, always visible:
    the active mode is ink-on-black; the flagship 多区域 cell
-   stays brand-yellow whenever it is not active, so the
-   feature is permanently "lit" without stealing the flow.
-   ========================================================= */
-
-.modeSegment {
+   stays brand-yellow whenever it is not active{
   flex: none;
   display: grid;
   grid-template-columns: 1fr 1.18fr;
@@ -4256,72 +4252,7 @@ button.detailClose.is-press,
   box-sizing: border-box;
 }
 
-button.modeSegBtn,
-.modeSegBtn {
-  min-width: 0;
-  min-height: 100rpx;
-  margin: 0;
-  padding: 14rpx 18rpx;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 5rpx;
-  text-align: left;
-  box-sizing: border-box;
-}
-
-.modeSegBtn + .modeSegBtn {
-  border-left: 4rpx solid #1a1714;
-}
-
-.modeSegBtn text:first-child {
-  color: #1a1714;
-  font-size: 26rpx;
-  font-weight: 950;
-  line-height: 1.1;
-}
-
-.modeSegBtn text:last-child {
-  max-width: 100%;
-  color: #8a8276;
-  font-size: 18rpx;
-  font-weight: 900;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* flagship cell: brand yellow whenever it isn't the active mode */
-.modeSegBtn.segMulti {
-  background: #ffd443;
-}
-
-.modeSegBtn.segMulti text:last-child {
-  color: rgba(26, 23, 20, .6);
-}
-
-/* active mode: ink block */
-.modeSegBtn.on,
-.modeSegBtn.segMulti.on {
-  background: #1a1714;
-}
-
-.modeSegBtn.on text:first-child {
-  color: #fffdf6;
-}
-
-.modeSegBtn.on text:last-child {
-  color: rgba(255, 253, 246, .62);
-}
-
-/* press feedback inside the clipped segment: darken, no shift */
-button.modeSegBtn.is-press,
-.modeSegBtn.is-press {
+/* press feedback inside the clipped segment: darken{
   transform: none;
   filter: brightness(.92);
 }
@@ -4667,4 +4598,127 @@ button.detailRouteTab,
   border-radius: 12rpx;
   font-size: 21rpx;
   color: #7df59b;
+}
+
+/* 首页重构:麦克风移入输入框内(对齐设计图 v3) */
+.composerInputPanel {
+  height: auto;
+  min-height: 300rpx;
+}
+
+.composerInput {
+  height: auto;
+  min-height: 150rpx;
+}
+
+.composerFootRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-top: auto;
+}
+
+.composerInputHint {
+  color: #b0a78f;
+  font-size: 21rpx;
+  font-weight: 900;
+}
+
+.composerMic.round {
+  flex: none;
+  width: 88rpx;
+  min-width: 88rpx;
+  max-width: 88rpx;
+  height: 88rpx;
+  min-height: 88rpx;
+  border-radius: 999rpx;
+  border: 4rpx solid #1a1714;
+  background: #f6c518;
+  box-shadow: 4rpx 4rpx 0 #1a1714;
+  gap: 0;
+}
+
+.composerMic.round .micGlyph {
+  font-size: 40rpx;
+}
+
+/* 首页底部:多人组局入口卡(对齐设计图 v3) */
+.homeOrDivider {
+  text-align: center;
+  color: #b0a78f;
+  font-size: 22rpx;
+  font-weight: 900;
+  margin: 22rpx 0 16rpx;
+}
+
+.groupEntryCard {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 22rpx 24rpx;
+  border: 6rpx solid #1a1714;
+  border-radius: 30rpx;
+  background: #15281f;
+  box-shadow: 8rpx 8rpx 0 #1a1714;
+  box-sizing: border-box;
+}
+
+.groupEntryMain {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.groupEntryTitle {
+  color: #7df59b;
+  font-size: 30rpx;
+  font-weight: 950;
+}
+
+.groupEntryDesc {
+  color: #cfe9d8;
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.groupEntryAvatars {
+  display: flex;
+  align-items: center;
+  margin-top: 6rpx;
+}
+
+.geAv {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 999rpx;
+  border: 3rpx solid #15281f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  font-weight: 950;
+  color: #1a1714;
+  margin-left: -10rpx;
+}
+
+.geAv.av1 { background: #f6c518; margin-left: 0; }
+.geAv.av2 { background: #f0997b; }
+.geAv.av3 { background: #9fe1cb; }
+
+.geAv.geAdd {
+  background: #15281f;
+  color: #7df59b;
+  border: 3rpx dashed #7df59b;
+}
+
+.groupEntryArrow {
+  flex: none;
+  color: #7df59b;
+  font-size: 40rpx;
+  font-weight: 950;
 }

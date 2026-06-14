@@ -97,16 +97,6 @@
           </view>
 
           <view wx:if="{{areaStep == 'input' || showVoiceInsight}}" class="momentComposerShell {{showVoiceInsight ? 'insightMode' : ''}}">
-            <view wx:if="{{!showVoiceInsight}}" class="modeSegment">
-              <button class="modeSegBtn {{areaMode == 'multi' ? '' : 'on'}}" hover-class="is-press" hover-stay-time="80" data-mode="single" bindtap="selectAreaMode">
-                <text>按附近找</text>
-                <text>一个人 / 同一区域</text>
-              </button>
-              <button class="modeSegBtn segMulti {{areaMode == 'multi' ? 'on' : ''}}" hover-class="is-press" hover-stay-time="80" data-mode="multi" bindtap="selectAreaMode">
-                <text>多区域饭局</text>
-                <text>朋友不同区出发，自动算中间点</text>
-              </button>
-            </view>
             <view wx:if="{{!showVoiceInsight && areaMode == 'multi'}}" class="multiSummaryRow">
               <text>{{multiAreaSummary}}</text>
               <button hover-class="is-press" hover-stay-time="80" bindtap="goMultiAreaSetup">改区域</button>
@@ -114,7 +104,7 @@
             <view class="choiceComposer">
               <view class="composerInputPanel {{composerFocused ? 'is-focused' : ''}}">
                 <view class="composerMiniHead">
-                  <text class="composerAiBadge">整理搜索条件</text>
+                  <text class="composerAiBadge">说说此刻想吃啥</text>
                   <text class="composerMiniHint">不用先选标签</text>
                 </view>
                 <textarea
@@ -126,15 +116,17 @@
                   maxlength="160"
                   placeholder="{{problemPlaceholder}}"
                 />
-              </view>
-              <button class="composerMic {{recording && voiceTarget == 'problem' ? 'rec' : ''}}" hover-class="is-press" hover-stay-time="80" bindtap="startChoiceVoice">
-                <view wx:if="{{recording && voiceTarget == 'problem'}}" class="micRipple">
-                  <text></text>
-                  <text></text>
+                <view class="composerFootRow">
+                  <text class="composerInputHint">随便说，心情预算都行</text>
+                  <button class="composerMic round {{recording && voiceTarget == 'problem' ? 'rec' : ''}}" hover-class="is-press" hover-stay-time="80" catchtap="startChoiceVoice">
+                    <view wx:if="{{recording && voiceTarget == 'problem'}}" class="micRipple">
+                      <text></text>
+                      <text></text>
+                    </view>
+                    <text class="micGlyph">🎙️</text>
+                  </button>
                 </view>
-                <text class="micGlyph">🎙️</text>
-                <text>{{recording && voiceTarget == 'problem' ? '听着' : '语音'}}</text>
-              </button>
+              </view>
             </view>
 
             <view wx:if="{{!showVoiceInsight}}" class="quickTags momentSignals">
@@ -226,6 +218,21 @@
 
             <view wx:if="{{!showVoiceInsight}}" class="choiceActionRow">
               <button class="choiceNextBtn {{choiceHasInput ? '' : 'disabled'}}" hover-class="{{choiceHasInput ? 'is-press' : ''}}" hover-stay-time="100" bindtap="proceedChoiceToMode">{{choiceNextText}}</button>
+            </view>
+
+            <view wx:if="{{!showVoiceInsight && areaMode != 'multi'}}" class="homeOrDivider">— 或者 —</view>
+            <view wx:if="{{!showVoiceInsight && areaMode != 'multi'}}" class="groupEntryCard" data-mode="multi" hover-class="is-press" hover-stay-time="80" bindtap="selectAreaMode">
+              <view class="groupEntryMain">
+                <text class="groupEntryTitle">多人组局</text>
+                <text class="groupEntryDesc">好友分散在城市各处？各报位置，自动找中间点，一起开局</text>
+                <view class="groupEntryAvatars">
+                  <text class="geAv av1">鹿</text>
+                  <text class="geAv av2">凯</text>
+                  <text class="geAv av3">三</text>
+                  <text class="geAv geAdd">+</text>
+                </view>
+              </view>
+              <text class="groupEntryArrow">→</text>
             </view>
           </view>
 
