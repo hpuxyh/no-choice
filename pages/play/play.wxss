@@ -4189,7 +4189,7 @@ button.detailRouteTab,
   border: 5rpx solid #1a1714;
   border-radius: 20rpx;
   overflow: hidden;
-  margin-bottom: 14rpx;
+  margin-bottom: 10rpx;
 }
 
 .meetupRoomMap {
@@ -4198,22 +4198,21 @@ button.detailRouteTab,
 }
 
 .mrMapStatus {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12rpx;
-  padding: 10rpx 16rpx;
-  background: rgba(26, 23, 20, .82);
+  padding: 11rpx 16rpx;
+  margin-bottom: 14rpx;
+  border: 3rpx solid #1a1714;
+  border-radius: 14rpx;
+  background: #fffdf6;
 }
 
 .mrMapStatusText {
   flex: 1;
   min-width: 0;
-  color: #fffdf6;
+  color: #1a1714;
   font-size: 22rpx;
   font-weight: 800;
   overflow: hidden;
@@ -4223,7 +4222,7 @@ button.detailRouteTab,
 
 .mrMapStatusBtn {
   flex: none;
-  color: #ffe27a;
+  color: #0b754a;
   font-size: 22rpx;
   font-weight: 800;
   text-decoration: underline;
@@ -4435,4 +4434,43 @@ button.detailRouteTab,
   background: #e7decb;
   color: #a89f8c;
   box-shadow: 4rpx 4rpx 0 rgba(26, 23, 20, .35);
+}
+
+/* 组局房间结果态:中间点到达榜 */
+.meetupBoardPanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.mbBoard {
+  margin-top: 14rpx;
+  background: #fffdf6;
+}
+
+.mbSummary {
+  margin-top: 12rpx;
+  padding: 12rpx 16rpx;
+  border-radius: 14rpx;
+  background: #15281f;
+  color: #7df59b;
+  font-size: 23rpx;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.mbShareBtn {
+  width: 100%;
+  margin: 0;
+  padding: 18rpx 0;
+  border: 5rpx solid #1a1714;
+  border-radius: 18rpx;
+  background: #2aae67;
+  color: #fffdf6;
+  font-size: 27rpx;
+  font-weight: 900;
+  box-shadow: 5rpx 5rpx 0 #1a1714;
+}
+
+.mbShareBtn::after {
+  border: 0;
 }

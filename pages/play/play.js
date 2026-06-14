@@ -16,7 +16,8 @@ const {
   reverseGeocodeLocation,
   loadRestaurantDeck,
   loadRestaurantDetail,
-  buildRestaurantIntentPreview
+  buildRestaurantIntentPreview,
+  resolveMeetupRoomBoard
 } = require("../../utils/restaurantEngine");
 
 function loadSpeechPlugin() {
@@ -766,6 +767,8 @@ Page({
     choiceNextText: "开局，抽餐厅卡",
     showInspiration: false,
     departureAdvice: [],
+    meetupBoard: null,
+    meetupBoardLoading: false,
     showVoiceInsight: false,
     voiceInsightState: "ready",
     voiceInsightQuestion: "",
@@ -1293,6 +1296,51 @@ Page({
     this.ensureMeetupRoomId();
     this.saveMeetupRoomDraft();
     this.showToast("会把当前出发地信息发给好友");
+  },
+
+  // 收集完出发地→当场算中间点+逐人到达榜(结果态)
+  async showMeetupRoomBoard() {
+    const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
+    if (validMultiAreaRows(rows).length < 2) {
+      this.showToast("先收齐至少两个出发地");
+      return;
+    }
+    if (this.data.meetupBoardLoading) return;
+    this.setData({ meetupBoardLoading: true });
+    const coords = await this.ensureLocation().catch(() => null);
+    let board = null;
+    try {
+      board = await resolveMeetupRoomBoard(rows, coords);
+    } catch (error) {
+      console.warn("meetup room board failed", error);
+    }
+    if (!board) {
+      this.setData({ meetupBoardLoading: false });
+      this.showToast("有出发地还认不出来，检查下再试");
+      return;
+    }
+    this.setData({ meetupBoard: board, meetupBoardLoading: false, areaStep: "board" });
+  },
+
+  toggleMeetupBoardRow(event) {
+    const board = this.data.meetupBoard;
+    if (!board || !board.arrivalBoard || !Array.isArray(board.arrivalBoard.rows)) return;
+    const rowIndex = Number(event.currentTarget.dataset.index);
+    const nextIndex = board.arrivalBoard.expandedIndex === rowIndex ? -1 : rowIndex;
+    this.setData({
+      meetupBoard: {
+        ...board,
+        arrivalBoard: {
+          ...board.arrivalBoard,
+          expandedIndex: nextIndex,
+          rows: board.arrivalBoard.rows.map((row, index) => ({ ...row, expanded: index === nextIndex }))
+        }
+      }
+    });
+  },
+
+  backToMeetupCollect() {
+    this.setData({ areaStep: "multi" });
   },
 
   confirmMultiAreaSetup() {

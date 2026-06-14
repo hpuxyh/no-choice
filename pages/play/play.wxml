@@ -42,10 +42,10 @@
                 markers="{{meetupRoomMarkers}}"
                 show-location="{{true}}"
               ></map>
-              <view class="mrMapStatus">
-                <text class="mrMapStatusText">{{meetupRoomStatus}}</text>
-                <text class="mrMapStatusBtn" bindtap="refreshMeetupRoomLocation">更新我的位置</text>
-              </view>
+            </view>
+            <view class="mrMapStatus">
+              <text class="mrMapStatusText">{{meetupRoomStatus}}</text>
+              <text class="mrMapStatusBtn" bindtap="refreshMeetupRoomLocation">更新我的位置</text>
             </view>
 
             <view class="mrPeopleHead">
@@ -76,7 +76,69 @@
 
             <view class="mrFoot">
               <text class="mrFootHint">收齐位置后，自动算出对谁都公平的中间点</text>
-              <button class="mrPrimaryBtn {{multiAreaReady ? '' : 'disabled'}}" hover-class="{{multiAreaReady ? 'is-press' : ''}}" hover-stay-time="100" bindtap="confirmMultiAreaSetup">{{multiAreaReady ? '收齐了，继续写饭局需求' : '至少收齐 2 个出发地'}}</button>
+              <button class="mrPrimaryBtn {{multiAreaReady ? '' : 'disabled'}}" hover-class="{{multiAreaReady ? 'is-press' : ''}}" hover-stay-time="100" bindtap="showMeetupRoomBoard">{{meetupBoardLoading ? '正在算中间点…' : (multiAreaReady ? '收齐了，看中间点' : '至少收齐 2 个出发地')}}</button>
+            </view>
+          </view>
+
+          <view wx:if="{{!showVoiceInsight && areaStep == 'board'}}" class="meetupBoardPanel">
+            <view class="mrHeader">
+              <view class="mrHeaderText">
+                <text class="mrTitle">今晚去哪家？</text>
+                <text class="mrSub">{{meetupBoard.participantCount}} 人局 · {{meetupBoard.headline}}</text>
+              </view>
+              <text class="mrBack" bindtap="backToMeetupCollect">← 改出发地</text>
+            </view>
+
+            <view class="meetupMapShell">
+              <map
+                class="meetupRoomMap"
+                latitude="{{meetupBoard.middle.lat}}"
+                longitude="{{meetupBoard.middle.lng}}"
+                scale="12"
+                markers="{{meetupBoard.markers}}"
+              ></map>
+            </view>
+
+            <view class="arrivalBoard mbBoard" wx:if="{{meetupBoard.arrivalBoard}}">
+              <view class="arrivalBoardHead">
+                <text>谁到中间点要多久</text>
+                <text class="arrivalBoardHint">点一行换交通方式</text>
+              </view>
+              <view wx:for="{{meetupBoard.arrivalBoard.rows}}" wx:key="label" class="arrivalRow {{item.expanded ? 'open' : ''}}" data-index="{{index}}" bindtap="toggleMeetupBoardRow">
+                <view class="arrivalRowTop">
+                  <text class="arrivalAvatar">{{item.short}}</text>
+                  <text class="arrivalPlace">{{item.label}}</text>
+                  <text wx:if="{{item.farthest}}" class="arrivalFarTag">最远</text>
+                  <text class="arrivalMin {{item.farthest ? 'far' : ''}}">{{item.recommendedText}}</text>
+                  <text class="arrivalCaret">{{item.expanded ? '▲' : '▼'}}</text>
+                </view>
+                <view wx:if="{{item.expanded}}" class="arrivalModes">
+                  <view wx:for="{{item.modes}}" wx:for-item="mode" wx:key="key" class="arrivalMode {{mode.on ? 'on' : ''}} {{mode.tooFar ? 'dim' : ''}}">
+                    <view class="arrivalModeLine">
+                      <text class="arrivalModeName">{{mode.icon}} {{mode.name}} {{mode.minText}}</text>
+                      <text wx:if="{{mode.note}}" class="arrivalModeNote">{{mode.note}}</text>
+                    </view>
+                    <view wx:if="{{mode.key == 'subway' && mode.rideMin}}" class="arrivalSeg">
+                      <view class="arrivalSegBar">
+                        <view class="segWalk" style="flex: {{mode.walkMin}};"></view>
+                        <view class="segRide" style="flex: {{mode.rideMin}};"></view>
+                        <view class="segWalk" style="flex: {{mode.walkMin}};"></view>
+                      </view>
+                      <view class="arrivalSegText">
+                        <text>步行 {{mode.walkMin}} 分</text>
+                        <text>步行 {{mode.walkMin}} 分</text>
+                      </view>
+                    </view>
+                  </view>
+                </view>
+              </view>
+            </view>
+
+            <view wx:if="{{meetupBoard.summary}}" class="mbSummary">{{meetupBoard.summary}}</view>
+
+            <view class="mrFoot">
+              <button open-type="share" class="mbShareBtn" hover-class="is-press" hover-stay-time="80" bindtap="inviteMeetupFriend">发到群里，喊大家进局</button>
+              <button class="mrPrimaryBtn" hover-class="is-press" hover-stay-time="100" bindtap="confirmMultiAreaSetup">人齐了，一起抽卡</button>
             </view>
           </view>
 

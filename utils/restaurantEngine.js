@@ -3168,6 +3168,89 @@ async function resolveRestaurantMeetupContext(coords, searchPlan, choice) {
   };
 }
 
+// 反查中间点所在商圈/街道名,用于「中间点 · 东大桥」标签
+async function restaurantGeocodeAreaLabel(coords) {
+  if (!restaurantValidCoords(coords)) return "";
+  try {
+    const data = await amapRequest("https://restapi.amap.com/v3/geocode/regeo", {
+      key: AMAP_WEB_SERVICE_KEY,
+      location: amapLngLat(coords),
+      extensions: "all",
+      output: "json"
+    });
+    const regeocode = data.regeocode || {};
+    const component = regeocode.addressComponent || {};
+    const businessAreas = Array.isArray(component.businessAreas) ? component.businessAreas : [];
+    const business = businessAreas.map((item) => item && amapAddressText(item.name)).filter(Boolean)[0];
+    if (business) return restaurantShortPlaceLabel(business) || business;
+    const township = amapAddressText(component.township);
+    if (township) return restaurantShortPlaceLabel(township) || township;
+    return restaurantShortPlaceLabel(regeocode.formatted_address || "");
+  } catch (error) {
+    return "";
+  }
+}
+
+// 组局房间结果态:每人位置→坐标→中间点→逐人到中间点的到达榜(收集完当场展示)
+async function resolveMeetupRoomBoard(rows, coords) {
+  const cleanRows = (Array.isArray(rows) ? rows : []).filter(Boolean);
+  const participants = [];
+  for (const row of cleanRows) {
+    if (row.isHost && coords) {
+      const userPoint = normalizeCoord(coords);
+      if (userPoint && restaurantValidCoords(userPoint)) {
+        const sourceLabel = restaurantShortPlaceLabel(userPoint.addressMeta || userPoint.label) || "我的位置";
+        participants.push({ label: sourceLabel, placeLabel: sourceLabel, short: "我", location: { ...userPoint } });
+        continue;
+      }
+    }
+    const hint = String(row.location || "").trim();
+    if (!hint || isRestaurantCurrentLocationHint(hint)) continue;
+    const point = await geocodeRestaurantLocationHint(hint, coords);
+    if (point && restaurantValidCoords(point) && !participants.some((item) => sameRestaurantCoords(item.location, point))) {
+      const placeLabel = restaurantParticipantDisplayLabel(hint, point);
+      participants.push({ label: placeLabel, placeLabel, short: String(row.roleShort || placeLabel || "友").slice(0, 1), location: point });
+    }
+  }
+  if (participants.length < 2) return null;
+  const middle = midpointRestaurantCoords(participants.map((item) => item.location));
+  if (!restaurantValidCoords(middle)) return null;
+  const middlePoi = { location: { lat: middle.lat, lng: middle.lng }, lat: middle.lat, lng: middle.lng };
+  const participantRoutes = await fetchRestaurantParticipantRouteMetrics(participants, middlePoi);
+  const arrivalBoard = restaurantArrivalBoard({ participantRoutes });
+  if (!arrivalBoard) return null;
+  // 把每行的头像首字补上(到达榜默认用 label 首字,这里换成成员短名)
+  arrivalBoard.rows.forEach((boardRow, index) => {
+    if (participants[index] && participants[index].short) boardRow.short = participants[index].short;
+  });
+  const middleLabel = await restaurantGeocodeAreaLabel(middle);
+  const markers = participants.map((item, index) => ({
+    id: index,
+    latitude: item.location.lat,
+    longitude: item.location.lng,
+    width: 24,
+    height: 24,
+    callout: { content: item.short || item.label || "友", display: "ALWAYS", fontSize: 11, padding: 4, borderRadius: 6, bgColor: "#fffdf6", borderColor: "#1a1714", borderWidth: 1 }
+  }));
+  markers.push({
+    id: 900,
+    latitude: middle.lat,
+    longitude: middle.lng,
+    width: 30,
+    height: 30,
+    callout: { content: middleLabel ? `中间点·${middleLabel}` : "中间点", display: "ALWAYS", fontSize: 11, padding: 5, borderRadius: 6, bgColor: "#f6c518", borderColor: "#1a1714", borderWidth: 1 }
+  });
+  return {
+    middle,
+    middleLabel,
+    arrivalBoard,
+    markers,
+    participantCount: participants.length,
+    summary: arrivalBoard.summary,
+    headline: middleLabel ? `中间点定在${middleLabel}` : "已找到对谁都公平的中间点"
+  };
+}
+
 function restaurantParticipantLocationHints(searchPlan = {}, choice) {
   const targetHints = extractRestaurantParticipantTargetHints(choice);
   const textHints = targetHints.length >= 2 ? targetHints : extractedRestaurantParticipantLocationNames(choice);
@@ -3591,9 +3674,11 @@ module.exports = {
   loadRestaurantDeck,
   loadRestaurantDetail,
   buildRestaurantIntentPreview,
+  resolveMeetupRoomBoard,
   RESTAURANT_SEARCH_PLAN_ENDPOINT,
   __test: {
     restaurantArrivalBoard,
+    resolveMeetupRoomBoard,
     cleanChoiceQuestion,
     extractedRestaurantParticipantLocationNames,
     shouldUseCurrentLocationForMeetup,
