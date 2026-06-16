@@ -469,7 +469,13 @@
                   </view>
                   <text wx:if="{{activeCard.meetupPanel.activeRoute}}" class="meetupRouteText">{{activeCard.meetupPanel.activeRoute.text}}</text>
                 </view>
-                <text class="cardDetailHint">点卡片看招牌菜和导航</text>
+                <view class="cardFootRow">
+                  <text class="cardDetailHint">点卡片看招牌菜</text>
+                  <button wx:if="{{activeCard.location || activeCard.navLocation || activeCard.poi.location || activeCard.poi.navLocation}}" class="cardNavBtn" data-card-action="navigation" hover-stop-propagation="{{true}}" catchtap="openActiveCardNavigation">
+                    <text class="cardNavIcon" data-card-action="navigation">📍</text>
+                    <text data-card-action="navigation">去导航</text>
+                  </button>
+                </view>
               </view>
               <text class="stamp s-r" style="opacity: {{stampPick}};">就它</text>
               <text class="stamp s-l" style="opacity: {{stampPass}};">换</text>
