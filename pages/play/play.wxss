@@ -4185,9 +4185,9 @@ button.detailRouteTab,
 
 .meetupMapShell {
   position: relative;
-  height: 200rpx;
-  border: 5rpx solid #1a1714;
-  border-radius: 20rpx;
+  height: 168rpx;
+  border: 4rpx solid #1a1714;
+  border-radius: 18rpx;
   overflow: hidden;
   margin-bottom: 10rpx;
 }
@@ -4249,17 +4249,19 @@ button.detailRouteTab,
 }
 
 .mrPerson {
-  border: 5rpx solid #1a1714;
+  border: 4rpx solid #1a1714;
   border-radius: 20rpx;
   background: #fffdf6;
-  box-shadow: 5rpx 5rpx 0 rgba(26, 23, 20, .8);
+  box-shadow: 4rpx 4rpx 0 rgba(26, 23, 20, .8);
   padding: 14rpx 16rpx;
   box-sizing: border-box;
 }
 
 .mrPerson.pending {
-  background: #f6f2e6;
+  background: transparent;
+  border-width: 3rpx;
   border-style: dashed;
+  border-color: #c4b89c;
   box-shadow: none;
 }
 
@@ -4271,16 +4273,16 @@ button.detailRouteTab,
 
 .mrAvatar {
   flex: none;
-  width: 56rpx;
-  height: 56rpx;
+  width: 52rpx;
+  height: 52rpx;
   border-radius: 50%;
-  border: 4rpx solid #1a1714;
+  border: 3rpx solid #1a1714;
   background: #1a1714;
   color: #fffdf6;
   font-size: 24rpx;
   font-weight: 950;
   text-align: center;
-  line-height: 50rpx;
+  line-height: 46rpx;
 }
 
 .mrPerson.pending .mrAvatar {
@@ -4367,19 +4369,22 @@ button.detailRouteTab,
 
 .mrLocation {
   width: 100%;
-  margin-top: 12rpx;
-  padding: 12rpx 14rpx;
-  border: 3rpx solid #d6ccb4;
-  border-radius: 12rpx;
-  background: #fff;
+  margin-top: 10rpx;
+  padding: 11rpx 14rpx;
+  border: 0;
+  border-radius: 10rpx;
+  background: #f3ecdd;
   font-size: 23rpx;
   font-weight: 700;
   color: #1a1714;
   box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mrPerson.pending .mrLocation {
-  background: #fffdf6;
+  background: rgba(243, 236, 221, .55);
   color: #8a8270;
 }
 
@@ -4387,8 +4392,8 @@ button.detailRouteTab,
   width: 100%;
   margin: 0;
   padding: 16rpx 0;
-  border: 4rpx dashed #b8ae97;
-  border-radius: 18rpx;
+  border: 3rpx dashed #c4b89c;
+  border-radius: 16rpx;
   background: transparent;
   color: #8a8270;
   font-size: 24rpx;

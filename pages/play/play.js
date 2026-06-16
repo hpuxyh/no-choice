@@ -664,11 +664,26 @@ function meetupRoomStatus(rows = []) {
   return `已收集 ${valid.length} 个出发地 · 共 ${total} 人`;
 }
 
+// 把冗长逆地理地址精简成「区 · 街道 · 门牌」可读短串,避免输入框里被截断
+function compactAddressLabel(text) {
+  const raw = String(text || "").replace(/^中国/, "").trim();
+  if (!raw) return "";
+  const parts = raw.split(/[·\s,，]+/).map((item) => item.trim()).filter(Boolean);
+  const seen = [];
+  for (const part of parts) {
+    if (seen.some((kept) => kept === part || kept.includes(part) || part.includes(kept))) continue;
+    seen.push(part);
+  }
+  const dropCity = seen.filter((part) => !/(省|自治区)$/.test(part) && !/^(北京市|上海市|天津市|重庆市)$/.test(part));
+  const pick = dropCity.length ? dropCity : seen;
+  return pick.slice(-3).join(" · ");
+}
+
 function readableCurrentLocation(coords) {
   if (coords && coords.locationSource === "city") return "";
   const text = String((coords && (coords.addressMeta || coords.label)) || "").trim();
   if (isCoarseLocationLabel(text)) return "";
-  return text;
+  return compactAddressLabel(text);
 }
 
 function collectCardCommuteTexts(card) {
