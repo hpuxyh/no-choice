@@ -3199,8 +3199,9 @@ async function resolveMeetupRoomBoard(rows, coords) {
     if (row.isHost && coords) {
       const userPoint = normalizeCoord(coords);
       if (userPoint && restaurantValidCoords(userPoint)) {
-        const sourceLabel = restaurantShortPlaceLabel(userPoint.addressMeta || userPoint.label) || "我的位置";
-        participants.push({ label: sourceLabel, placeLabel: sourceLabel, short: "我", location: { ...userPoint } });
+        const rawLabel = restaurantShortPlaceLabel(userPoint.addressMeta || userPoint.label);
+        const hostLabel = (rawLabel && rawLabel !== "位置" && rawLabel.length >= 2) ? rawLabel : "我这边";
+        participants.push({ label: hostLabel, placeLabel: hostLabel, short: "我", location: { ...userPoint } });
         continue;
       }
     }
@@ -3240,13 +3241,19 @@ async function resolveMeetupRoomBoard(rows, coords) {
     height: 30,
     callout: { content: middleLabel ? `中间点·${middleLabel}` : "中间点", display: "ALWAYS", fontSize: 11, padding: 5, borderRadius: 6, bgColor: "#f6c518", borderColor: "#1a1714", borderWidth: 1 }
   });
+  const farLabel = arrivalBoard.farthestLabel || "";
+  const farMin = arrivalBoard.farthestMin || 0;
+  let summary = arrivalBoard.summary;
+  if (farLabel && farMin) {
+    summary = `最远的${farLabel}也只要 ${farMin} 分钟到齐，谁都不亏`;
+  }
   return {
     middle,
     middleLabel,
     arrivalBoard,
     markers,
     participantCount: participants.length,
-    summary: arrivalBoard.summary,
+    summary,
     headline: middleLabel ? `中间点定在${middleLabel}` : "已找到对谁都公平的中间点"
   };
 }
