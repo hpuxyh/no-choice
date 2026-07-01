@@ -21,6 +21,18 @@
       {
         "value": "README.md",
         "type": "file"
+      },
+      {
+        "value": "tmp",
+        "type": "folder"
+      },
+      {
+        "value": "preview-qr.png",
+        "type": "file"
+      },
+      {
+        "value": "preview-info.json",
+        "type": "file"
       }
     ],
     "include": []
