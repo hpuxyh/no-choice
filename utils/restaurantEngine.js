@@ -1,4 +1,6 @@
-const { SCENE_TAGS, NEED_TAGS, MORE_TAGS, TAG_SEARCH_KEYWORDS } = require("./choiceData");
+const { SCENE_TAGS, NEED_TAGS, MORE_TAGS, TAG_SEARCH_KEYWORDS, TASTE_SEARCH_KEYWORDS, DIET_EXCLUDE_KEYWORDS } = require("./choiceData");
+const { INTENT_RULES } = require("./intentLexicon");
+const { CATEGORY_PRESETS, matchChainBrand, brandNewDrop } = require("./brandData");
 
 const AMAP_WEB_SERVICE_KEY = "7f40078338209e23255e8f8e0ca8cc37";
 const ENABLE_REMOTE_AI_PLAN = true;
@@ -9,7 +11,7 @@ const DEFAULT_AMAP_CENTER = { lat: 39.904179, lng: 116.407387, amap: true, label
 const MIN_RESTAURANT_COST = 150;
 const AMAP_RESTAURANT_LIMIT = 20;
 const AMAP_SEARCH_PAGES = 3;
-const AMAP_SHOW_FIELDS_DEFAULT = "business,photos,navi";
+const AMAP_SHOW_FIELDS_DEFAULT = "children,business,indoor,navi,photos";
 const AMAP_SEARCH_MIN_RADIUS = 1000;
 const AMAP_SEARCH_MAX_RADIUS = 30000;
 const AMAP_PRICE_POOL_SIZE = 30;
@@ -17,6 +19,8 @@ const GPS_LOCATION_TIMEOUT_MS = 3500;
 const AMAP_REQUEST_TIMEOUT_MS = 8000;
 const RESTAURANT_NAV_LOCATION_MAX_DRIFT_METERS = 2000;
 const TOTAL = 5;
+// 到店吃(自己走过去)的硬性上限:3km。配送类(咖啡/奶茶/外卖)和组局/目的地不受此限。
+const EATIN_MAX_RADIUS = 3000;
 const RESTAURANT_KEYWORD_FALLBACK = "餐厅";
 const RESTAURANT_CITY_GEO_BOUNDS = {
   "北京市": { latMin: 39.25, latMax: 41.15, lngMin: 115.25, lngMax: 117.65 },
@@ -34,8 +38,9 @@ const RESTAURANT_CITY_GEO_BOUNDS = {
   "青岛市": { latMin: 35.55, latMax: 37.2, lngMin: 119.5, lngMax: 121.0 }
 };
 const PRIORITY_TAGS = new Set(["西餐", "火锅", "日料", "烧烤", "夜宵", "通宵熬夜"]);
-const RESTAURANT_MEETUP_MAX_RADIUS = AMAP_SEARCH_MAX_RADIUS;
-const RESTAURANT_MEETUP_MIN_RADIUS = 4500;
+const RESTAURANT_MEETUP_MAX_RADIUS = 3000;
+const RESTAURANT_MEETUP_MIN_RADIUS = 1000;
+const RESTAURANT_MEETUP_RADIUS_RATIO = 0.18;
 const LOCATION_SUFFIX_PATTERN = "(?:区|县|市|镇|乡|街道|商圈|机场|火车站|高铁站|大学|学院|大厦|写字楼|广场|公园|园区|CBD)";
 const RESTAURANT_ACTOR_PATTERN = "(?:我|本人|自己|朋友|对象|男朋友|女朋友|男友|女友|对方|同事|他|她|一个|一个人|另一个|另一个人|一位|另一位|第一个|第二个|第三个|第四个|A|B|a|b)";
 const RESTAURANT_LOCATION_CAPTURE = "([\\u4e00-\\u9fa5A-Za-z0-9·\\-]{2,24}?)(?=\\s*(?:附近|周边|这边|那边|吃什么|吃啥|吃点什么|吃点啥|吃饭|吃|找|搜|搜索|安排|看看|餐厅|饭店|一个|另一个|一位|另一位|第一个|第二个|第三个|第四个|两个人|三个人|几个人|共?\\d+(?:到|-)?\\d*人|[一二两三四五六七八九十]+人|人均|预算|折中|，|,|。|!|！|\\?|？|；|;|但|但是|不过|可是|我|本人|自己|朋友|对方|同事|他|她|我们|咱们|大家|一起|$))";
@@ -349,6 +354,8 @@ function buildChoiceContext(data) {
   const intentOverrides = normalizeChoiceIntentOverrides(data.confirmedChoiceIntent || data.intentOverrides);
   const multiAreaText = isMultiArea ? choiceMultiAreaQuestionText(multiAreaRows, multiAreaTotal) : "";
   const multiAreaLocationHints = multiAreaRows.map((row) => row.location);
+  const dietAvoid = isMultiArea ? aggregateMeetupDiet(multiAreaRows) : [];
+  const tastePref = isMultiArea ? aggregateMeetupTaste(multiAreaRows) : "";
   const controls = [
     partySize ? `共${partySize}人` : "",
     hasBudgetControl ? `人均${budgetPerPerson}元左右` : ""
@@ -361,8 +368,12 @@ function buildChoiceContext(data) {
     partySize,
     budgetPerPerson,
     areaMode: isMultiArea ? "multi" : (data.areaMode || "single"),
-    multiAreaRows,
-    multiAreaLocationHints,
+    category: isMultiArea ? "" : (data.categoryMode || ""),
+    // 单人模式不携带任何组局位置,避免残留的"两个人"导致仍按中间点找(单人=就近,多人才居中)
+    multiAreaRows: isMultiArea ? multiAreaRows : [],
+    multiAreaLocationHints: isMultiArea ? multiAreaLocationHints : [],
+    dietAvoid,
+    tastePref,
     intentOverrides
   };
 }
@@ -373,8 +384,30 @@ function normalizeChoiceMultiAreaRows(rows = []) {
     const location = cleanRestaurantLocationHint(row && row.location);
     const people = Math.max(1, Math.min(20, Math.round(Number(row && row.people) || 1)));
     const role = String(row && row.role || "").trim();
-    return location ? { location, people, role } : null;
+    const pref = String(row && row.pref || "").trim();
+    const travels = Array.isArray(row && row.travels)
+      ? row.travels.filter(Boolean).map(String)
+      : (row && row.travel ? [String(row.travel)] : []);
+    return location ? { location, people, role, pref, travels } : null;
   }).filter(Boolean).slice(0, 6);
+}
+
+// 汇总所有人的忌口(从各自自由输入里识别,去重)
+function aggregateMeetupDiet(rows = []) {
+  const set = new Set();
+  rows.forEach((row) => parseDietaryFromText(row && row.pref || "").avoid.forEach((tag) => tag && set.add(tag)));
+  return [...set];
+}
+
+// 汇总口味:有人重口且有人清淡=众口难调取适中;否则取大家一致的那种
+function aggregateMeetupTaste(rows = []) {
+  const tastes = rows.map((row) => parseDietaryFromText(row && row.pref || "").taste).filter(Boolean);
+  const light = tastes.filter((t) => t === "清淡").length;
+  const heavy = tastes.filter((t) => t === "重口").length;
+  if (light && heavy) return "适中";
+  if (light) return "清淡";
+  if (heavy) return "重口";
+  return "";
 }
 
 function choiceMultiAreaQuestionText(rows = [], total = 0) {
@@ -382,11 +415,23 @@ function choiceMultiAreaQuestionText(rows = [], total = 0) {
   if (locations.length < 2) return "";
   const participantText = rows.map((row) => {
     const role = row.role || "朋友";
-    if (/^(我的位置|当前位置|位置|我)$/u.test(role)) return `我从${row.location}出发`;
-    return `${role}在${row.location}`;
+    const extras = [
+      row.pref ? row.pref : "",
+      (row.travels && row.travels.length) ? `${row.travels.join("/")}来` : ""
+    ].filter(Boolean).join("，");
+    const suffix = extras ? `(${extras})` : "";
+    if (/^(我的位置|当前位置|位置|我)$/u.test(role)) return `我从${row.location}出发${suffix}`;
+    return `${role}在${row.location}${suffix}`;
   }).join("，");
   const peopleText = rows.map((row) => `${row.role ? `${row.role}：` : ""}${row.location}${row.people}人`).join("、");
-  return `多区域饭局：${participantText}，共${total || rows.length}人。区域人数：${peopleText}。按${locations.join(" / ")}取中间点找餐厅。`;
+  const dietAll = aggregateMeetupDiet(rows);
+  const tasteAll = aggregateMeetupTaste(rows);
+  const constraintText = [
+    tasteAll ? `综合口味偏${tasteAll}` : "",
+    dietAll.length ? `全体忌口需避开:${dietAll.join("、")}` : ""
+  ].filter(Boolean).join("，");
+  const tail = constraintText ? `${constraintText}。` : "";
+  return `多区域饭局：${participantText}，共${total || rows.length}人。区域人数：${peopleText}。${tail}按${locations.join(" / ")}取中间点找餐厅。`;
 }
 
 function normalizeChoiceIntentOverrides(value) {
@@ -455,7 +500,13 @@ async function loadRestaurantDeck({ modeName, choice, coords, setLoading, toast,
   const boundedSearchOptions = allowedCity
     ? { ...searchOptions, region: searchOptions.region || allowedCity, cityLimit: true, allowedCity }
     : searchOptions;
-  const radius = destination?.radiusMeters || meetup?.radiusMeters || searchPlan.radiusMeters || 3500;
+  // 到店吃(无分类、非组局、非指定目的地)= 自己走过去,硬性 ≤3km;
+  // 咖啡/奶茶/外卖(choice.category)是配送、组局/目的地是中间点,均可更远。
+  const isDeliveryCategory = Boolean(choice && choice.category);
+  const baseRadius = destination?.radiusMeters || meetup?.radiusMeters || searchPlan.radiusMeters || 3500;
+  const radius = (!isDeliveryCategory && !destination && !meetup)
+    ? Math.min(baseRadius, EATIN_MAX_RADIUS)
+    : baseRadius;
   const radiusTarget = restaurantSearchRadiusTarget({ userCoords: center, searchCoords, destination, meetup });
   const avoidSet = normalizeRestaurantReplayKeySet(avoidCardKeys);
   if (toast) toast(restaurantSearchToast(searchPlan.keywords, meetup, destination));
@@ -464,15 +515,19 @@ async function loadRestaurantDeck({ modeName, choice, coords, setLoading, toast,
   let rawPois = filterRestaurantPoisWithinAllowedCity(filterRestaurantPoisWithinSearchRadius(result.pois, radiusTarget, radius), allowedCity);
   if (meetup) rawPois = rankRestaurantPoisForMeetup(rawPois, meetup);
   const cardOptions = { ...boundedSearchOptions, userCoords: center, searchCoords: result.coords, destination, meetup };
+  const category = choice && choice.category;
+  const buildCards = (poiList) => category
+    ? categoryRestaurantCards(poiList, cardOptions, avoidSet, category, choice && choice.preferredBrands)
+    : restaurantCardsForModeAvoiding(poiList, modeName, cardOptions, avoidSet);
   let pois = await enrichRestaurantTravelMetrics(rawPois, cardOptions, setLoading);
-  let cards = restaurantCardsForModeAvoiding(pois, modeName, cardOptions, avoidSet);
+  let cards = buildCards(pois);
   if (cards.length < TOTAL) {
     const wide = await searchRestaurantsWithFallback(searchCoords, Math.max(radius, 8000), searchPlan.keywords, boundedSearchOptions, meetup, { lockSearchCenter });
     let widePois = filterRestaurantPoisWithinAllowedCity(filterRestaurantPoisWithinSearchRadius(wide.pois, radiusTarget, radius), allowedCity);
     if (meetup) widePois = rankRestaurantPoisForMeetup(widePois, meetup);
     const mergedPois = uniquePois([...rawPois, ...widePois]);
     pois = await enrichRestaurantTravelMetrics(mergedPois, cardOptions, setLoading);
-    cards = restaurantCardsForModeAvoiding(pois, modeName, cardOptions, avoidSet);
+    cards = buildCards(pois);
   }
   cards = filterRestaurantCardsWithinAllowedCity(filterRestaurantCardsWithinSearchRadius(cards, radiusTarget, radius), allowedCity);
   if (toast && cards.length) toast(`已准备好 ${cards.length} 家附近餐厅候选`);
@@ -481,16 +536,144 @@ async function loadRestaurantDeck({ modeName, choice, coords, setLoading, toast,
 
 async function restaurantSearchPlanForMode(modeName, choice, coords, helpers) {
   const manualOverrides = normalizeChoiceIntentOverrides(choice && choice.intentOverrides);
+  let plan;
   if (manualOverrides) {
     const basePlan = manualOverrides.basePlan
       ? cloneRestaurantPlan(manualOverrides.basePlan)
       : localRestaurantSearchPlan(choice);
-    return ensureRestaurantMeetupPlanForMode(applyChoiceIntentOverrides(basePlan, choice, manualOverrides), choice);
+    plan = ensureRestaurantMeetupPlanForMode(applyChoiceIntentOverrides(basePlan, choice, manualOverrides), choice);
+  } else {
+    const basePlan = (!ENABLE_REMOTE_AI_PLAN || !isAiMode(modeName))
+      ? localRestaurantSearchPlan(choice, { forceGeneric: !isAiMode(modeName) })
+      : await aiRestaurantSearchPlan(choice, coords, helpers);
+    plan = ensureRestaurantMeetupPlanForMode(basePlan, choice);
   }
-  const basePlan = (!ENABLE_REMOTE_AI_PLAN || !isAiMode(modeName))
-    ? localRestaurantSearchPlan(choice, { forceGeneric: !isAiMode(modeName) })
-    : await aiRestaurantSearchPlan(choice, coords, helpers);
-  return ensureRestaurantMeetupPlanForMode(basePlan, choice);
+  // 自然语言"不吃辣/清淡/不吃海鲜"等规则识别(补 AI 不准),AI/本地两条路都生效
+  plan = applyTextDietaryRules(plan, choice);
+  // 多人组局忌口chip:汇总成 avoidKeywords,AI/本地两条路都过滤(放在分类前)
+  plan = mergeMeetupDietAvoid(plan, choice);
+  // 咖啡奶茶 / 美食外卖 分支:用分支预设覆盖关键词与范围(价格等大模型解析仍保留)
+  if (choice && choice.category) plan = applyRestaurantCategoryPlan(plan, choice.category);
+  return plan;
+}
+
+// 把「咖啡奶茶 / 美食外卖」分支的预设套到搜索计划上
+function applyRestaurantCategoryPlan(plan, category) {
+  const preset = CATEGORY_PRESETS[category];
+  if (!preset) return plan;
+  const next = {
+    ...plan,
+    category,
+    restaurantTypeDiversity: false,
+    minRating: 0,
+    sortrule: "distance",
+    types: preset.types,
+    preferOpenLate: false,
+    openAtHour: 0,
+    radiusMeters: Math.min(plan.radiusMeters || preset.radiusMeters, preset.radiusMeters)
+  };
+  if (category === "coffee" || category === "milktea") {
+    // 咖啡 / 奶茶分支强制走各自饮品关键词,且不限价
+    next.minCost = 0;
+    next.maxCost = 0;
+    next.keywords = preset.keywords.slice();
+  } else {
+    // 外卖分支:用户若已表达具体口味(非默认多样化),保留并叠加外卖关键词
+    const userKeywords = plan.restaurantTypeDiversity
+      ? []
+      : (plan.keywords || []).filter((keyword) => keyword && keyword !== RESTAURANT_KEYWORD_FALLBACK);
+    next.keywords = uniqueKeywords([...userKeywords, ...preset.keywords]).slice(0, 6);
+  }
+  next.searchRequests = normalizePlanSearchRequests([], next.keywords, next);
+  return next;
+}
+
+// 分支卡组:品牌优先(用户常点 + 有新品的排最前),并给卡片标注品牌/新品
+function categoryRestaurantCards(pois, options, avoidKeys, category, preferredBrands = []) {
+  const avoidSet = normalizeRestaurantReplayKeySet(avoidKeys);
+  const ranked = rankCategoryPois(pois, preferredBrands);
+  const fresh = ranked.filter((poi) => !avoidSet.has(restaurantCardReplayKey(poi)));
+  const ordered = fresh.length >= TOTAL
+    ? fresh
+    : [...fresh, ...ranked.filter((poi) => avoidSet.has(restaurantCardReplayKey(poi)))];
+  const cards = poisToCards(ordered.slice(0, TOTAL), options);
+  return cards.map((card) => annotateCategoryCard(card, category, preferredBrands));
+}
+
+// 分支评分门槛:小品牌(非连锁)需评分≥此值才纳入;连锁直接保留
+const CATEGORY_MIN_RATING = 3.5;
+
+// 评分是否过门槛:连锁恒过;非连锁评分≥3.5 才过;无评分给予保留(多为小店,不误杀)
+function categoryPoiRatingPass(poi, isChain) {
+  if (isChain) return true;
+  const rating = parseFloat(poi && poi.rating);
+  if (!Number.isFinite(rating) || rating <= 0) return true; // 无评分:保留
+  return rating >= CATEGORY_MIN_RATING;
+}
+
+// 前 TOTAL 张里给附近小店预留的名额(保证"大牌为主、也有小店")
+const CATEGORY_RESERVE_SMALL = 1;
+
+// 品牌优先打分:用户常点(+4) > 有新品(+2) > 连锁/通用品牌(+1) > 小店(0)。
+// 头部以品牌为主(让 M Stand / Manner 这类大牌冒头),但预留 1 个名额给附近评分达标(≥3.5)
+// 的小店,既不被无名小咖啡按距离挤掉大牌,又能混进一家小店。
+function rankCategoryPois(pois, preferredBrands = []) {
+  const preferred = new Set((preferredBrands || []).filter(Boolean));
+  const scored = (Array.isArray(pois) ? pois : [])
+    .map((poi, index) => {
+      const brand = matchChainBrand(poi && poi.name);
+      let score = 0;
+      if (brand) {
+        score += 1;
+        if (brandNewDrop(brand.name)) score += 2;
+        if (preferred.has(brand.name)) score += 4;
+      }
+      return { poi, index, isBrand: Boolean(brand), score };
+    })
+    .filter((item) => categoryPoiRatingPass(item.poi, item.isBrand));
+
+  const brands = scored.filter((x) => x.isBrand).sort((a, b) => b.score - a.score || a.index - b.index);
+  const smalls = scored.filter((x) => !x.isBrand).sort((a, b) => a.index - b.index); // 小店按距离
+
+  // 头部:品牌占 TOTAL-预留 个,余下给最近的小店;不足则互相补齐
+  const reserve = smalls.length ? CATEGORY_RESERVE_SMALL : 0;
+  const head = [];
+  head.push(...brands.slice(0, Math.max(0, TOTAL - reserve)));
+  head.push(...smalls.slice(0, TOTAL - head.length));
+  const headSet = new Set(head.map((x) => x.poi));
+  const tail = [...brands, ...smalls].filter((x) => !headSet.has(x.poi)); // 其余按品牌优先补后面
+  return [...head, ...tail].map((item) => item.poi);
+}
+
+function annotateCategoryCard(card, category, preferredBrands = []) {
+  if (!card) return card;
+  const brand = matchChainBrand(card.name);
+  const brandName = brand ? brand.name : "";
+  const newDrop = brandName ? brandNewDrop(brandName) : "";
+  const preferred = Boolean(brandName && (preferredBrands || []).includes(brandName));
+  // 分类卡不展示距离/通勤(用户只想看品牌/新品),卡面只留评分+人均
+  return {
+    ...card,
+    category,
+    brand: brandName,
+    newDrop,
+    preferred,
+    summaryPills: dropCommuteSummaryPills(card.summaryPills),
+    meta: dropCommuteMetaTexts(card.meta)
+  };
+}
+
+// 卡面距离/通勤相关文案的识别(用于在分类卡里剔除)
+const COMMUTE_TEXT_PATTERN = /步行|驾车|地铁|公里|千米|km|\d+\s*米|分钟|离你|距地铁/i;
+function dropCommuteSummaryPills(pills) {
+  return (Array.isArray(pills) ? pills : []).filter(
+    (pill) => pill && pill.text && !COMMUTE_TEXT_PATTERN.test(pill.text)
+  );
+}
+function dropCommuteMetaTexts(meta) {
+  return (Array.isArray(meta) ? meta : []).filter(
+    (text) => text && !COMMUTE_TEXT_PATTERN.test(text)
+  );
 }
 
 async function aiRestaurantSearchPlan(choice, coords, { setLoading, toast } = {}) {
@@ -544,6 +727,11 @@ async function fetchRestaurantSearchPlan(choice, coords) {
       tags: choice.tags,
       locationHint: extractRestaurantDestinationHint(choice)?.name || "",
       locationHints: extractedRestaurantParticipantLocationNames(choice),
+      dietAvoid: Array.isArray(choice.dietAvoid) ? choice.dietAvoid : [],
+      tastePref: choice.tastePref || "",
+      memberPrefs: Array.isArray(choice.multiAreaRows)
+        ? choice.multiAreaRows.map((row) => ({ role: row.role || "", pref: row.pref || "", travels: row.travels || [] }))
+        : [],
       location: coords ? { lat: coords.lat, lng: coords.lng, label: coords.label || "", accuracy: coords.accuracy || 0 } : null,
       currentLocationLabel: coords && coords.label || "",
       currentLocationDetail: coords && coords.addressMeta || ""
@@ -694,6 +882,7 @@ function localRestaurantSearchPlan(choice, { forceGeneric = false } = {}) {
   plan.needsCompanionLocation = needsRestaurantCompanionLocation(choice, plan);
   plan.searchRequests = normalizePlanSearchRequests([], plan.keywords, plan);
   applyDefaultRestaurantTypeDiversity(plan, choice);
+  applyMeetupTasteKeywords(plan, choice); // 组局综合口味覆盖(清淡/重口)
   return plan;
 }
 
@@ -726,6 +915,179 @@ function hasExplicitRestaurantFoodPreference(choice = {}) {
     const key = normalizeMatchText(term);
     return key && normalizedText.includes(key);
   });
+}
+
+// 多人组局综合口味:清淡/重口 → 关键词覆盖(仅当没人显式点具体菜系时,尊重显式选择)
+function applyMeetupTasteKeywords(plan, choice = {}) {
+  const taste = choice && choice.tastePref;
+  if (!plan || !taste || !TASTE_SEARCH_KEYWORDS[taste]) return plan;
+  if (hasExplicitRestaurantFoodPreference(choice)) return plan;
+  plan.restaurantTypeDiversity = false;
+  plan.keywords = TASTE_SEARCH_KEYWORDS[taste].slice(0, 6);
+  plan.types = "050000";
+  plan.searchRequests = normalizePlanSearchRequests([], plan.keywords, plan);
+  return plan;
+}
+
+// 多人组局忌口:choice.dietAvoid 已是识别好的排除关键词,直接并入 avoidKeywords(AI/本地都生效)
+function mergeMeetupDietAvoid(plan, choice = {}) {
+  const dietAvoid = Array.isArray(choice && choice.dietAvoid) ? choice.dietAvoid : [];
+  if (!plan || !dietAvoid.length) return plan;
+  const avoid = new Set(plan.avoidKeywords || []);
+  dietAvoid.forEach((keyword) => keyword && avoid.add(keyword));
+  plan.avoidKeywords = [...avoid];
+  return plan;
+}
+
+// 忌口/否定词是硬过滤(店名/品类命中即剔除,永不放宽),上限给大一些:多人多条忌口也不会被截断
+const AVOID_KEYWORD_LIMIT = 32;
+// 搜索关键词里"辣味相关"的项(不吃辣时不主动搜这些;清汤火锅等若自然出现不硬杀)
+const SPICY_SEARCH_KEYWORD_PATTERN = /川|湘|麻辣|水煮|干锅|重庆|火锅|烧烤|烤肉|串|麻辣烫|辣/;
+const SEAFOOD_SEARCH_KEYWORD_PATTERN = /海鲜|海产|生蚝|海鲜大咖/;
+// 否定词(出现在某菜系前/后即视为"不要这个")
+const NEGATION_PREFIX = "(?:不吃|不要|不想吃|别吃|别点|不点|忌|不喜欢|讨厌|不爱吃|不来|拒绝|没有|不沾|戒)";
+const NEGATION_SUFFIX = "(?:过敏|忌口|不行|免了|不沾|就免)";
+// 某些菜系展开成相关词,排除/不搜时更彻底(否定"日料"也连带寿司/居酒屋等)
+const CUISINE_RELATED = {
+  "日料": ["日料", "日本料理", "日本菜", "日式料理", "和食", "寿司", "刺身", "居酒屋", "寿喜烧", "日式", "烧鸟", "鳗鱼"],
+  "日本料理": ["日料", "日本料理", "日本菜", "和食", "寿司", "刺身", "居酒屋", "日式"],
+  "韩餐": ["韩餐", "韩国料理", "部队锅", "石锅", "韩式", "炸鸡啤酒"],
+  "韩国料理": ["韩餐", "韩国料理", "部队锅", "石锅", "韩式"],
+  "火锅": ["火锅", "串串", "麻辣烫", "冒菜"],
+  "西餐": ["西餐", "牛排", "意面", "披萨", "法餐", "意大利"],
+  "烧烤": ["烧烤", "烤肉", "烧鸟", "串"],
+  "川菜": ["川菜", "麻辣", "水煮", "干锅", "重庆", "辣子"],
+  "湘菜": ["湘菜", "剁椒", "辣"],
+  "粤菜": ["粤菜", "茶餐厅", "早茶", "点心"]
+};
+
+// 扫描问题里被否定的菜系(不吃日料/西餐不行/讨厌韩餐…),返回需排除的关键词
+function negatedCuisineKeywords(text) {
+  const t = String(text || "");
+  const out = [];
+  FOOD_SEARCH_TERMS.forEach((term) => {
+    if (GENERIC_FOOD_INTENT_TERMS.has(term)) return; // 跳过"餐厅/夜宵"这种泛词
+    const esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`${NEGATION_PREFIX}\\s*${esc}|${esc}\\s*${NEGATION_SUFFIX}`);
+    if (re.test(t)) out.push(...(CUISINE_RELATED[term] || [term]));
+  });
+  return [...new Set(out)];
+}
+
+// 自然语言忌口/口味识别(规则映射,补 AI 的不准:如"不吃辣"被推火锅、"不吃日料"却全是日料)
+function parseDietaryFromText(text) {
+  const t = String(text || "");
+  const avoid = [];
+  let taste = "";
+  let noSpicy = false;
+  let noSeafood = false;
+  if (/(不吃辣|不要辣|不能吃辣|怕辣|忌辣|不吃辛辣|别太辣|不沾辣|无辣(?!不欢)|不辣|清淡|少辣)/.test(t)) {
+    avoid.push(...(DIET_EXCLUDE_KEYWORDS["不吃辣"] || []));
+    noSpicy = true;
+    if (/清淡/.test(t)) taste = "清淡";
+  }
+  if (/(不吃海鲜|海鲜过敏|不吃鱼虾|海鲜忌口|不吃虾|不吃蟹|海鲜不行)/.test(t)) {
+    avoid.push(...(DIET_EXCLUDE_KEYWORDS["海鲜忌口"] || []));
+    noSeafood = true;
+  }
+  // 通用否定:不吃日料/不要西餐/讨厌火锅…
+  avoid.push(...negatedCuisineKeywords(t));
+  if (!taste && /(重口|重辣|无辣不欢|能吃辣|爱吃辣|重油|够味|越辣越好)/.test(t)) {
+    taste = "重口";
+  }
+  return { avoid: [...new Set(avoid)], taste, noSpicy, noSeafood };
+}
+
+// 否定守卫只对"正向想吃"类规则生效:这些词被否定时意思相反(如"吃肉"在"不想吃肉"里 → 不算想吃肉)。
+// 忌口/避味类规则(不辣/不吃海鲜/无烟/清淡)本身就靠否定表达,前面有"别/不"是确认而非反转,故不设防。
+const INTENT_NEGATION_PREFIX_CHARS = "不没别无忌";
+const NEGATION_GUARDED_RULE_IDS = new Set(["meat", "noodle", "midSpicy", "heavy", "heavySpicy"]);
+function intentRuleHitsText(rule, text) {
+  const guarded = NEGATION_GUARDED_RULE_IDS.has(rule.id);
+  return (rule.match || []).some((word) => {
+    if (!word) return false;
+    if (!guarded) return text.indexOf(word) >= 0;
+    let idx = text.indexOf(word);
+    while (idx >= 0) {
+      // 看 token 前最多 2 个字是否有否定字(如"吃肉"出现在"不想吃肉"里 → 不算命中)
+      const before = text.slice(Math.max(0, idx - 2), idx);
+      if (![...before].some((ch) => INTENT_NEGATION_PREFIX_CHARS.indexOf(ch) >= 0)) return true;
+      idx = text.indexOf(word, idx + 1);
+    }
+    return false;
+  });
+}
+
+// 用意图词库(docs/意图词库-映射表.csv 生成)匹配整段文本,聚合出 搜/避/口味标记。
+// 场景维度(约会/商务/夜宵…)由标签系统负责,这里跳过,避免与多样化逻辑打架。
+function matchIntentRules(text) {
+  const t = String(text || "");
+  const fired = INTENT_RULES.filter((rule) => rule.dim !== "场景" && intentRuleHitsText(rule, t));
+  const firedIds = new Set(fired.map((rule) => rule.id));
+  // 辣度冲突:嗜辣(heavySpicy)命中 → 压制"不吃辣/清淡/微辣"等反向判定(如"无辣不欢"含"无辣")
+  const suppress = firedIds.has("heavySpicy") ? new Set(["noSpicy", "light", "midSpicy"]) : new Set();
+  const searchAdd = [];
+  const avoidAdd = [];
+  let taste = "";
+  let noSpicy = false;
+  let noSeafood = false;
+  fired.forEach((rule) => {
+    if (suppress.has(rule.id)) return;
+    (rule.search || []).forEach((keyword) => keyword && searchAdd.push(keyword));
+    (rule.avoid || []).forEach((keyword) => keyword && avoidAdd.push(keyword));
+    if (rule.taste && (!taste || rule.taste === "重口")) taste = rule.taste;
+    if (rule.noSpicy) noSpicy = true;
+    if (rule.noSeafood) noSeafood = true;
+  });
+  return { searchAdd: [...new Set(searchAdd)], avoidAdd: [...new Set(avoidAdd)], taste, noSpicy, noSeafood };
+}
+
+// 把自然语言识别到的忌口/口味落到 plan:加 POI 排除 + 不主动搜被排除/辣味词 + 必要时换清淡/中性词
+function applyTextDietaryRules(plan, choice = {}) {
+  if (!plan) return plan;
+  const text = `${(choice && choice.question) || ""} ${Array.isArray(choice && choice.tags) ? choice.tags.join(" ") : ""}`;
+  const parsed = parseDietaryFromText(text);
+  const intent = matchIntentRules(text);
+  const avoidList = [...new Set([...parsed.avoid, ...intent.avoidAdd])];
+  const taste = parsed.taste || intent.taste;
+  const noSpicy = parsed.noSpicy || intent.noSpicy;
+  const noSeafood = parsed.noSeafood || intent.noSeafood;
+  // 出现忌口/口味信号,或有明确的正向推荐意图(嗦面/硬菜/清爽…)时接管;否则不动多样化结果
+  if (!avoidList.length && !taste && !noSpicy && !noSeafood && !intent.searchAdd.length) return plan;
+  // 1) POI 层排除(店名/品类命中即过滤,硬过滤永不放宽)
+  const avoidSet = new Set(plan.avoidKeywords || []);
+  avoidList.forEach((keyword) => keyword && avoidSet.add(keyword));
+  plan.avoidKeywords = [...avoidSet];
+  // 2) 不主动搜任何会被排除的词(含被否定的菜系,如"不吃日料"→剔除日料/寿司)+ 辣味/海鲜
+  const avoidNorm = plan.avoidKeywords.map(normalizeMatchText).filter(Boolean);
+  const stripBad = (list) => (Array.isArray(list) ? list : []).filter((keyword) => {
+    const n = normalizeMatchText(keyword);
+    if (!n) return false;
+    if (avoidNorm.some((a) => n.includes(a) || a.includes(n))) return false;
+    if (noSpicy && SPICY_SEARCH_KEYWORD_PATTERN.test(keyword)) return false;
+    if (noSeafood && SEAFOOD_SEARCH_KEYWORD_PATTERN.test(keyword)) return false;
+    return true;
+  });
+  let keywords = stripBad(plan.keywords);
+  // 3) 用户没点具体菜系时,用意图词库的推荐词补位,且让意图词**领先**通用词(健身→先搜轻食沙拉、嗦面→先搜面)
+  if (!hasExplicitRestaurantFoodPreference(choice) && intent.searchAdd.length) {
+    const merged = uniqueKeywords([...stripBad(intent.searchAdd), ...keywords]);
+    if (merged.length) keywords = merged.slice(0, 6);
+  }
+  if (!keywords.length) {
+    keywords = (taste === "清淡" || noSpicy) && TASTE_SEARCH_KEYWORDS["清淡"]
+      ? TASTE_SEARCH_KEYWORDS["清淡"].slice(0, 6)
+      : [RESTAURANT_KEYWORD_FALLBACK];
+  }
+  // 4) 明确清淡(且没人点具体菜系)→ 直接走清淡系
+  if (taste === "清淡" && TASTE_SEARCH_KEYWORDS["清淡"] && !hasExplicitRestaurantFoodPreference(choice)) {
+    keywords = TASTE_SEARCH_KEYWORDS["清淡"].slice(0, 6);
+  }
+  plan.keywords = keywords;
+  plan.restaurantTypeDiversity = false;
+  plan.types = "050000";
+  plan.searchRequests = normalizePlanSearchRequests([], plan.keywords, plan);
+  return plan;
 }
 
 function restaurantSearchKeywords(choice) {
@@ -1020,6 +1382,7 @@ function ensureRestaurantMeetupPlanForMode(plan = {}, choice = {}) {
   merged.includeCurrentLocationInMeetup = shouldUseCurrent;
   merged.region = "";
   merged.cityLimit = false;
+  merged.radiusMeters = clampRestaurantMeetupRadius(merged.radiusMeters || RESTAURANT_MEETUP_MAX_RADIUS);
   merged.locationIntent = {
     ...(merged.locationIntent && typeof merged.locationIntent === "object" ? merged.locationIntent : {}),
     destination: "",
@@ -1359,7 +1722,7 @@ function inferRestaurantSearchRadius(choice, { hasDestination = false, participa
   const text = `${choice.question || ""} ${(choice.tags || []).join(" ")}`;
   const explicitRadius = inferExplicitRestaurantRadiusMeters(choice);
   if (explicitRadius) return explicitRadius;
-  if (participantCount >= 2) return 10000;
+  if (participantCount >= 2) return RESTAURANT_MEETUP_MAX_RADIUS;
   if (/跨区|远一点|折中|中间/.test(text)) return 8000;
   if (hasDestination) return 3000;
   if (/离我近|附近|就近|最近|少走|马上|现在/.test(text)) return 2000;
@@ -1486,7 +1849,7 @@ function restaurantSearchOptions(searchPlan = {}) {
     preferOpenLate: Boolean(searchPlan.preferOpenLate),
     openAtHour: searchPlan.openAtHour || 0,
     mustKeywords: normalizeSimpleKeywords(searchPlan.mustKeywords, 8),
-    avoidKeywords: normalizeSimpleKeywords(searchPlan.avoidKeywords, 8),
+    avoidKeywords: normalizeSimpleKeywords(searchPlan.avoidKeywords, AVOID_KEYWORD_LIMIT),
     types: normalizeAmapTypes(searchPlan.types),
     sortrule: normalizeAmapSortRule(searchPlan.sortrule),
     region: cleanRestaurantKeyword(searchPlan.region || ""),
@@ -1550,7 +1913,8 @@ async function trySearchNearbyRestaurants(coords, radius, keywords, options, lab
 }
 
 function relaxedRestaurantSearchOptions(options = {}) {
-  return { ...options, minCost: 0, maxCost: 0, minRating: 0, mustKeywords: [], avoidKeywords: [], region: "", cityLimit: false, types: "050000", sortrule: "distance", showFields: AMAP_SHOW_FIELDS_DEFAULT, searchRequests: [] };
+  // 放宽价格/评分/必含词/区域来凑够候选,但"忌口/否定"(avoidKeywords)是硬性约束,永不放开
+  return { ...options, minCost: 0, maxCost: 0, minRating: 0, mustKeywords: [], avoidKeywords: normalizeSimpleKeywords(options.avoidKeywords, AVOID_KEYWORD_LIMIT), region: "", cityLimit: false, types: "050000", sortrule: "distance", showFields: AMAP_SHOW_FIELDS_DEFAULT, searchRequests: [] };
 }
 
 async function searchNearbyRestaurants(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK], options = {}, meetup = null) {
@@ -1616,6 +1980,39 @@ async function searchNearbyRestaurantsByWorker(coords, radius = 3500, keywords =
   return diverseRestaurantPois(rankRestaurantPoisForMeetup(preferredRestaurantPois(pois, options), meetup), AMAP_PRICE_POOL_SIZE);
 }
 
+function normalizeRestaurantDetailList(value) {
+  const items = [];
+  const visit = (current) => {
+    if (current == null) return;
+    if (Array.isArray(current)) {
+      current.forEach(visit);
+      return;
+    }
+    if (typeof current === "object") {
+      ["name", "title", "tag", "value", "text", "label", "dish", "food", "menu", "recommend", "special"].forEach((key) => visit(current[key]));
+      return;
+    }
+    const text = String(current || "").trim();
+    if (text) items.push(text);
+  };
+  visit(value);
+  return uniqueKeywords(items).slice(0, 24);
+}
+
+function normalizeAmapChildren(children) {
+  return (Array.isArray(children) ? children : []).map((child) => {
+    if (!child || typeof child !== "object") return null;
+    const location = parseAmapLocation(child.location);
+    return {
+      id: child.id || "",
+      name: child.name || child.title || "",
+      type: child.type || "",
+      address: child.address || "",
+      location
+    };
+  }).filter((item) => item && item.name).slice(0, 12);
+}
+
 function normalizeWorkerRestaurantPoi(poi, searchKeyword = "") {
   if (!poi || !poi.name) return null;
   const location = normalizeCoord(poi.location || { lat: poi.lat, lng: poi.lng });
@@ -1627,6 +2024,7 @@ function normalizeWorkerRestaurantPoi(poi, searchKeyword = "") {
   ].filter(Boolean));
   const photoUrls = photoItems.map((item) => item.url);
   const area = Array.isArray(poi.area) ? poi.area.join(" ") : String(poi.area || "");
+  const menuItems = normalizeRestaurantDetailList(poi.menuItems || poi.menu_items || poi.menu || poi.dishes || poi.dish || poi.specialDishes || poi.special_dishes || poi.foods || poi.recommendDishes);
   return {
     id: poi.id || poi.name,
     name: poi.name,
@@ -1639,6 +2037,11 @@ function normalizeWorkerRestaurantPoi(poi, searchKeyword = "") {
     businessArea: poi.businessArea || poi.business_area || "",
     tag: poi.tag || "",
     recommend: poi.recommend || "",
+    keytag: poi.keytag || poi.keyTag || "",
+    rectag: poi.rectag || poi.recTag || "",
+    menuItems,
+    children: normalizeAmapChildren(poi.children || []),
+    indoor: poi.indoor || null,
     tel: poi.tel || "",
     opentimeToday: poi.opentimeToday || poi.opentime_today || "",
     opentimeWeek: poi.opentimeWeek || poi.opentime_week || "",
@@ -1678,6 +2081,21 @@ function normalizeAmapPoi(poi) {
   const [lng, lat] = String(poi.location || "").split(",").map(Number);
   const navLocation = parseAmapLocation(poi.navi?.entr_location || poi.navi?.entrance_location || poi.entr_location);
   const typeParts = String(poi.type || "").split(";");
+  const menuItems = normalizeRestaurantDetailList([
+    business.menu,
+    business.menus,
+    business.dish,
+    business.dishes,
+    business.special,
+    business.special_food,
+    business.specialDishes,
+    business.recommend,
+    business.recommendation,
+    poi.menu,
+    poi.menus,
+    poi.dishes,
+    poi.specialDishes
+  ]);
   return {
     id: poi.id || poi.name,
     name: poi.name,
@@ -1690,6 +2108,11 @@ function normalizeAmapPoi(poi) {
     businessArea: business.business_area || business.businessArea || "",
     tag: business.tag || poi.tag || "",
     recommend: business.recommend || business.recommendation || "",
+    keytag: business.keytag || business.key_tag || poi.keytag || "",
+    rectag: business.rectag || business.rec_tag || poi.rectag || "",
+    menuItems,
+    children: normalizeAmapChildren(poi.children || []),
+    indoor: poi.indoor || null,
     tel: business.tel || poi.tel || "",
     opentimeToday: business.opentime_today || business.opentimeToday || "",
     opentimeWeek: business.opentime_week || business.opentimeWeek || "",
@@ -1722,6 +2145,7 @@ function normalizeAmapPoiPhotoItems(photos) {
       url,
       kind: category,
       label: restaurantPhotoKindLabel(category, photo && (photo.label || photo.category || photo.type || photo.imageCategory || photo.tag || photo.title)),
+      title: typeof photo === "string" ? "" : String(photo && (photo.title || photo.name || photo.label || "") || ""),
       source: "amap",
       score: (AMAP_PHOTO_CATEGORY_SCORE[category] || AMAP_PHOTO_CATEGORY_SCORE.unknown) + sourceBonus - index
     };
@@ -1780,6 +2204,7 @@ function normalizeRestaurantPhotoItem(item, index = 0) {
     url,
     kind,
     label: typeof item === "string" ? restaurantPhotoKindLabel(kind) : restaurantPhotoKindLabel(kind, item.label || item.category || item.title || item.tag),
+    title: typeof item === "string" ? "" : String(item.title || item.name || item.label || "").trim(),
     source: typeof item === "string" ? "amap" : (item.source || "amap"),
     score: Number(item && item.score) || ((AMAP_PHOTO_CATEGORY_SCORE[kind] || AMAP_PHOTO_CATEGORY_SCORE.unknown) - index)
   };
@@ -1802,16 +2227,29 @@ function realRestaurantPhotoItems(items, fallbackImage = "", limit = 8) {
 }
 
 function restaurantCardImages(poi = {}, fallbackImage = "") {
-  const realItems = realRestaurantPhotoItems([...(poi.photoItems || []), ...(poi.photos || []), poi.image].filter(Boolean), fallbackImage, 8);
-  const firstReal = realItems.find((item) => item.kind !== "menu") || realItems[0] || null;
-  const menuItem = realItems.find((item) => item.kind === "menu" && item.url !== (firstReal && firstReal.url)) || null;
-  const rest = realItems.filter((item) => item.url !== (firstReal && firstReal.url) && item.url !== (menuItem && menuItem.url));
-  return realRestaurantPhotoItems([firstReal, menuItem, ...rest].filter(Boolean), fallbackImage, 5);
+  const realItems = realRestaurantPhotoItems([...(poi.photoItems || []), ...(poi.photos || []), poi.image].filter(Boolean), fallbackImage, 12);
+  const picked = [];
+  const used = new Set();
+  const pushWhere = (predicate, limit = 1) => {
+    for (const item of realItems) {
+      if (picked.length >= 6 || limit <= 0) break;
+      if (!item || used.has(item.url) || !predicate(item)) continue;
+      picked.push(item);
+      used.add(item.url);
+      limit -= 1;
+    }
+  };
+  pushWhere((item) => item.kind === "storefront");
+  pushWhere((item) => item.kind === "interior");
+  pushWhere((item) => item.kind === "food" || item.kind === "drink", 3);
+  pushWhere((item) => item.kind === "menu");
+  pushWhere(() => true, 6);
+  return realRestaurantPhotoItems(picked, fallbackImage, 6);
 }
 
 function filterRestaurantPois(pois, { minCost = 0, maxCost = 0, minRating = 0, mustKeywords = [], avoidKeywords = [] } = {}) {
   const must = normalizeSimpleKeywords(mustKeywords, 8).map(normalizeMatchText).filter(Boolean);
-  const avoid = normalizeSimpleKeywords(avoidKeywords, 8).map(normalizeMatchText).filter(Boolean);
+  const avoid = normalizeSimpleKeywords(avoidKeywords, AVOID_KEYWORD_LIMIT).map(normalizeMatchText).filter(Boolean);
   return (pois || []).filter((poi) => {
     if (!poi || !poi.name) return false;
     if (minCost || maxCost) {
@@ -1908,6 +2346,9 @@ function poisToCards(pois, options = {}) {
       cost: p.cost || "",
       tel: p.tel || "",
       recommend: p.recommend || "",
+      keytag: p.keytag || "",
+      rectag: p.rectag || "",
+      menuItems: p.menuItems || [],
       routeMetrics: p.routeMetrics || null,
       participantRoutes: p.participantRoutes || [],
       meetup: p.meetup || null,
@@ -2010,7 +2451,8 @@ function restaurantArrivalBoard(p = {}) {
     const subwayWalkMeters = Math.round(Number(route.subwayWalkingDistanceMeters) || 0);
     const subwayWalkMin = subwayWalkMeters ? Math.max(1, Math.round(subwayWalkMeters / 75)) : 0;
     const subwayRideMin = subwayMin ? Math.max(1, subwayMin - subwayWalkMin * 2) : 0;
-    const recommendedKey = pickArrivalMode({ walkMin, driveMin, subwayMin });
+    const recommendedKey = pickPreferredArrivalMode(route.preferredModes, { walkMin, driveMin, subwayMin })
+      || pickArrivalMode({ walkMin, driveMin, subwayMin });
     const modes = [];
     if (driveMin) {
       modes.push({ key: "drive", icon: "🚗", name: "驾车", min: driveMin, minText: `${driveMin} 分钟`, note: "晚高峰已计入", on: recommendedKey === "drive" });
@@ -2061,6 +2503,22 @@ function minutesFromSeconds(value) {
   const seconds = Number(value);
   if (!Number.isFinite(seconds) || seconds <= 0) return 0;
   return Math.max(1, Math.round(seconds / 60));
+}
+
+// 个人指定的出行方式(可多选)→ 到达榜模式 key:在所选方式里取有估时且最快的那种;
+// 骑行无估时,公交近似走地铁;都没有则回退自动选择。
+function pickPreferredArrivalMode(travels, { walkMin, driveMin, subwayMin } = {}) {
+  const list = Array.isArray(travels) ? travels : (travels ? [travels] : []);
+  if (!list.length) return "";
+  const candidates = [];
+  list.forEach((travel) => {
+    if ((travel === "地铁" || travel === "公交") && subwayMin) candidates.push(["subway", subwayMin]);
+    if (travel === "驾车" && driveMin) candidates.push(["drive", driveMin]);
+    if (travel === "步行" && walkMin) candidates.push(["walk", walkMin]);
+  });
+  if (!candidates.length) return "";
+  candidates.sort((a, b) => a[1] - b[1]);
+  return candidates[0][0];
 }
 
 // 自动推荐:可步行(≤15分)优先步行;否则驾车与地铁取更快;只有一种则用它
@@ -2450,7 +2908,7 @@ function metaTagText(item) {
 
 function poiReason(p, options = {}) {
   if (p && p.meetup) {
-    const balance = p.meetup.imbalance && p.meetup.imbalance < 2500 ? "两边到店成本比较接近" : "先把见面成本压平";
+    const balance = p.meetup.imbalance && p.meetup.imbalance < 2500 ? "两边到店时间比较接近" : "先把见面距离压平";
     return `${restaurantMeetupReasonSubject(p)}的折中点找店，${balance}，再看口味、评分和人均。`;
   }
   const distanceText = restaurantTravelTags(p, options).slice(0, 3).map(metaTagText).join("，");
@@ -2537,6 +2995,7 @@ async function restaurantRouteParticipants(options = {}) {
     return {
       label: placeLabel || cleanParticipantLabel(participant.label, index),
       placeLabel,
+      travels: Array.isArray(participant.travels) ? participant.travels : [],
       location: { ...location, amap: true, label: placeLabel || location.label || participant.label || "" }
     };
   }).filter(Boolean);
@@ -2557,6 +3016,7 @@ async function fetchRestaurantParticipantRouteMetrics(participants, poi) {
       routes.push({
         label: participant.label,
         placeLabel: participant.placeLabel,
+        preferredModes: Array.isArray(participant.travels) ? participant.travels : [],
         distanceMeters: metrics?.distanceMeters || fallbackDistance,
         straightDistanceMeters: metrics?.straightDistanceMeters || fallbackDistance,
         walkingDistanceMeters: metrics?.walkingDistanceMeters || fallbackMetrics.walkingDistanceMeters || 0,
@@ -2578,6 +3038,7 @@ async function fetchRestaurantParticipantRouteMetrics(participants, poi) {
           ...fallbackMetrics,
           label: participant.label,
           placeLabel: participant.placeLabel || participant.label,
+          preferredModes: Array.isArray(participant.travels) ? participant.travels : [],
           distanceMeters: fallbackDistance,
           straightDistanceMeters: fallbackDistance,
           estimatedRouteMetrics: true
@@ -2746,6 +3207,8 @@ function restaurantDetailPayloadForPoi(poi = {}, { photoGallery = [], photoItems
   const openTimeText = compactDetailText(poi.opentimeToday || poi.opentimeWeek || "营业以高德为准", 18);
   const primaryDistance = primaryDetailDistanceText(poi, routeTags) || "距离待算";
   const photos = detailPhotoItemsForPoi(poi, photoItems.length ? photoItems : photoGallery);
+  const menuDishes = restaurantDishHintsForPoi(poi);
+  const features = uniqueKeywords([...menuDishes, ...restaurantFeatureTagsForPoi(poi)]).slice(0, 12);
   return {
     openTimeText,
     photos,
@@ -2755,7 +3218,7 @@ function restaurantDetailPayloadForPoi(poi = {}, { photoGallery = [], photoItems
       { label: "人均", value: cost || "暂无" },
       { label: "营业", value: openTimeText }
     ],
-    features: restaurantFeatureTagsForPoi(poi),
+    features,
     routes: detailRouteRowsForPoi(poi, routeTags),
     rows: detailRowsForPoi(poi)
   };
@@ -2770,7 +3233,7 @@ function detailPhotoItemsForPoi(poi = {}, photoGallery = []) {
       ...(poi.photos || []),
       poi.image
     ].filter(Boolean)
-  }, poi.fallbackImage || "").slice(0, 5).map((item) => ({
+  }, poi.fallbackImage || "").slice(0, 6).map((item) => ({
     url: item.url,
     label: item.label || restaurantPhotoKindLabel(item.kind, item.label)
   }));
@@ -2791,12 +3254,57 @@ function primaryDetailDistanceText(poi = {}, routeText = []) {
 }
 
 function restaurantFeatureTagsForPoi(poi = {}) {
-  const rawTags = [poi.tag, poi.recommend, poi.searchKeyword].join(" ");
+  const rawTags = [poi.tag, poi.recommend, poi.keytag, poi.rectag, poi.searchKeyword].join(" ");
   const tags = uniqueKeywords(rawTags.split(/[、,，;；/|\s]+/).filter(Boolean))
     .filter((tag) => !["餐厅", "美食", "附近真实餐厅"].includes(tag))
     .slice(0, 6);
   if (tags.length) return tags;
   return uniqueKeywords(String(poi.type || "").split(/[;、,，/|\s]+/).filter(Boolean)).slice(0, 3);
+}
+
+function restaurantDishHintsForPoi(poi = {}) {
+  const photoTitles = (Array.isArray(poi.photoItems) ? poi.photoItems : [])
+    .filter((item) => item && (item.kind === "food" || item.kind === "drink" || item.kind === "menu"))
+    .map((item) => item.title || item.label || "");
+  return normalizeRestaurantDishTokens([
+    poi.menuItems,
+    poi.menu,
+    poi.menus,
+    poi.dishes,
+    poi.dish,
+    poi.specialDishes,
+    poi.specialDish,
+    poi.foods,
+    poi.recommendDishes,
+    poi.recommend,
+    poi.tag,
+    poi.keytag,
+    poi.rectag,
+    photoTitles
+  ], 12);
+}
+
+function normalizeRestaurantDishTokens(values, limit = 12) {
+  const text = normalizeRestaurantDetailList(values).join("、");
+  const generic = new Set([
+    "餐厅", "美食", "菜品", "菜单", "推荐", "特色", "环境", "门头", "图片", "饮品", "饮料",
+    "中餐", "西餐", "快餐", "小吃", "附近真实餐厅", "午餐", "晚餐", "早餐",
+    "restaurant", "food", "menu", "dish", "photo", "interior", "storefront"
+  ]);
+  const seen = new Set();
+  return text
+    .split(/[、,，;；/|｜\n\r\t]+|\s{2,}/)
+    .map((item) => String(item || "").replace(/[【】\[\]()（）<>《》]/g, "").trim())
+    .filter((item) => {
+      if (!item || item.length < 2 || item.length > 18) return false;
+      if (/^https?:\/\//i.test(item) || /^\d+(?:\.\d+)?$/.test(item)) return false;
+      if (/[省市区县路街号层楼室]/.test(item) && item.length > 8) return false;
+      const key = normalizeMatchText(item);
+      if (!key || generic.has(item) || generic.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit);
 }
 
 function detailRouteRowsForPoi(poi = {}, routeTags = []) {
@@ -3127,24 +3635,43 @@ function restaurantDestinationHint(searchPlan = {}, choice) {
   return explicit || hint;
 }
 
+// 从组局行里建"位置→出行方式(多选)"查表(供到达榜按个人指定方式展示)
+function meetupTravelLookup(choice) {
+  const rows = Array.isArray(choice && choice.multiAreaRows) ? choice.multiAreaRows : [];
+  return rows
+    .map((row) => ({ loc: normalizeMatchText(row.location || ""), role: String(row.role || ""), travels: Array.isArray(row.travels) ? row.travels : [] }))
+    .filter((row) => row.travels.length);
+}
+function travelForHint(hint, lookup = []) {
+  const key = normalizeMatchText(hint || "");
+  if (!key) return [];
+  const hit = lookup.find((row) => row.loc && (key.includes(row.loc) || row.loc.includes(key)));
+  return hit ? hit.travels : [];
+}
+function travelForCurrentLocation(lookup = []) {
+  const hit = lookup.find((row) => /我的位置|当前位置|位置|我/.test(row.role));
+  return hit ? hit.travels : [];
+}
+
 async function resolveRestaurantMeetupContext(coords, searchPlan, choice) {
   const hints = restaurantParticipantLocationHints(searchPlan, choice);
   const currentPlusFriendMeetup = shouldUseCurrentLocationForMeetup(choice, hints);
   if (hints.length < 2 && !currentPlusFriendMeetup) return null;
+  const travelLookup = meetupTravelLookup(choice);
   const participants = [];
   const expectedLabels = uniqueRestaurantMiddlePointLabels(hints.map(restaurantMiddlePointDisplayLabel));
   if (currentPlusFriendMeetup && coords) {
     const userPoint = normalizeCoord(coords);
     if (userPoint) {
       const sourceLabel = restaurantShortPlaceLabel(userPoint.addressMeta || userPoint.label) || "当前位置";
-      participants.push({ label: "位置", placeLabel: "位置", sourceLabel, isCurrentLocation: true, location: { ...userPoint, amap: true, label: sourceLabel } });
+      participants.push({ label: "位置", placeLabel: "位置", sourceLabel, isCurrentLocation: true, travels: travelForCurrentLocation(travelLookup), location: { ...userPoint, amap: true, label: sourceLabel } });
     }
   }
   for (const hint of hints.slice(0, 4)) {
     const point = await geocodeRestaurantLocationHint(hint, coords);
     if (point && !participants.some((item) => sameRestaurantCoords(item.location, point))) {
       const placeLabel = restaurantParticipantDisplayLabel(hint, point);
-      participants.push({ label: placeLabel, placeLabel, location: point });
+      participants.push({ label: placeLabel, placeLabel, travels: travelForHint(hint, travelLookup), location: point });
     }
   }
   if (participants.length < 2) return null;
@@ -3156,7 +3683,7 @@ async function resolveRestaurantMeetupContext(coords, searchPlan, choice) {
   const displayLabel = (participantLabels.length >= 2 ? participantLabels : participants.map((item) => item.label)).join(" / ");
   const searchCoords = midpointRestaurantCoords(participants.map((item) => item.location));
   const spread = maxRestaurantPairDistance(participants.map((item) => item.location));
-  const radiusMeters = Math.round(Math.max(RESTAURANT_MEETUP_MIN_RADIUS, Math.min(RESTAURANT_MEETUP_MAX_RADIUS, spread * 0.32)));
+  const radiusMeters = restaurantMeetupRadiusForPoints(participants.map((item) => item.location));
   return {
     strategy: "midpoint",
     label: displayLabel,
@@ -3192,6 +3719,86 @@ async function restaurantGeocodeAreaLabel(coords) {
 }
 
 // 组局房间结果态:每人位置→坐标→中间点→逐人到中间点的到达榜(收集完当场展示)
+function meetupBoardRangeRadius(participants = []) {
+  return restaurantMeetupRadiusForPoints(participants.map((item) => item && item.location));
+}
+
+function meetupLongDashPolylines(start, end, color) {
+  const dashSlots = 9;
+  const dashFill = 0.72;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const lines = [];
+  for (let slot = 0; slot < dashSlots; slot += 2) {
+    const t0 = slot / dashSlots;
+    const t1 = Math.min(1, (slot + dashFill) / dashSlots);
+    lines.push({
+      points: [
+        {
+          latitude: lerp(start.latitude, end.latitude, t0),
+          longitude: lerp(start.longitude, end.longitude, t0)
+        },
+        {
+          latitude: lerp(start.latitude, end.latitude, t1),
+          longitude: lerp(start.longitude, end.longitude, t1)
+        }
+      ],
+      color,
+      width: 5,
+      dottedLine: false,
+      arrowLine: false
+    });
+  }
+  const last = lines[lines.length - 1];
+  if (last) last.points[1] = { latitude: end.latitude, longitude: end.longitude };
+  return lines;
+}
+
+function meetupBoardMapGeometry(participants = [], middle = null, rangeRadius = 0, middleLabel = "") {
+  if (!restaurantValidCoords(middle)) return { markers: [], polylines: [], circles: [], includePoints: [] };
+  const validParticipants = (participants || []).filter((item) => restaurantValidCoords(item && item.location));
+  const memberIcons = ["/assets/map/member-blue.png", "/assets/map/member-green.png", "/assets/map/member-coral.png"];
+  const markers = validParticipants.map((item, index) => ({
+    id: index + 1,
+    latitude: item.location.lat,
+    longitude: item.location.lng,
+    iconPath: memberIcons[index % memberIcons.length],
+    width: 34,
+    height: 42,
+    anchor: { x: 0.5, y: 1 },
+    callout: { content: item.short || item.label || "成员", color: "#1a1714", display: "ALWAYS", fontSize: 11, padding: 4, borderRadius: 6, bgColor: "#fffdf6", borderColor: "#1a1714", borderWidth: 1 }
+  }));
+  markers.push({
+    id: 900,
+    latitude: middle.lat,
+    longitude: middle.lng,
+    iconPath: "/assets/map/midpoint-coral.png",
+    width: 42,
+    height: 50,
+    anchor: { x: 0.5, y: 1 },
+    callout: { content: middleLabel ? `中间点 · ${middleLabel}` : "中间点", color: "#ffffff", display: "ALWAYS", fontSize: 11, padding: 5, borderRadius: 8, bgColor: "#ff4d6d", borderColor: "#1a1714", borderWidth: 1 }
+  });
+  const polylines = validParticipants.flatMap((item, index) => meetupLongDashPolylines(
+    { latitude: item.location.lat, longitude: item.location.lng },
+    { latitude: middle.lat, longitude: middle.lng },
+    index % 2 ? "#2e9f5bcc" : "#ff4d6dcc"
+  ));
+  const rawRadius = Number(rangeRadius);
+  const radius = rawRadius > 0 ? clampRestaurantMeetupRadius(rawRadius) : 0;
+  const circles = radius > 0 ? [{
+    latitude: middle.lat,
+    longitude: middle.lng,
+    radius,
+    color: "#f6c518cc",
+    fillColor: "#00000000",
+    strokeWidth: 4
+  }] : [];
+  const includePoints = [
+    ...validParticipants.map((item) => ({ latitude: item.location.lat, longitude: item.location.lng })),
+    { latitude: middle.lat, longitude: middle.lng }
+  ];
+  return { markers, polylines, circles, includePoints };
+}
+
 async function resolveMeetupRoomBoard(rows, coords) {
   const cleanRows = (Array.isArray(rows) ? rows : []).filter(Boolean);
   const participants = [];
@@ -3201,7 +3808,7 @@ async function resolveMeetupRoomBoard(rows, coords) {
       if (userPoint && restaurantValidCoords(userPoint)) {
         const rawLabel = restaurantShortPlaceLabel(userPoint.addressMeta || userPoint.label);
         const hostLabel = (rawLabel && rawLabel !== "位置" && rawLabel.length >= 2) ? rawLabel : "我这边";
-        participants.push({ label: hostLabel, placeLabel: hostLabel, short: "我", location: { ...userPoint } });
+        participants.push({ label: hostLabel, placeLabel: hostLabel, short: "我", travels: Array.isArray(row.travels) ? row.travels : [], location: { ...userPoint } });
         continue;
       }
     }
@@ -3210,7 +3817,7 @@ async function resolveMeetupRoomBoard(rows, coords) {
     const point = await geocodeRestaurantLocationHint(hint, coords);
     if (point && restaurantValidCoords(point) && !participants.some((item) => sameRestaurantCoords(item.location, point))) {
       const placeLabel = restaurantParticipantDisplayLabel(hint, point);
-      participants.push({ label: placeLabel, placeLabel, short: String(row.roleShort || placeLabel || "友").slice(0, 1), location: point });
+      participants.push({ label: placeLabel, placeLabel, short: String(row.roleShort || placeLabel || "友").slice(0, 1), travels: Array.isArray(row.travels) ? row.travels : [], location: point });
     }
   }
   if (participants.length < 2) return null;
@@ -3225,22 +3832,8 @@ async function resolveMeetupRoomBoard(rows, coords) {
     if (participants[index] && participants[index].short) boardRow.short = participants[index].short;
   });
   const middleLabel = await restaurantGeocodeAreaLabel(middle);
-  const markers = participants.map((item, index) => ({
-    id: index,
-    latitude: item.location.lat,
-    longitude: item.location.lng,
-    width: 24,
-    height: 24,
-    callout: { content: item.short || item.label || "友", display: "ALWAYS", fontSize: 11, padding: 4, borderRadius: 6, bgColor: "#fffdf6", borderColor: "#1a1714", borderWidth: 1 }
-  }));
-  markers.push({
-    id: 900,
-    latitude: middle.lat,
-    longitude: middle.lng,
-    width: 30,
-    height: 30,
-    callout: { content: middleLabel ? `中间点·${middleLabel}` : "中间点", display: "ALWAYS", fontSize: 11, padding: 5, borderRadius: 6, bgColor: "#f6c518", borderColor: "#1a1714", borderWidth: 1 }
-  });
+  const rangeRadius = meetupBoardRangeRadius(participants);
+  const mapGeometry = meetupBoardMapGeometry(participants, middle, rangeRadius, middleLabel);
   const farLabel = arrivalBoard.farthestLabel || "";
   const farMin = arrivalBoard.farthestMin || 0;
   let summary = arrivalBoard.summary;
@@ -3251,7 +3844,11 @@ async function resolveMeetupRoomBoard(rows, coords) {
     middle,
     middleLabel,
     arrivalBoard,
-    markers,
+    markers: mapGeometry.markers,
+    polylines: mapGeometry.polylines,
+    circles: mapGeometry.circles,
+    includePoints: mapGeometry.includePoints,
+    rangeRadius,
     participantCount: participants.length,
     summary,
     headline: middleLabel ? `中间点定在${middleLabel}` : "已找到对谁都公平的中间点"
@@ -3303,6 +3900,17 @@ function maxRestaurantPairDistance(points) {
     for (let j = i + 1; j < points.length; j += 1) max = Math.max(max, restaurantDistanceMeters(points[i], points[j]));
   }
   return max;
+}
+
+function clampRestaurantMeetupRadius(radius) {
+  const value = Math.round(Number(radius) || RESTAURANT_MEETUP_MIN_RADIUS);
+  return Math.max(RESTAURANT_MEETUP_MIN_RADIUS, Math.min(RESTAURANT_MEETUP_MAX_RADIUS, value));
+}
+
+function restaurantMeetupRadiusForPoints(points = []) {
+  const valid = (points || []).filter(restaurantValidCoords);
+  if (valid.length < 2) return RESTAURANT_MEETUP_MIN_RADIUS;
+  return clampRestaurantMeetupRadius(maxRestaurantPairDistance(valid) * RESTAURANT_MEETUP_RADIUS_RATIO);
 }
 
 async function geocodeRestaurantLocationHint(hint, coords) {
@@ -3555,6 +4163,11 @@ function restaurantPoiFromCard(card = {}) {
     businessArea: (card.poi && card.poi.businessArea) || card.businessArea || "",
     tag: (card.poi && card.poi.tag) || card.tag || "",
     recommend: (card.poi && card.poi.recommend) || card.recommend || "",
+    keytag: (card.poi && card.poi.keytag) || card.keytag || "",
+    rectag: (card.poi && card.poi.rectag) || card.rectag || "",
+    menuItems: (card.poi && card.poi.menuItems) || card.menuItems || [],
+    children: (card.poi && card.poi.children) || card.children || [],
+    indoor: (card.poi && card.poi.indoor) || card.indoor || null,
     tel: (card.poi && card.poi.tel) || card.tel || "",
     opentimeToday: (card.poi && card.poi.opentimeToday) || card.opentimeToday || "",
     opentimeWeek: (card.poi && card.poi.opentimeWeek) || card.opentimeWeek || "",
@@ -3575,7 +4188,7 @@ async function fetchAmapPoiDetail(poi = {}) {
   const data = await amapRequest("https://restapi.amap.com/v5/place/detail", {
     key: AMAP_WEB_SERVICE_KEY,
     id,
-    show_fields: "business,photos,navi,children",
+    show_fields: AMAP_SHOW_FIELDS_DEFAULT,
     output: "json"
   });
   if (data.status !== "1") throw new Error(data.info || "高德详情查询失败");
@@ -3603,6 +4216,13 @@ function mergeRestaurantPoiDetails(base = {}, detail = {}) {
     ...detail,
     distance: base.distance || detail.distance,
     searchKeyword: base.searchKeyword || detail.searchKeyword,
+    tag: detail.tag || base.tag,
+    recommend: detail.recommend || base.recommend,
+    keytag: detail.keytag || base.keytag,
+    rectag: detail.rectag || base.rectag,
+    menuItems: uniqueKeywords([...(detail.menuItems || []), ...(base.menuItems || [])]).slice(0, 24),
+    children: (detail.children && detail.children.length) ? detail.children : (base.children || []),
+    indoor: detail.indoor || base.indoor || null,
     routeMetrics: base.routeMetrics || detail.routeMetrics,
     participantRoutes: base.participantRoutes || detail.participantRoutes,
     meetup: base.meetup || detail.meetup,
@@ -3645,6 +4265,9 @@ function restaurantDetailCardFromPoi(card = {}, poi = {}) {
     businessArea: cleanedPoi.businessArea || card.businessArea || "",
     tag: cleanedPoi.tag || card.tag || "",
     recommend: cleanedPoi.recommend || card.recommend || "",
+    keytag: cleanedPoi.keytag || card.keytag || "",
+    rectag: cleanedPoi.rectag || card.rectag || "",
+    menuItems: cleanedPoi.menuItems || card.menuItems || [],
     tel: cleanedPoi.tel || card.tel || "",
     opentimeToday: cleanedPoi.opentimeToday || card.opentimeToday || "",
     opentimeWeek: cleanedPoi.opentimeWeek || card.opentimeWeek || "",
@@ -3686,6 +4309,14 @@ module.exports = {
   __test: {
     restaurantArrivalBoard,
     resolveMeetupRoomBoard,
+    aggregateMeetupTaste,
+    aggregateMeetupDiet,
+    mergeMeetupDietAvoid,
+    applyMeetupTasteKeywords,
+    parseDietaryFromText,
+    negatedCuisineKeywords,
+    applyTextDietaryRules,
+    pickPreferredArrivalMode,
     cleanChoiceQuestion,
     extractedRestaurantParticipantLocationNames,
     shouldUseCurrentLocationForMeetup,
@@ -3697,8 +4328,18 @@ module.exports = {
     ensureRestaurantMeetupPlanForMode,
     inferExplicitRestaurantRadiusMeters,
     restaurantAmapRequests,
+    matchIntentRules,
+    searchRestaurantsWithFallback,
+    restaurantSearchPlanForMode,
+    filterRestaurantPois,
+    preferredRestaurantPois,
+    relaxedRestaurantSearchOptions,
+    restaurantSearchOptions,
     restaurantCardReplayKey,
     restaurantCardsForModeAvoiding,
+    applyRestaurantCategoryPlan,
+    categoryRestaurantCards,
+    rankCategoryPois,
     restaurantAllowedCityFromCoords,
     restaurantPoiMatchesAllowedCity,
     filterRestaurantPoisWithinAllowedCity,
@@ -3710,6 +4351,11 @@ module.exports = {
     restaurantPlanLocationDistanceText,
     restaurantMeetupExpectedLabels,
     restaurantMeetupRouteItems,
-    detailRouteRowsForPoi
+    detailRouteRowsForPoi,
+    meetupBoardMapGeometry,
+    meetupBoardRangeRadius,
+    restaurantCardImages,
+    restaurantDetailPayloadForPoi,
+    restaurantDishHintsForPoi
   }
 };

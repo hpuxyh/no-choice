@@ -38,6 +38,16 @@ function assertPlanExpectations(testCase, plan, expected, label = "plan") {
   if (expected.keywordsIncludes) {
     assert(plan.keywords.includes(expected.keywordsIncludes), `${testCase.id}: ${label} keywords should include ${expected.keywordsIncludes}, got ${plan.keywords.join(",")}`);
   }
+  if (expected.keywordsExclude) {
+    assert(!plan.keywords.includes(expected.keywordsExclude), `${testCase.id}: ${label} keywords should NOT include ${expected.keywordsExclude}, got ${plan.keywords.join(",")}`);
+  }
+  if (expected.keywordsExcludePattern) {
+    const re = new RegExp(expected.keywordsExcludePattern);
+    assert(!plan.keywords.some((keyword) => re.test(keyword)), `${testCase.id}: ${label} keywords should not match /${expected.keywordsExcludePattern}/, got ${plan.keywords.join(",")}`);
+  }
+  if (expected.avoidIncludes) {
+    assert((plan.avoidKeywords || []).includes(expected.avoidIncludes), `${testCase.id}: ${label} avoidKeywords should include ${expected.avoidIncludes}, got ${(plan.avoidKeywords || []).join(",")}`);
+  }
   if (expected.searchRequestKeywords) {
     assert.deepStrictEqual((plan.searchRequests || []).map((request) => request.keyword), expected.searchRequestKeywords, `${testCase.id}: ${label} search request keywords mismatch`);
   }
@@ -47,6 +57,8 @@ for (const testCase of cases) {
   const choice = buildChoice(testCase);
   const localPlan = engine.__test.localRestaurantSearchPlan(choice);
   const plan = engine.__test.ensureRestaurantMeetupPlanForMode(localPlan, choice);
+  // 与真实管线一致:套用自然语言忌口/否定规则(无忌口文本时为空操作)
+  engine.__test.applyTextDietaryRules(plan, choice);
   const remotePlan = testCase.remotePlan
     ? engine.__test.ensureRestaurantMeetupPlanForMode(engine.__test.normalizeRestaurantSearchPlan(testCase.remotePlan, choice), choice)
     : null;

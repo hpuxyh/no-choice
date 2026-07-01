@@ -231,6 +231,30 @@ function randomSlogan() {
   return CARD_SLOGANS[Math.floor(Math.random() * CARD_SLOGANS.length)];
 }
 
+// ——— 多人组局:每人可填的口味/忌口/出行方式 ———
+const MEETUP_TASTE_OPTIONS = ["清淡", "适中", "重口"];
+const MEETUP_DIET_OPTIONS = ["不吃辣", "不吃香菜", "清真", "素食", "海鲜忌口"];
+const MEETUP_TRAVEL_OPTIONS = [
+  { key: "地铁", icon: "🚇" },
+  { key: "公交", icon: "🚌" },
+  { key: "驾车", icon: "🚗" },
+  { key: "骑行", icon: "🚲" },
+  { key: "步行", icon: "🚶" }
+];
+
+// 口味偏好 → 搜索关键词(本地兜底用;AI 路径靠问题文本理解)
+const TASTE_SEARCH_KEYWORDS = {
+  "清淡": ["粤菜", "日料", "清淡", "轻食", "江浙菜", "蒸菜", "汤"],
+  "重口": ["川菜", "湘菜", "火锅", "烧烤", "麻辣", "水煮", "干锅"]
+};
+
+// 忌口 → 需要排除的店名/品类关键词(POI 层粗筛;清真/素食/不吃香菜 难精确,交给 AI 文本)
+// 注意:"海鲜忌口"不要混入"潮汕牛"——潮汕牛肉火锅是牛肉不是海鲜,否则"不吃海鲜"会误杀。
+const DIET_EXCLUDE_KEYWORDS = {
+  "不吃辣": ["川菜", "湘菜", "麻辣", "水煮", "干锅", "重庆", "辣"],
+  "海鲜忌口": ["海鲜", "海产", "生蚝", "生猛海鲜", "海鲜自助", "潮汕海鲜", "舟山海鲜", "鱼生", "刺身"]
+};
+
 module.exports = {
   POOL,
   SCENE_TAGS,
@@ -243,5 +267,10 @@ module.exports = {
   MODE_SETTLE_COPY,
   INFO_THEMES,
   TAG_SEARCH_KEYWORDS,
+  MEETUP_TASTE_OPTIONS,
+  MEETUP_DIET_OPTIONS,
+  MEETUP_TRAVEL_OPTIONS,
+  TASTE_SEARCH_KEYWORDS,
+  DIET_EXCLUDE_KEYWORDS,
   randomSlogan
 };

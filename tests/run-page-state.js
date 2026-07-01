@@ -55,39 +55,54 @@ function defer() {
   });
   assert.strictEqual(staleRoomSharePage.onShareAppMessage().path, "/pages/play/play");
 
-  const existingSelfPage = makePage({
+  const sharedRoomPage = makePage({
+    refreshMeetupRoomLocation() {},
+    pullMeetupRoom() { return Promise.resolve(null); },
+    startMeetupRoomPolling() {}
+  });
+  sharedRoomPage.enterMeetupRoom("room-shared");
+  assert.strictEqual(sharedRoomPage.data.meetupSharedMode, true);
+  assert.strictEqual(sharedRoomPage.data.meetupRoomId, "room-shared");
+  assert.strictEqual(sharedRoomPage.data.multiAreaRows.length, 1);
+  assert.strictEqual(sharedRoomPage.data.meetupSelfRows.length, 1);
+  assert.strictEqual(sharedRoomPage.data.meetupRosterRows.length, 1);
+  const sharedRoomShare = sharedRoomPage.onShareAppMessage();
+  assert.strictEqual(sharedRoomShare.path, "/pages/play/play?roomId=room-shared");
+
+  const sharedUpdatePage = makePage({
     data: {
-      meetupOpenedFromShare: true,
+      meetupRoomId: "room-shared",
+      meetupSharedMode: true,
+      meetupSelfId: "self-1",
+      meetupSelfName: "Alice",
+      multiAreaRows: [
+        { id: "friend-1", role: "Bob", people: 1, location: "Suzhoujie", isHost: false, isSelf: false, joined: true },
+        { id: "self-1", role: "Alice", people: 1, location: "", isHost: true, isSelf: true, joined: false }
+      ]
+    }
+  });
+  assert.strictEqual(sharedUpdatePage.syncMeetupCurrentLocation({ label: "Xujiahui", addressMeta: "Xujiahui", lat: 31.19, lng: 121.43, locationSource: "gps" }), true);
+  assert.strictEqual(sharedUpdatePage.data.multiAreaRows[0].location, "Suzhoujie");
+  assert.strictEqual(sharedUpdatePage.data.multiAreaRows[1].id, "self-1");
+  assert.strictEqual(sharedUpdatePage.data.multiAreaRows[1].location, "Xujiahui");
+  assert.strictEqual(sharedUpdatePage.data.meetupSelfRows[0].id, "self-1");
+
+  // 单设备多人组局:更新我的位置 → 始终写进 host 行(已无主客/分享区别)
+  const hostUpdatePage = makePage({
+    data: {
       meetupRoomId: "room-test",
       multiAreaRows: [
-        { id: "host", role: "我的位置", people: 1, location: "北京大学", isHost: true, joined: true },
-        { id: "friend-self-1", role: "我", people: 1, location: "苏州街", isHost: false, joined: true },
+        { id: "host", role: "我的位置", people: 1, location: "", isHost: true, joined: false },
+        { id: "friend-a", role: "朋友A", people: 1, location: "苏州街", isHost: false, joined: true },
         { id: "friend-b", role: "朋友B", people: 1, location: "", isHost: false, joined: false }
       ]
     }
   });
-  assert.strictEqual(existingSelfPage.syncMeetupCurrentLocation({ label: "徐家汇", addressMeta: "徐家汇", lat: 31.19, lng: 121.43, locationSource: "gps" }), true);
-  assert.strictEqual(existingSelfPage.data.multiAreaRows.length, 3);
-  assert.strictEqual(existingSelfPage.data.multiAreaRows.filter((row) => row.role === "我").length, 1);
-  assert.strictEqual(existingSelfPage.data.multiAreaRows[1].location, "徐家汇");
-
-  const fullSharedPage = makePage({
-    data: {
-      meetupOpenedFromShare: true,
-      meetupRoomId: "room-full",
-      multiAreaRows: [
-        { id: "host", role: "我的位置", people: 1, location: "北京大学", isHost: true, joined: true },
-        { id: "friend-a", role: "朋友A", people: 1, location: "苏州街", isHost: false, joined: true },
-        { id: "friend-b", role: "朋友B", people: 1, location: "国贸", isHost: false, joined: true },
-        { id: "friend-c", role: "朋友C", people: 1, location: "劲松", isHost: false, joined: true },
-        { id: "friend-d", role: "朋友D", people: 1, location: "五道口", isHost: false, joined: true },
-        { id: "friend-e", role: "朋友E", people: 1, location: "望京", isHost: false, joined: true }
-      ]
-    }
-  });
-  assert.strictEqual(fullSharedPage.syncMeetupCurrentLocation({ label: "徐家汇", addressMeta: "徐家汇", lat: 31.19, lng: 121.43, locationSource: "gps" }), false);
-  assert.strictEqual(fullSharedPage.data.multiAreaRows[0].location, "北京大学");
-  assert.strictEqual(fullSharedPage.data.multiAreaRows.length, 6);
+  assert.strictEqual(hostUpdatePage.syncMeetupCurrentLocation({ label: "徐家汇", addressMeta: "徐家汇", lat: 31.19, lng: 121.43, locationSource: "gps" }), true);
+  assert.strictEqual(hostUpdatePage.data.multiAreaRows.length, 3);
+  assert.strictEqual(hostUpdatePage.data.multiAreaRows[0].location, "徐家汇");
+  assert.strictEqual(hostUpdatePage.data.multiAreaRows[0].role, "我的位置");
+  assert.strictEqual(hostUpdatePage.data.multiAreaRows[1].location, "苏州街");
 
   const coarsePage = makePage({
     data: {

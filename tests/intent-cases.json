@@ -1,5 +1,24 @@
 [
   {
+    "id": "negation-no-japanese",
+    "input": "不吃日料",
+    "tags": [],
+    "expected": {
+      "keywordsExclude": "日料",
+      "keywordsExcludePattern": "日料|寿司|居酒屋",
+      "avoidIncludes": "日料"
+    }
+  },
+  {
+    "id": "negation-no-spicy",
+    "input": "不吃辣",
+    "tags": [],
+    "expected": {
+      "keywordsExcludePattern": "火锅|川|湘|麻辣|重庆",
+      "avoidIncludes": "辣"
+    }
+  },
+  {
     "id": "tag-line-friend-location",
     "input": "标签：朋友聚餐 我的另外一个朋友在苏州街",
     "tags": ["朋友聚餐"],
@@ -51,7 +70,7 @@
         "locationHints": ["国贸"],
         "includeCurrentLocationInMeetup": true,
         "locationHint": "",
-        "radiusMeters": 10000,
+        "radiusMeters": 3000,
         "typeDiversity": true,
         "keywords": ["中餐", "火锅", "西餐", "日料", "烧烤"],
         "searchRequestKeywords": ["中餐", "火锅", "西餐", "日料", "烧烤"]
@@ -186,7 +205,7 @@
         "locationHints": ["苏州街", "北京大学", "劲松"],
         "includeCurrentLocationInMeetup": false,
         "locationHint": "",
-        "radiusMeters": 5000,
+        "radiusMeters": 3000,
         "keywords": ["火锅"],
         "searchRequestKeywords": ["火锅"]
       }

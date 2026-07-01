@@ -3836,12 +3836,6 @@ button.detailRouteTab,
   color: #3a352e;
 }
 
-.meetupShareBtn {
-  background: #2aae67 !important;
-  color: #fffdf6 !important;
-  border-color: #1a1714 !important;
-}
-
 .arrivalBoard {
   margin-top: 2rpx;
   padding: 12rpx 14rpx;
@@ -4058,12 +4052,13 @@ button.detailRouteTab,
 .groupEntryCard {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 22rpx 24rpx;
-  border: 6rpx solid #1a1714;
-  border-radius: 30rpx;
+  gap: 20rpx;
+  margin-top: 24rpx;
+  padding: 36rpx 30rpx;
+  border: 8rpx solid #1a1714;
+  border-radius: 36rpx;
   background: #15281f;
-  box-shadow: 8rpx 8rpx 0 #1a1714;
+  box-shadow: 12rpx 12rpx 0 #1a1714;
   box-sizing: border-box;
 }
 
@@ -4072,18 +4067,18 @@ button.detailRouteTab,
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+  gap: 10rpx;
 }
 
 .groupEntryTitle {
   color: #7df59b;
-  font-size: 30rpx;
+  font-size: 46rpx;
   font-weight: 950;
 }
 
 .groupEntryDesc {
   color: #cfe9d8;
-  font-size: 22rpx;
+  font-size: 26rpx;
   font-weight: 800;
   line-height: 1.5;
 }
@@ -4091,21 +4086,21 @@ button.detailRouteTab,
 .groupEntryAvatars {
   display: flex;
   align-items: center;
-  margin-top: 6rpx;
+  margin-top: 12rpx;
 }
 
 .geAv {
-  width: 44rpx;
-  height: 44rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 999rpx;
-  border: 3rpx solid #15281f;
+  border: 4rpx solid #15281f;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22rpx;
+  font-size: 30rpx;
   font-weight: 950;
   color: #1a1714;
-  margin-left: -10rpx;
+  margin-left: -14rpx;
 }
 
 .geAv.av1 { background: #f6c518; margin-left: 0; }
@@ -4115,13 +4110,13 @@ button.detailRouteTab,
 .geAv.geAdd {
   background: #15281f;
   color: #7df59b;
-  border: 3rpx dashed #7df59b;
+  border: 4rpx dashed #7df59b;
 }
 
 .groupEntryArrow {
   flex: none;
   color: #7df59b;
-  font-size: 40rpx;
+  font-size: 56rpx;
   font-weight: 950;
 }
 
@@ -4149,6 +4144,13 @@ button.detailRouteTab,
   color: rgba(26, 23, 20, .55);
 }
 
+.cardFootBtns {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex: none;
+}
+
 .cardNavBtn {
   flex: none;
   display: flex;
@@ -4166,6 +4168,10 @@ button.detailRouteTab,
   font-weight: 950;
   box-shadow: 3rpx 3rpx 0 #1a1714;
   line-height: 1;
+}
+
+.cardNavBtn.order {
+  background: #ffd83d;
 }
 
 .cardNavBtn::after {
@@ -4215,6 +4221,14 @@ button.detailRouteTab,
   padding: 4rpx 0;
 }
 
+.mrBackGroup {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6rpx;
+}
+
 .meetupMapShell {
   position: relative;
   height: 168rpx;
@@ -4260,6 +4274,84 @@ button.detailRouteTab,
   text-decoration: underline;
 }
 
+.mrProfileBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  padding: 12rpx;
+  margin-bottom: 10rpx;
+  border: 3rpx solid #1a1714;
+  border-radius: 16rpx;
+  background: #fff8e8;
+  box-sizing: border-box;
+}
+
+.mrProfileTop,
+.mrShareRow {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.mrNameInput {
+  flex: 1;
+  min-width: 0;
+  height: 58rpx;
+  padding: 0 16rpx;
+  border: 3rpx solid rgba(26, 23, 20, .36);
+  border-radius: 14rpx;
+  background: #fffdf6;
+  color: #1a1714;
+  font-size: 24rpx;
+  font-weight: 900;
+  box-sizing: border-box;
+}
+
+button.mrNickBtn,
+.mrNickBtn,
+button.mrShareBtn,
+.mrShareBtn {
+  flex: none;
+  min-width: 0;
+  height: 58rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  border: 3rpx solid #1a1714;
+  border-radius: 14rpx;
+  background: #2e9f5b;
+  color: #fffdf6;
+  font-size: 21rpx;
+  font-weight: 950;
+  line-height: 52rpx;
+  box-shadow: 3rpx 3rpx 0 rgba(26, 23, 20, .7);
+  box-sizing: border-box;
+}
+
+button.mrNickBtn::after,
+button.mrShareBtn::after {
+  border: 0;
+}
+
+.mrShareRow {
+  justify-content: space-between;
+}
+
+.mrSyncText {
+  flex: 1;
+  min-width: 0;
+  color: #6f6a63;
+  font-size: 20rpx;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.mrShareBtn,
+.mrShareBtn {
+  background: #ff6b35;
+}
+
 .mrPeopleHead {
   display: flex;
   align-items: center;
@@ -4274,10 +4366,93 @@ button.detailRouteTab,
   color: #1a1714;
 }
 
+.mrPeopleHint {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: #6f6a63;
+  text-align: right;
+}
+
 .mrPeopleList {
   display: flex;
   flex-direction: column;
   gap: 12rpx;
+}
+
+.mrRoster {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: 12rpx;
+  border: 3rpx dashed rgba(26, 23, 20, .3);
+  border-radius: 16rpx;
+  background: rgba(255, 253, 246, .72);
+  box-sizing: border-box;
+}
+
+.mrRosterHead,
+.mrRosterRow {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.mrRosterHead {
+  justify-content: space-between;
+  color: #1a1714;
+  font-size: 21rpx;
+  font-weight: 950;
+}
+
+.mrRosterHead text:last-child {
+  color: #0b754a;
+  text-decoration: underline;
+}
+
+.mrRosterRow {
+  min-height: 56rpx;
+}
+
+.mrRosterAvatar {
+  flex: none;
+  width: 42rpx;
+  height: 42rpx;
+  border: 3rpx solid #1a1714;
+  border-radius: 50%;
+  background: #fffdf6;
+  color: #8a8270;
+  font-size: 20rpx;
+  font-weight: 950;
+  line-height: 36rpx;
+  text-align: center;
+}
+
+.mrRosterRow.ready .mrRosterAvatar {
+  background: #1a1714;
+  color: #fffdf6;
+}
+
+.mrRosterText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rpx;
+}
+
+.mrRosterName {
+  color: #1a1714;
+  font-size: 22rpx;
+  font-weight: 950;
+}
+
+.mrRosterStatus {
+  color: #6f6a63;
+  font-size: 19rpx;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mrPerson {
@@ -4420,6 +4595,80 @@ button.detailRouteTab,
   color: #8a8270;
 }
 
+/* —— 每人:口味/忌口自由输入 + 出行多选 —— */
+.mrPrefsBody {
+  margin-top: 10rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+.mrPrefInputRow {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+.mrPrefInput {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10rpx 14rpx;
+  border: 0;
+  border-radius: 10rpx;
+  background: #f3ecdd;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #1a1714;
+  box-sizing: border-box;
+}
+.mrPrefMic {
+  flex: none;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #f6c518;
+  border: 3rpx solid #1a1714;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mrPrefMic.rec {
+  background: #ff5a4d;
+}
+.mrPrefMicGlyph { font-size: 26rpx; }
+.mrPrefGroup {
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+}
+.mrPrefLabel {
+  flex: none;
+  width: 56rpx;
+  margin-top: 6rpx;
+  font-size: 21rpx;
+  font-weight: 900;
+  color: #1a1714;
+}
+.mrChips {
+  flex: 1 1 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+.mrChip {
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid rgba(26, 23, 20, .25);
+  background: #f3ecdd;
+  font-size: 21rpx;
+  font-weight: 800;
+  color: #4a4636;
+  line-height: 1.4;
+}
+.mrChip.on {
+  background: #15281f;
+  border-color: #15281f;
+  color: #7df59b;
+}
+
 .mrAddPerson {
   width: 100%;
   margin: 0;
@@ -4450,19 +4699,28 @@ button.detailRouteTab,
   color: #9a917f;
 }
 
+button.mrPrimaryBtn,
 .mrPrimaryBtn {
   width: 100%;
   margin: 0;
-  padding: 22rpx 0;
+  min-height: 86rpx;
+  padding: 0 24rpx;
   border: 5rpx solid #1a1714;
   border-radius: 18rpx;
   background: #f6c518;
   color: #1a1714;
   font-size: 30rpx;
   font-weight: 950;
+  line-height: 1.15;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 6rpx 6rpx 0 #1a1714;
+  box-sizing: border-box;
 }
 
+button.mrPrimaryBtn::after,
 .mrPrimaryBtn::after {
   border: 0;
 }
@@ -4477,6 +4735,13 @@ button.detailRouteTab,
 .meetupBoardPanel {
   display: flex;
   flex-direction: column;
+}
+
+/* 结果态:中间点地图是主角,占到半屏 */
+.meetupBoardPanel .meetupMapShell {
+  height: 48vh;
+  min-height: 520rpx;
+  margin-bottom: 14rpx;
 }
 
 .mbBoard {
@@ -4495,19 +4760,77 @@ button.detailRouteTab,
   line-height: 1.5;
 }
 
-.mbShareBtn {
-  width: 100%;
+/* —— 主页快捷分支:咖啡奶茶 / 美食外卖 —— */
+.categoryEntryRow {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 20rpx;
+}
+button.categoryBtn,
+.categoryBtn {
+  flex: 1 1 0;
+  width: auto;
   margin: 0;
-  padding: 18rpx 0;
-  border: 5rpx solid #1a1714;
-  border-radius: 18rpx;
-  background: #2aae67;
-  color: #fffdf6;
-  font-size: 27rpx;
+  padding: 20rpx 12rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  border: 6rpx solid #1a1714;
+  border-radius: 28rpx;
+  box-shadow: 0 10rpx 0 rgba(26, 23, 20, .68);
+  color: #fff;
+  text-align: center;
+  line-height: 1.2;
+}
+button.categoryBtn::after { border: none; }
+.categoryBtn.coffee { background: #6f4e37; }
+.categoryBtn.milktea { background: #d98a5b; }
+.categoryBtn.food { background: #ff7a3d; }
+.categoryBtn.is-press { transform: translateY(6rpx); box-shadow: 0 4rpx 0 rgba(26, 23, 20, .68); }
+.categoryIcon { font-size: 44rpx; flex: 0 0 auto; }
+.categoryTextCol { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.categoryName { font-size: 30rpx; font-weight: 950; }
+.categoryDesc { font-size: 20rpx; font-weight: 600; opacity: .9; margin-top: 4rpx; }
+
+/* —— 卡面「最近上新」标注 —— */
+.newDropTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  align-self: flex-start;
+  margin: 8rpx 0 4rpx;
+  padding: 6rpx 16rpx 6rpx 8rpx;
+  border-radius: 999rpx;
+  background: #ffe9d6;
+  color: #b3491f;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+.newDropDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  background: #ff5a4d;
+  color: #fff;
+  font-size: 20rpx;
   font-weight: 900;
-  box-shadow: 5rpx 5rpx 0 #1a1714;
 }
 
-.mbShareBtn::after {
-  border: 0;
+/* —— 卡面「你常点」标注(来自零上传行为养成画像) —— */
+.preferredTag {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  margin: 8rpx 0 0;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: #fff3c4;
+  color: #8a5a00;
+  font-size: 22rpx;
+  font-weight: 800;
 }

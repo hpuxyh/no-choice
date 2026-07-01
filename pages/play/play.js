@@ -6,6 +6,7 @@ const {
   MODE_SETTLE_COPY,
   INFO_THEMES,
   TAG_SEARCH_KEYWORDS,
+  MEETUP_TRAVEL_OPTIONS,
   randomSlogan
 } = require("../../utils/choiceData");
 
@@ -20,6 +21,12 @@ const {
   resolveMeetupRoomBoard
 } = require("../../utils/restaurantEngine");
 
+const consumerProfile = require("../../utils/consumerProfile");
+const { ORDER_TARGETS, orderAppIdForBrand } = require("../../utils/brandData");
+
+// 「去下单」距离阈值:≤1km 视为顺路自取(跳品牌点单小程序),>1km 走外卖(跳美团)
+const ORDER_NEAR_METERS = 1000;
+
 function loadSpeechPlugin() {
   if (typeof requirePlugin !== "function") return null;
   try {
@@ -33,6 +40,9 @@ function loadSpeechPlugin() {
 const speechPlugin = loadSpeechPlugin();
 const BGM_SRC = "/assets/audio/choice-loop.mp3";
 const MAP_NAV_LOCATION_MAX_DRIFT_METERS = 2000;
+const MEETUP_ROOM_ENDPOINT = "https://no-choice.pages.dev/api/meetup-room";
+const MEETUP_SELF_STORAGE_KEY = "choiceMeetupSelfProfile";
+const MEETUP_ROOM_POLL_MS = 7000;
 
 function normalizeMapPoint(point) {
   if (!point) return null;
@@ -403,7 +413,7 @@ function planMiddleText(choice) {
   if (pointLabels.length >= 2) return `按${pointLabels.join(" / ")}取中间点`;
   if (pointLabels.length === 1) return `不取中间点，直接在${pointLabels[0]}附近找`;
   const meetupHint = /和.+(?:朋友|对象|同事|同学).*(?:在|从|住在)[^，。；\s]{2,12}/.test(text) || /折中|中间/.test(text);
-  if (meetupHint) return "取中间点，照顾两边到店成本";
+  if (meetupHint) return "取中间点，照顾两边到店时间";
   return "不取中间点，按当前位置找";
 }
 
@@ -514,47 +524,59 @@ function meetupRoomStorageKey(roomId) {
   return `choiceMeetupRoom:${roomId}`;
 }
 
-function encodeMeetupRoomRows(rows = []) {
-  const payload = normalizeMultiAreaRows(rows)
-    .filter((row) => row.location || row.isHost)
-    .slice(0, MAX_MULTI_AREA_ROWS)
-    .map((row) => [
-      row.role,
-      row.people,
-      row.location,
-      row.isHost ? "1" : "0",
-      Number.isFinite(row.latitude) ? Number(row.latitude).toFixed(6) : "",
-      Number.isFinite(row.longitude) ? Number(row.longitude).toFixed(6) : ""
-    ].map((part) => String(part || "").replace(/[|~]/g, " ")).join("~"))
-    .join("|");
-  return encodeURIComponent(payload);
+function createMeetupParticipantId() {
+  return `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function decodeMeetupRoomRows(value = "") {
-  const raw = String(value || "").trim();
-  if (!raw) return null;
-  try {
-    const text = decodeURIComponent(raw);
-    const rows = text.split("|").map((item, index) => {
-      const [role, people, location, hostFlag, lat, lng] = item.split("~");
-      const latitude = Number(lat);
-      const longitude = Number(lng);
-      return {
-        id: hostFlag === "1" ? "host" : `friend-${index}`,
-        role: role || defaultMultiAreaRole(index),
-        people: clampMultiAreaPeople(people),
-        location: String(location || "").trim(),
-        isHost: hostFlag === "1",
-        joined: Boolean(location),
-        latitude: Number.isFinite(latitude) ? latitude : null,
-        longitude: Number.isFinite(longitude) ? longitude : null
-      };
-    }).filter((row) => row.location || row.isHost);
-    return rows.length ? rows : null;
-  } catch (error) {
-    console.warn("Decode meetup room rows failed", error);
-    return null;
+function normalizeMeetupSelfProfile(profile = {}) {
+  const id = String(profile.id || profile.openid || profile.unionid || "").trim() || createMeetupParticipantId();
+  const name = String(profile.name || profile.nickName || "").trim().slice(0, 24);
+  return { id, name };
+}
+
+function selfMultiAreaRow(profile = {}) {
+  const normalized = normalizeMeetupSelfProfile(profile);
+  return {
+    id: normalized.id,
+    role: normalized.name || "我",
+    people: 1,
+    location: "",
+    isHost: true,
+    isSelf: true,
+    joined: false
+  };
+}
+
+function meetupSharePath(roomId) {
+  const id = String(roomId || "").trim();
+  return id ? `/pages/play/play?roomId=${encodeURIComponent(id)}` : "/pages/play/play";
+}
+
+function wxRequestJson(options = {}) {
+  if (typeof wx === "undefined" || typeof wx.request !== "function") {
+    return Promise.reject(new Error("wx.request unavailable"));
   }
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: options.url,
+      method: options.method || "GET",
+      data: options.data,
+      header: {
+        "content-type": "application/json",
+        ...(options.header || {})
+      },
+      success: (res) => {
+        const status = Number(res && res.statusCode) || 0;
+        const data = res && res.data;
+        if (status >= 200 && status < 300 && (!data || data.ok !== false)) {
+          resolve(data || {});
+          return;
+        }
+        reject(new Error((data && data.message) || `request failed ${status}`));
+      },
+      fail: reject
+    });
+  });
 }
 
 function defaultMultiAreaRole(index) {
@@ -583,6 +605,15 @@ function createDefaultMultiAreaRows() {
   ];
 }
 
+// 把出行方式统一成多选数组(兼容旧的单选 travel 字段)
+function normalizeTravels(row) {
+  const valid = (key) => MEETUP_TRAVEL_OPTIONS.some((opt) => opt.key === key);
+  let list = [];
+  if (Array.isArray(row && row.travels)) list = row.travels.filter(valid);
+  else if (valid(row && row.travel)) list = [row.travel];
+  return [...new Set(list)];
+}
+
 function normalizeMultiAreaRows(rows = []) {
   const source = Array.isArray(rows) && rows.length ? rows : createDefaultMultiAreaRows();
   return source.slice(0, MAX_MULTI_AREA_ROWS).map((row, index) => {
@@ -591,9 +622,16 @@ function normalizeMultiAreaRows(rows = []) {
     const hasCoord = Number.isFinite(latitude) && Number.isFinite(longitude);
     const role = String(row && row.role || defaultMultiAreaRole(index)).trim();
     const location = String(row && row.location || "").trim();
-    const isHost = Boolean((row && row.isHost) || index === 0);
+    const hasExplicitHost = Boolean(row && Object.prototype.hasOwnProperty.call(row, "isHost"));
+    const isHost = Boolean(hasExplicitHost ? row.isHost : index === 0);
+    const isSelf = Boolean(row && row.isSelf);
+    const pref = String(row && row.pref || "").trim();
+    const travels = normalizeTravels(row);
+    const travelMap = {};
+    travels.forEach((key) => { travelMap[key] = true; });
     return {
       id: row && row.id ? row.id : `area-${index + 1}`,
+      index,
       role,
       roleShort: shortMultiAreaRole(role, index),
       people: clampMultiAreaPeople(row && row.people),
@@ -601,9 +639,14 @@ function normalizeMultiAreaRows(rows = []) {
       latitude: hasCoord ? latitude : null,
       longitude: hasCoord ? longitude : null,
       isHost,
+      isSelf,
       joined: Boolean((row && row.joined) || location || isHost),
-      statusText: location ? "已定位" : (isHost ? "等定位" : "待加入"),
-      placeholder: isHost ? "用当前定位，也可以手改" : "苏州街 / 北京大学 / 国贸"
+      statusText: String(row && row.statusText || (location ? "已定位" : (isHost || isSelf ? "等你填写" : "待加入"))),
+      placeholder: String(row && row.placeholder || (isHost || isSelf ? "填你自己的出发地" : "苏州街 / 北京大学 / 国贸")),
+      pref,
+      travels,
+      travelMap,
+      updatedAt: row && row.updatedAt ? row.updatedAt : 0
     };
   });
 }
@@ -625,7 +668,9 @@ function multiAreaSummary(rows = []) {
 }
 
 function meetupRoomMapCenter(rows = [], coords = null) {
-  const rowWithCoord = normalizeMultiAreaRows(rows).find((row) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude));
+  const middle = meetupRoomMiddlePoint(rows);
+  if (middle) return { lat: middle.latitude, lng: middle.longitude };
+  const rowWithCoord = meetupRoomCoordRows(rows)[0];
   if (rowWithCoord) return { lat: rowWithCoord.latitude, lng: rowWithCoord.longitude };
   if (coords && Number.isFinite(Number(coords.lat)) && Number.isFinite(Number(coords.lng))) {
     return { lat: Number(coords.lat), lng: Number(coords.lng) };
@@ -633,26 +678,118 @@ function meetupRoomMapCenter(rows = [], coords = null) {
   return DEFAULT_MEETUP_MAP;
 }
 
-function meetupRoomMarkers(rows = []) {
+function meetupRoomCoordRows(rows = []) {
   return normalizeMultiAreaRows(rows)
-    .filter((row) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude))
-    .map((row, index) => ({
-      id: index + 1,
-      latitude: row.latitude,
-      longitude: row.longitude,
-      title: row.role || "位置",
-      width: 28,
-      height: 28,
+    .filter((row) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude));
+}
+
+function meetupRoomMiddlePoint(rows = []) {
+  const points = meetupRoomCoordRows(rows);
+  if (points.length < 2) return null;
+  const sum = points.reduce((acc, row) => ({
+    latitude: acc.latitude + Number(row.latitude),
+    longitude: acc.longitude + Number(row.longitude)
+  }), { latitude: 0, longitude: 0 });
+  return {
+    latitude: sum.latitude / points.length,
+    longitude: sum.longitude / points.length
+  };
+}
+
+function meetupRoomMarkers(rows = []) {
+  const memberIcons = ["/assets/map/member-blue.png", "/assets/map/member-green.png", "/assets/map/member-coral.png"];
+  const markers = meetupRoomCoordRows(rows).map((row, index) => ({
+    id: index + 1,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    title: row.role || "位置",
+    iconPath: memberIcons[index % memberIcons.length],
+    width: 34,
+    height: 42,
+    anchor: { x: 0.5, y: 1 },
+    callout: {
+      content: row.role || "位置",
+      color: "#1a1714",
+      fontSize: 12,
+      borderRadius: 8,
+      bgColor: "#fffdf6",
+      padding: 6,
+      display: "ALWAYS"
+    }
+  }));
+  const middle = meetupRoomMiddlePoint(rows);
+  if (middle) {
+    markers.push({
+      id: 900,
+      latitude: middle.latitude,
+      longitude: middle.longitude,
+      title: "中点",
+      iconPath: "/assets/map/midpoint-coral.png",
+      width: 42,
+      height: 50,
+      anchor: { x: 0.5, y: 1 },
       callout: {
-        content: row.role || "位置",
-        color: "#1a1714",
+        content: "中点",
+        color: "#ffffff",
         fontSize: 12,
         borderRadius: 8,
-        bgColor: "#fffdf6",
+        bgColor: "#ff4d6d",
         padding: 6,
         display: "ALWAYS"
       }
-    }));
+    });
+  }
+  return markers;
+}
+
+function meetupRoomLongDashPolylines(start, end, color) {
+  const dashSlots = 9;
+  const dashFill = 0.72;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const lines = [];
+  for (let slot = 0; slot < dashSlots; slot += 2) {
+    const t0 = slot / dashSlots;
+    const t1 = Math.min(1, (slot + dashFill) / dashSlots);
+    lines.push({
+      points: [
+        {
+          latitude: lerp(start.latitude, end.latitude, t0),
+          longitude: lerp(start.longitude, end.longitude, t0)
+        },
+        {
+          latitude: lerp(start.latitude, end.latitude, t1),
+          longitude: lerp(start.longitude, end.longitude, t1)
+        }
+      ],
+      color,
+      width: 5,
+      dottedLine: false,
+      arrowLine: false
+    });
+  }
+  const last = lines[lines.length - 1];
+  if (last) last.points[1] = { latitude: end.latitude, longitude: end.longitude };
+  return lines;
+}
+
+function meetupRoomPolylines(rows = []) {
+  const middle = meetupRoomMiddlePoint(rows);
+  if (!middle) return [];
+  return meetupRoomCoordRows(rows).flatMap((row, index) => meetupRoomLongDashPolylines(
+    { latitude: row.latitude, longitude: row.longitude },
+    { latitude: middle.latitude, longitude: middle.longitude },
+    index % 2 ? "#2e9f5bcc" : "#ff4d6dcc"
+  ));
+}
+
+function meetupRoomIncludePoints(rows = []) {
+  const points = meetupRoomCoordRows(rows).map((row) => ({
+    latitude: row.latitude,
+    longitude: row.longitude
+  }));
+  const middle = meetupRoomMiddlePoint(rows);
+  if (middle) points.push(middle);
+  return points;
 }
 
 function meetupRoomStatus(rows = []) {
@@ -665,6 +802,102 @@ function meetupRoomStatus(rows = []) {
 }
 
 // 把冗长逆地理地址精简成「区 · 街道 · 门牌」可读短串,避免输入框里被截断
+function meetupRowsFromParticipants(participants = []) {
+  return (participants || []).map((item, index) => ({
+    id: String(item && item.id || `member-${index + 1}`),
+    role: String(item && item.name || `成员${index + 1}`),
+    people: clampMultiAreaPeople(item && item.people),
+    location: String(item && item.location || "").trim(),
+    latitude: Number.isFinite(Number(item && (item.lat ?? item.latitude))) ? Number(item.lat ?? item.latitude) : null,
+    longitude: Number.isFinite(Number(item && (item.lng ?? item.longitude))) ? Number(item.lng ?? item.longitude) : null,
+    pref: String(item && item.pref || "").trim(),
+    travels: Array.isArray(item && item.travels) ? item.travels : [],
+    updatedAt: Number(item && item.updatedAt) || 0,
+    isHost: false,
+    isSelf: false,
+    joined: Boolean(item && item.location)
+  }));
+}
+
+function participantFromMeetupRow(row, profile = {}) {
+  const normalized = normalizeMeetupSelfProfile(profile);
+  const source = row || selfMultiAreaRow(normalized);
+  return {
+    id: normalized.id,
+    name: normalized.name || source.role || "我",
+    people: clampMultiAreaPeople(source.people),
+    location: String(source.location || "").trim(),
+    lat: Number.isFinite(Number(source.latitude)) ? Number(source.latitude) : null,
+    lng: Number.isFinite(Number(source.longitude)) ? Number(source.longitude) : null,
+    pref: String(source.pref || "").trim(),
+    travels: Array.isArray(source.travels) ? source.travels : []
+  };
+}
+
+function decorateSharedMeetupRows(rows = [], profile = {}) {
+  const normalizedProfile = normalizeMeetupSelfProfile(profile);
+  const selfId = normalizedProfile.id;
+  const prepared = normalizeMultiAreaRows(rows).map((row) => {
+    const isSelf = String(row.id) === selfId || row.isSelf;
+    const role = isSelf ? (normalizedProfile.name || row.role || "我") : (row.role || "成员");
+    return {
+      ...row,
+      role,
+      roleShort: isSelf ? "我" : shortMultiAreaRole(role, row.index),
+      isHost: isSelf,
+      isSelf,
+      statusText: row.location ? (isSelf ? "已提交你的位置" : "已提交位置") : (isSelf ? "等你填写自己的位置" : "等待对方填写"),
+      placeholder: isSelf ? "只填你自己的出发地" : row.placeholder
+    };
+  });
+  if (!prepared.some((row) => row.isSelf)) prepared.unshift(selfMultiAreaRow(normalizedProfile));
+  return normalizeMultiAreaRows(prepared).map((row, index) => {
+    const isSelf = String(row.id) === selfId;
+    return {
+      ...row,
+      index,
+      isSelf,
+      isHost: isSelf,
+      role: isSelf ? (normalizedProfile.name || row.role || "我") : row.role,
+      roleShort: isSelf ? "我" : shortMultiAreaRole(row.role, index),
+      statusText: row.location ? (isSelf ? "已提交你的位置" : "已提交位置") : (isSelf ? "等你填写自己的位置" : "等待对方填写"),
+      placeholder: isSelf ? "只填你自己的出发地" : row.placeholder
+    };
+  });
+}
+
+function meetupSelfRows(rows = []) {
+  return normalizeMultiAreaRows(rows).filter((row) => row.isSelf).map((row, index) => ({ ...row, index: row.index ?? index }));
+}
+
+function meetupRosterRows(rows = []) {
+  return normalizeMultiAreaRows(rows).map((row, index) => ({
+    ...row,
+    index,
+    role: row.isSelf ? `${row.role || "我"}（我）` : row.role,
+    rosterStatus: row.location ? row.location : "还没填位置"
+  }));
+}
+
+function mergeMeetupRemoteRows(localRows = [], remoteRows = [], profile = {}) {
+  const normalizedProfile = normalizeMeetupSelfProfile(profile);
+  const byId = new Map();
+  normalizeMultiAreaRows(remoteRows).forEach((row) => {
+    if (row.id) byId.set(String(row.id), row);
+  });
+  const localSelf = normalizeMultiAreaRows(localRows).find((row) => String(row.id) === normalizedProfile.id || row.isSelf);
+  if (localSelf) {
+    const remoteSelf = byId.get(normalizedProfile.id);
+    const localHasLocation = Boolean(localSelf.location);
+    const remoteHasLocation = Boolean(remoteSelf && remoteSelf.location);
+    if (!remoteSelf || localHasLocation || !remoteHasLocation) {
+      byId.set(normalizedProfile.id, { ...remoteSelf, ...localSelf, id: normalizedProfile.id });
+    }
+  }
+  if (!byId.has(normalizedProfile.id)) byId.set(normalizedProfile.id, selfMultiAreaRow(normalizedProfile));
+  return decorateSharedMeetupRows([...byId.values()], normalizedProfile);
+}
+
 function compactAddressLabel(text) {
   const raw = String(text || "").replace(/^中国/, "").trim();
   if (!raw) return "";
@@ -749,6 +982,7 @@ function buildDepartureAdvice(card) {
 Page({
   data: {
     screen: "game",
+    categoryMode: "",
     pageTop: 14,
     soundTop: 10,
     menuRightPad: 96,
@@ -768,14 +1002,24 @@ Page({
     multiAreaRows: createDefaultMultiAreaRows(),
     multiAreaSummary: "等待收集多个出发位置",
     multiAreaReady: false,
+    travelOptions: MEETUP_TRAVEL_OPTIONS,
     meetupRoomId: "",
+    meetupSharedMode: false,
+    meetupSelfId: "",
+    meetupSelfName: "",
+    meetupSelfRows: [],
+    meetupRosterRows: [],
+    meetupRoomSharePath: "",
+    meetupRoomSyncing: false,
+    meetupRoomSyncText: "",
     meetupRoomStatus: "等待添加出发位置",
     meetupRoomMapLat: DEFAULT_MEETUP_MAP.lat,
     meetupRoomMapLng: DEFAULT_MEETUP_MAP.lng,
     meetupRoomMarkers: [],
-    meetupRoomShareTitle: "把这次饭局草稿发给好友",
+    meetupRoomPolylines: [],
+    meetupRoomCircles: [],
+    meetupRoomIncludePoints: [],
     meetupRoomHint: "先把每个人的出发地收齐，会自动算出对谁都公平的中间点。",
-    meetupOpenedFromShare: false,
     partySize: 2,
     budgetPerPerson: 150,
     choiceHasInput: false,
@@ -853,12 +1097,14 @@ Page({
     this.startBgm();
     this.updateChoiceNextAction();
     this.primeLocationStatus();
-    const roomId = String((options && options.roomId) || "").trim();
-    const sharedRows = decodeMeetupRoomRows((options && (options.room || options.rs)) || "");
-    if (roomId) this.openSharedMeetupRoom(decodeURIComponent(roomId), sharedRows);
+    const sharedRoomId = options && options.roomId ? decodeURIComponent(String(options.roomId)) : "";
+    if (sharedRoomId) this.enterMeetupRoom(sharedRoomId, null, { fromShare: true });
   },
 
   onHide() {
+    consumerProfile.flushUpload(); // 退到后台时把待上报事件发出去
+    if (this.data.meetupSharedMode) this.publishMeetupSelfRow(this.data.multiAreaRows, { silent: true });
+    this.stopMeetupRoomPolling();
     this.bgmResumeOnShow = !this.data.bgmMuted;
     this.bgmAttemptId = (this.bgmAttemptId || 0) + 1;
     clearTimeout(this.bgmRecoveryTimer);
@@ -872,39 +1118,41 @@ Page({
   },
 
   onShow() {
+    if (this.data.meetupSharedMode) {
+      this.startMeetupRoomPolling();
+      this.pullMeetupRoom({ silent: true });
+    }
     if (!this.bgmResumeOnShow) return;
     this.bgmResumeOnShow = false;
     if (!this.data.bgmMuted && !this.data.bgmPlaying) this.playBgm();
   },
 
   onShareAppMessage() {
-    if (!this.hasMeetupShareContext()) {
+    if (this.data.meetupSharedMode || this.data.areaMode === "multi") {
+      const roomId = this.ensureMeetupRoomId();
+      this.publishMeetupSelfRow(this.data.multiAreaRows, { silent: true });
       return {
-        title: "不做选择：写一句吃饭需求，直接抽餐厅卡",
-        path: "/pages/play/play"
+        title: "来填你的位置，一起找中间点吃饭",
+        path: meetupSharePath(roomId)
       };
     }
-    const roomId = this.ensureMeetupRoomId();
-    this.saveMeetupRoomDraft();
-    const room = encodeMeetupRoomRows(this.data.multiAreaRows);
     return {
-      title: this.data.meetupRoomShareTitle || "把这次饭局草稿发给好友",
-      path: `/pages/play/play?roomId=${encodeURIComponent(roomId)}${room ? `&room=${room}` : ""}`
+      title: "不做选择：写一句吃饭需求，直接抽餐厅卡",
+      path: "/pages/play/play"
     };
   },
 
   onShareTimeline() {
-    if (!this.hasMeetupShareContext()) {
+    if (this.data.meetupSharedMode || this.data.areaMode === "multi") {
+      const roomId = this.ensureMeetupRoomId();
       return {
-        title: "不做选择：写一句吃饭需求，直接抽餐厅卡",
-        query: ""
+        title: "来填你的位置，一起找中间点吃饭",
+        query: roomId ? `roomId=${encodeURIComponent(roomId)}` : ""
       };
     }
-    const roomId = this.ensureMeetupRoomId();
-    const room = encodeMeetupRoomRows(this.data.multiAreaRows);
     return {
-      title: this.data.meetupRoomShareTitle || "把这次饭局草稿发给好友",
-      query: `roomId=${encodeURIComponent(roomId)}${room ? `&room=${room}` : ""}`
+      title: "不做选择：写一句吃饭需求，直接抽餐厅卡",
+      query: ""
     };
   },
 
@@ -933,6 +1181,8 @@ Page({
   onUnload() {
     this.stopVoiceRecognizer();
     this.destroyBgmAudio();
+    this.stopMeetupRoomPolling();
+    clearTimeout(this.meetupRoomPublishTimer);
     clearTimeout(this.bgmRecoveryTimer);
     clearInterval(this.revealTimer);
     clearTimeout(this.toastTimer);
@@ -1063,7 +1313,6 @@ Page({
       screen: "game",
       areaStep: "input",
       areaMode: "single",
-      meetupOpenedFromShare: false,
       showVoiceInsight: false,
       editingVoiceIntentIndex: -1,
       confirmedChoiceIntent: null,
@@ -1082,6 +1331,21 @@ Page({
     this.setData({ screen: "game" });
   },
 
+  // 主页快捷分支:咖啡 / 奶茶 / 美食外卖。点了直接按位置发牌,文字需求(如价格)仍可先写在输入框
+  enterCategory(e) {
+    const category = String(e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.category || "");
+    if (category !== "coffee" && category !== "milktea" && category !== "food") return;
+    this.startBgm();
+    this.setData({
+      categoryMode: category,
+      areaMode: "single",
+      areaStep: "input",
+      showVoiceInsight: false,
+      editingVoiceIntentIndex: -1
+    });
+    this.startAiModeGame();
+  },
+
   toggleInspiration() {
     this.setData({ showInspiration: !this.data.showInspiration });
   },
@@ -1089,9 +1353,18 @@ Page({
   selectAreaMode(e) {
     const mode = String(e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.mode || "");
     if (mode === "single") {
+      this.stopMeetupRoomPolling();
+      clearTimeout(this.meetupRoomPublishTimer);
+      // 回单人:清掉组局的中间点结果,单人就按"我的位置"附近找,不再残留两人居中
       this.setData({
         areaMode: "single",
         areaStep: "input",
+        meetupSharedMode: false,
+        meetupRoomSyncing: false,
+        meetupRoomSyncText: "",
+        meetupBoard: null,
+        meetupBoardLoading: false,
+        partySize: 1,
         showVoiceInsight: false,
         editingVoiceIntentIndex: -1,
         confirmedChoiceIntent: null,
@@ -1120,12 +1393,50 @@ Page({
 
   ensureMeetupRoomId() {
     const roomId = String(this.data.meetupRoomId || "").trim() || createMeetupRoomId();
-    if (roomId !== this.data.meetupRoomId) this.setData({ meetupRoomId: roomId });
+    const sharePath = meetupSharePath(roomId);
+    if (roomId !== this.data.meetupRoomId || sharePath !== this.data.meetupRoomSharePath) {
+      this.setData({ meetupRoomId: roomId, meetupRoomSharePath: sharePath });
+    }
     return roomId;
   },
 
-  hasMeetupShareContext() {
-    return Boolean(this.data.areaMode === "multi" || this.data.areaStep === "multi");
+  ensureMeetupSelfProfile() {
+    let profile = null;
+    if (typeof wx !== "undefined" && typeof wx.getStorageSync === "function") {
+      try {
+        profile = wx.getStorageSync(MEETUP_SELF_STORAGE_KEY);
+      } catch (error) {
+        console.warn("Load meetup self profile failed", error);
+      }
+    }
+    profile = normalizeMeetupSelfProfile(profile || {
+      id: this.data.meetupSelfId,
+      name: this.data.meetupSelfName
+    });
+    if (typeof wx !== "undefined" && typeof wx.setStorageSync === "function") {
+      try {
+        wx.setStorageSync(MEETUP_SELF_STORAGE_KEY, profile);
+      } catch (error) {
+        console.warn("Save meetup self profile failed", error);
+      }
+    }
+    if (profile.id !== this.data.meetupSelfId || profile.name !== this.data.meetupSelfName) {
+      this.setData({ meetupSelfId: profile.id, meetupSelfName: profile.name });
+    }
+    return profile;
+  },
+
+  saveMeetupSelfProfile(profile) {
+    const normalized = normalizeMeetupSelfProfile(profile);
+    if (typeof wx !== "undefined" && typeof wx.setStorageSync === "function") {
+      try {
+        wx.setStorageSync(MEETUP_SELF_STORAGE_KEY, normalized);
+      } catch (error) {
+        console.warn("Save meetup self profile failed", error);
+      }
+    }
+    this.setData({ meetupSelfId: normalized.id, meetupSelfName: normalized.name });
+    return normalized;
   },
 
   loadMeetupRoomDraft(roomId) {
@@ -1154,23 +1465,114 @@ Page({
     }
   },
 
+  scheduleMeetupRoomPublish(rows = null) {
+    if (!this.data.meetupSharedMode || typeof wx === "undefined" || typeof wx.request !== "function") return;
+    clearTimeout(this.meetupRoomPublishTimer);
+    const snapshot = normalizeMultiAreaRows(rows || this.data.multiAreaRows);
+    this.meetupRoomPublishTimer = setTimeout(() => {
+      this.publishMeetupSelfRow(snapshot, { silent: true });
+    }, 450);
+  },
+
+  publishMeetupSelfRow(rows = null, options = {}) {
+    if (!this.data.meetupSharedMode || typeof wx === "undefined" || typeof wx.request !== "function") {
+      return Promise.resolve(false);
+    }
+    const roomId = this.ensureMeetupRoomId();
+    const profile = this.ensureMeetupSelfProfile();
+    const normalized = normalizeMultiAreaRows(rows || this.data.multiAreaRows);
+    const selfRow = normalized.find((row) => String(row.id) === profile.id || row.isSelf) || selfMultiAreaRow(profile);
+    if (!options.silent) this.setData({ meetupRoomSyncing: true, meetupRoomSyncText: "正在同步你的位置" });
+    return wxRequestJson({
+      url: MEETUP_ROOM_ENDPOINT,
+      method: "POST",
+      data: {
+        roomId,
+        participant: participantFromMeetupRow(selfRow, profile)
+      }
+    }).then(() => {
+      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "已同步，朋友打开链接就能看到" });
+      return true;
+    }).catch((error) => {
+      console.warn("Publish meetup room failed", error);
+      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "本地已保存，网络恢复后再同步" });
+      return false;
+    });
+  },
+
+  pullMeetupRoom(options = {}) {
+    if (!this.data.meetupSharedMode || typeof wx === "undefined" || typeof wx.request !== "function") {
+      return Promise.resolve(null);
+    }
+    const roomId = this.ensureMeetupRoomId();
+    const profile = this.ensureMeetupSelfProfile();
+    const seq = (this.meetupRoomPullSeq || 0) + 1;
+    this.meetupRoomPullSeq = seq;
+    if (!options.silent) this.setData({ meetupRoomSyncing: true, meetupRoomSyncText: "正在刷新成员位置" });
+    return wxRequestJson({
+      url: `${MEETUP_ROOM_ENDPOINT}?roomId=${encodeURIComponent(roomId)}`
+    }).then((data) => {
+      if (seq !== this.meetupRoomPullSeq) return data;
+      const remoteRows = meetupRowsFromParticipants(data && data.participants);
+      const rows = mergeMeetupRemoteRows(this.data.multiAreaRows, remoteRows, profile);
+      this.refreshMeetupRoomState(rows, { skipPublish: true });
+      const readyCount = validMultiAreaRows(rows).length;
+      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: readyCount ? `已刷新 ${readyCount} 个出发地` : "等大家填写自己的位置" });
+      return data;
+    }).catch((error) => {
+      console.warn("Pull meetup room failed", error);
+      if (!options.silent) this.showToast("房间暂时没刷新，稍后再试");
+      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "本地草稿可用，稍后自动刷新" });
+      return null;
+    });
+  },
+
+  refreshSharedMeetupRoom() {
+    this.pullMeetupRoom({ silent: false });
+  },
+
+  startMeetupRoomPolling() {
+    if (!this.data.meetupSharedMode || typeof wx === "undefined" || typeof wx.request !== "function") return;
+    this.stopMeetupRoomPolling();
+    this.meetupRoomPoller = setInterval(() => {
+      this.pullMeetupRoom({ silent: true });
+    }, MEETUP_ROOM_POLL_MS);
+  },
+
+  stopMeetupRoomPolling() {
+    if (this.meetupRoomPoller) clearInterval(this.meetupRoomPoller);
+    this.meetupRoomPoller = null;
+  },
+
   refreshMeetupRoomState(rows, options = {}) {
-    const normalized = normalizeMultiAreaRows(rows);
+    const profile = {
+      id: this.data.meetupSelfId,
+      name: this.data.meetupSelfName
+    };
+    const normalized = this.data.meetupSharedMode
+      ? decorateSharedMeetupRows(rows, profile)
+      : normalizeMultiAreaRows(rows);
     const center = meetupRoomMapCenter(normalized, options.coords || this.data.lastCoords);
     this.setData({
       multiAreaRows: normalized,
+      meetupSelfRows: meetupSelfRows(normalized),
+      meetupRosterRows: meetupRosterRows(normalized),
       multiAreaSummary: multiAreaSummary(normalized),
       multiAreaReady: validMultiAreaRows(normalized).length >= 2,
       meetupRoomStatus: meetupRoomStatus(normalized),
       meetupRoomMapLat: center.lat,
       meetupRoomMapLng: center.lng,
       meetupRoomMarkers: meetupRoomMarkers(normalized),
+      meetupRoomPolylines: meetupRoomPolylines(normalized),
+      meetupRoomCircles: [],
+      meetupRoomIncludePoints: meetupRoomIncludePoints(normalized),
       showVoiceInsight: false,
       editingVoiceIntentIndex: -1,
       confirmedChoiceIntent: null,
       voiceSearchPlan: null
     }, () => this.updateChoiceNextAction());
     this.saveMeetupRoomDraft(normalized);
+    if (this.data.meetupSharedMode && !options.skipPublish) this.scheduleMeetupRoomPublish(normalized);
     this.invalidateRestaurantContext();
   },
 
@@ -1178,28 +1580,17 @@ Page({
     const readable = readableCurrentLocation(coords);
     if (!readable) return false;
     const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
-    const openedFromShare = Boolean(this.data.meetupOpenedFromShare);
-    let targetIndex = openedFromShare
-      ? rows.findIndex((row) => !row.isHost && (/^(?:我|我的位置)$/u.test(row.role) || /^friend-self-/.test(String(row.id || ""))))
-      : rows.findIndex((row) => row.isHost);
-    if (targetIndex < 0 && openedFromShare) {
-      targetIndex = rows.findIndex((row) => !row.isHost && !row.location);
-    }
-    if (targetIndex < 0 && openedFromShare && rows.length < MAX_MULTI_AREA_ROWS) {
-      rows.push({ id: `friend-self-${Date.now()}`, role: "我", people: 1, location: "", isHost: false, joined: true });
-      targetIndex = rows.length - 1;
-    }
-    if (targetIndex < 0) {
-      if (openedFromShare) {
-        this.showToast("成员已满，可手动改一个朋友位");
-        return false;
-      }
-      targetIndex = 0;
-    }
-    const target = rows[targetIndex] || normalizeMultiAreaRows(createDefaultMultiAreaRows())[0];
-    const role = openedFromShare && !target.isHost ? "我" : "我的位置";
+    const profile = this.data.meetupSharedMode ? this.ensureMeetupSelfProfile() : null;
+    let targetIndex = profile ? rows.findIndex((row) => String(row.id) === profile.id || row.isSelf) : -1;
+    if (targetIndex < 0) targetIndex = rows.findIndex((row) => row.isHost);
+    if (targetIndex < 0) targetIndex = 0;
+    const target = rows[targetIndex] || (profile ? selfMultiAreaRow(profile) : normalizeMultiAreaRows(createDefaultMultiAreaRows())[0]);
+    const role = profile ? (profile.name || target.role || "我") : "我的位置";
     rows[targetIndex] = {
       ...target,
+      id: profile ? profile.id : target.id,
+      isSelf: Boolean(profile),
+      isHost: Boolean(profile) || target.isHost,
       role,
       roleShort: shortMultiAreaRole(role, targetIndex),
       location: readable,
@@ -1224,35 +1615,70 @@ Page({
     }
   },
 
-  enterMeetupRoom(roomId = "", rowsOverride = null, options = {}) {
-    const nextRoomId = roomId || this.ensureMeetupRoomId();
+  enterMeetupRoom(roomId = "", rowsOverride = null) {
+    const nextRoomId = String(roomId || this.ensureMeetupRoomId()).trim() || createMeetupRoomId();
+    const profile = this.ensureMeetupSelfProfile();
     const draft = this.loadMeetupRoomDraft(nextRoomId);
-    const rows = normalizeMultiAreaRows(rowsOverride || (draft && draft.rows) || this.data.multiAreaRows || createDefaultMultiAreaRows());
+    const seedRows = rowsOverride || (draft && draft.rows) || [selfMultiAreaRow(profile)];
+    const rows = decorateSharedMeetupRows(seedRows, profile);
     this.setData({
       screen: "game",
       areaMode: "multi",
       areaStep: "multi",
       meetupRoomId: nextRoomId,
-      meetupOpenedFromShare: Boolean(options.fromShare),
+      meetupSharedMode: true,
+      meetupSelfId: profile.id,
+      meetupSelfName: profile.name,
+      meetupRoomSharePath: meetupSharePath(nextRoomId),
+      meetupRoomSyncText: "分享给朋友后，每个人只填自己的位置",
       showVoiceInsight: false,
       editingVoiceIntentIndex: -1,
       confirmedChoiceIntent: null,
       voiceSearchPlan: null
     }, () => {
-      this.refreshMeetupRoomState(rows);
+      this.refreshMeetupRoomState(rows, { skipPublish: false });
+      this.pullMeetupRoom({ silent: true });
+      this.startMeetupRoomPolling();
       this.refreshMeetupRoomLocation({ silent: true });
     });
   },
 
-  openSharedMeetupRoom(roomId, sharedRows = null) {
-    const nextRoomId = roomId || createMeetupRoomId();
-    this.startBgm();
-    this.enterMeetupRoom(nextRoomId, sharedRows, { fromShare: true });
-    this.showToast("已打开这次饭局草稿");
+  goMultiAreaSetup() {
+    this.enterMeetupRoom(this.data.meetupRoomId);
   },
 
-  goMultiAreaSetup() {
-    this.enterMeetupRoom(this.data.meetupRoomId, null, { fromShare: this.data.meetupOpenedFromShare });
+  onMeetupNameInput(e) {
+    const name = String(e.detail && e.detail.value || "").trim().slice(0, 24);
+    const profile = this.saveMeetupSelfProfile({
+      id: this.data.meetupSelfId || createMeetupParticipantId(),
+      name
+    });
+    const rows = decorateSharedMeetupRows(this.data.multiAreaRows, profile);
+    this.refreshMeetupRoomState(rows);
+  },
+
+  authorizeMeetupProfile() {
+    if (typeof wx === "undefined" || typeof wx.getUserProfile !== "function") {
+      this.showToast("点昵称输入框，可使用微信昵称");
+      return;
+    }
+    wx.getUserProfile({
+      desc: "用于在组局房间显示你的昵称",
+      success: (res) => {
+        const name = String(res && res.userInfo && res.userInfo.nickName || "").trim();
+        if (!name) {
+          this.showToast("没有拿到昵称，可以手动填");
+          return;
+        }
+        const profile = this.saveMeetupSelfProfile({
+          id: this.data.meetupSelfId || createMeetupParticipantId(),
+          name
+        });
+        const rows = decorateSharedMeetupRows(this.data.multiAreaRows, profile);
+        this.refreshMeetupRoomState(rows);
+      },
+      fail: () => this.showToast("可以手动填昵称")
+    });
   },
 
   setMultiAreaRows(rows) {
@@ -1307,14 +1733,37 @@ Page({
     this.setMultiAreaRows(rows);
   },
 
-  inviteMeetupFriend() {
-    this.ensureMeetupRoomId();
-    this.saveMeetupRoomDraft();
-    this.showToast("会把当前出发地信息发给好友");
+  // 某人的口味/忌口自由输入(文字)
+  onMultiAreaPrefInput(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    const value = String(e.detail && e.detail.value || "");
+    const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
+    if (!rows[index]) return;
+    rows[index] = { ...rows[index], pref: value };
+    this.setMultiAreaRows(rows);
+  },
+
+  // 某人的口味/忌口语音输入(复用主语音通道,目标=pref:index)
+  startMultiAreaPrefVoice(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    this.toggleVoiceInput(`pref:${index}`);
+  },
+
+  // 出行方式多选切换
+  toggleMultiAreaTravel(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    const value = String(e.currentTarget.dataset.value || "");
+    const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
+    if (!rows[index] || !value) return;
+    const set = new Set(rows[index].travels || []);
+    if (set.has(value)) { set.delete(value); } else { set.add(value); }
+    rows[index] = { ...rows[index], travels: [...set] };
+    this.setMultiAreaRows(rows);
   },
 
   // 收集完出发地→当场算中间点+逐人到达榜(结果态)
   async showMeetupRoomBoard() {
+    if (this.data.meetupSharedMode) await this.pullMeetupRoom({ silent: true });
     const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
     if (validMultiAreaRows(rows).length < 2) {
       this.showToast("先收齐至少两个出发地");
@@ -1366,9 +1815,9 @@ Page({
       return;
     }
     const partySize = Math.max(2, multiAreaPeopleTotal(rows));
+    // 每人喜好/出行已收齐 → 直接开局,不再经过"再输入一句话"的共享文字环节
     this.setData({
       areaMode: "multi",
-      areaStep: "input",
       multiAreaRows: rows,
       multiAreaSummary: multiAreaSummary(rows),
       multiAreaReady: true,
@@ -1377,8 +1826,9 @@ Page({
       editingVoiceIntentIndex: -1,
       confirmedChoiceIntent: null,
       voiceSearchPlan: null
-    }, () => this.updateChoiceNextAction());
+    });
     this.invalidateRestaurantContext();
+    this.startAiModeGame();
   },
 
   onProblemInput(e) {
@@ -1475,7 +1925,7 @@ Page({
       return;
     }
     this.startBgm();
-    this.setData({ showVoiceInsight: false, editingVoiceIntentIndex: -1 });
+    this.setData({ showVoiceInsight: false, editingVoiceIntentIndex: -1, categoryMode: "" });
     this.startAiModeGame();
   },
 
@@ -1609,7 +2059,7 @@ Page({
     this.voiceManager = manager;
     manager.onStart = () => {
       this.voiceStartedAt = Date.now();
-      this.voiceInputBase = this.data.problem.trim();
+      this.voiceInputBase = this.voiceBaseForTarget(this.data.voiceTarget);
       this.voiceLastResult = "";
       this.setData({ recording: true });
       this.showToast("正在听，再点一次结束");
@@ -1666,7 +2116,7 @@ Page({
     this.ensureRecordPermission()
       .then(() => {
         this.voiceStartedAt = Date.now();
-        this.voiceInputBase = this.data.problem.trim();
+        this.voiceInputBase = this.voiceBaseForTarget(target);
         this.voiceLastResult = "";
         this.setData({ voiceTarget: target, recording: true });
         this.showToast("正在听，再点一次结束");
@@ -1723,12 +2173,32 @@ Page({
     this.voiceInputBase = "";
   },
 
+  // 语音目标的当前文本基线:pref:N 为某成员的口味/忌口输入,否则为主输入框
+  voiceBaseForTarget(target) {
+    if (typeof target === "string" && target.indexOf("pref:") === 0) {
+      const index = Number(target.slice(5));
+      const rows = this.data.multiAreaRows || [];
+      return rows[index] ? String(rows[index].pref || "").trim() : "";
+    }
+    return String(this.data.problem || "").trim();
+  },
+
   applyVoiceTextToInput(text) {
     const spoken = String(text || "").trim();
     if (!spoken) return;
     const base = String(this.voiceInputBase || "").trim();
-    const problem = base ? `${base} ${spoken}` : spoken;
-    this.setData({ problem, showVoiceInsight: false }, () => this.updateChoiceNextAction());
+    const combined = base ? `${base} ${spoken}` : spoken;
+    const target = this.data.voiceTarget;
+    if (typeof target === "string" && target.indexOf("pref:") === 0) {
+      const index = Number(target.slice(5));
+      const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
+      if (rows[index]) {
+        rows[index] = { ...rows[index], pref: combined };
+        this.setMultiAreaRows(rows);
+      }
+      return;
+    }
+    this.setData({ problem: combined, showVoiceInsight: false }, () => this.updateChoiceNextAction());
     this.invalidateRestaurantContext();
   },
 
@@ -2030,6 +2500,7 @@ Page({
   },
 
   showWinner(card, byFate) {
+    consumerProfile.recordEvent("pick", card); // 行为养成:拍板=一次正向选择
     const settleText = byFate ? (MODE_SETTLE_COPY[this.data.modeName] || "就它了！") : "就它了！";
     const winner = {
       ...card,
@@ -2138,6 +2609,7 @@ Page({
       if (!coords) throw new Error("no location");
       guardedSetLoading("正在定位附近餐厅", "位置已确认，正在从高德拿真实餐厅。");
       const choice = buildChoiceContext(this.data);
+      choice.preferredBrands = consumerProfile.getPreferredBrands(); // 画像:优先用户常点品牌
       const replaySignature = this.choiceReplaySignature(modeName, coords);
       this.pendingDeckSignature = replaySignature;
       const result = await loadRestaurantDeck({
@@ -2173,7 +2645,7 @@ Page({
     const location = coords && Number.isFinite(Number(coords.lat)) && Number.isFinite(Number(coords.lng))
       ? `${Number(coords.lat).toFixed(4)},${Number(coords.lng).toFixed(4)}`
       : "";
-    return JSON.stringify({ modeName, question, tags, partySize, budgetPerPerson, areaMode: this.data.areaMode || "single", multiAreas, location });
+    return JSON.stringify({ modeName, question, tags, partySize, budgetPerPerson, areaMode: this.data.areaMode || "single", category: this.data.categoryMode || "", multiAreas, location });
   },
 
   replayAvoidKeys(signature) {
@@ -2324,6 +2796,7 @@ Page({
 
   openActiveCardNavigation(event) {
     this.drag = null;
+    consumerProfile.recordEvent("navigate", this.data.activeCard); // 去导航=强正向信号
     this.setData({ cardTransform: "", stampPick: 0, stampPass: 0 });
     this.openCardNavigation(this.data.activeCard);
   },
@@ -2331,6 +2804,45 @@ Page({
   openActiveCardDetail(event) {
     if (isCardNavigationEvent(event)) return;
     this.openCardDetail(this.data.activeCard);
+  },
+
+  // 卡面「去下单」(咖啡/奶茶/外卖):≤1km 跳品牌点单小程序自取,>1km 跳美团外卖
+  orderActiveCard(event) {
+    this.drag = null;
+    this.setData({ cardTransform: "", stampPick: 0, stampPass: 0 });
+    this.goOrderForCard(this.data.activeCard);
+  },
+
+  // 拍板结果页「去下单」
+  orderWinner() {
+    this.goOrderForCard(this.data.winner);
+  },
+
+  goOrderForCard(card) {
+    if (!card) return;
+    const name = String(card.name || "");
+    const distance = Number(card.poi && card.poi.distance);
+    const near = Number.isFinite(distance) && distance > 0 && distance <= ORDER_NEAR_METERS;
+    const brand = card.brand || "";
+    consumerProfile.recordEvent("order", card); // 去下单=强正向信号
+    if (wx.setClipboardData) {
+      wx.setClipboardData({ data: name, success() {}, fail() {} });
+    }
+    // ≤1km 优先品牌自营点单小程序;否则(>1km 或无品牌 appId)走美团
+    const targetAppId = (near && orderAppIdForBrand(brand)) || ORDER_TARGETS.meituan || "";
+    if (targetAppId) {
+      wx.navigateToMiniProgram({
+        appId: targetAppId,
+        fail: () => this.orderFallbackHint(near, name, brand)
+      });
+      return;
+    }
+    this.orderFallbackHint(near, name, brand);
+  },
+
+  orderFallbackHint(near, name, brand) {
+    const where = near ? (brand ? `${brand}小程序` : "门店/美团到店自取") : "美团/饿了么";
+    wx.showToast({ title: `已复制店名，去${where}搜「${name}」`, icon: "none", duration: 2600 });
   },
 
   selectActiveMeetupRoute(event) {
@@ -2505,7 +3017,11 @@ Page({
     this.intentPreviewId = (this.intentPreviewId || 0) + 1;
     this.setData({
       screen: "game",
+      categoryMode: "",
       areaStep: "input",
+      areaMode: "single",
+      meetupBoard: null,
+      meetupBoardLoading: false,
       showVoiceInsight: false,
       voiceInsightState: "ready",
       voiceInsightQuestion: "",
