@@ -4574,9 +4574,17 @@ button.mrShareBtn,
   line-height: 38rpx;
 }
 
-.mrLocation {
-  width: 100%;
+.mrLocationRow {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
   margin-top: 10rpx;
+}
+
+.mrLocation {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
   padding: 11rpx 14rpx;
   border: 0;
   border-radius: 10rpx;
@@ -4588,6 +4596,28 @@ button.mrShareBtn,
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+button.mrPickLocation,
+.mrPickLocation {
+  flex: none;
+  min-width: 132rpx;
+  height: 58rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  border: 3rpx solid #1a1714;
+  border-radius: 12rpx;
+  background: #fffdf6;
+  color: #0b754a;
+  font-size: 21rpx;
+  font-weight: 950;
+  line-height: 52rpx;
+  box-shadow: 3rpx 3rpx 0 rgba(26, 23, 20, .55);
+  box-sizing: border-box;
+}
+
+button.mrPickLocation::after {
+  border: 0;
 }
 
 .mrPerson.pending .mrLocation {

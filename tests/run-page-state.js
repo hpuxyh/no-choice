@@ -87,6 +87,34 @@ function defer() {
   assert.strictEqual(sharedUpdatePage.data.multiAreaRows[1].location, "Xujiahui");
   assert.strictEqual(sharedUpdatePage.data.meetupSelfRows[0].id, "self-1");
 
+  const previousChooseLocation = global.wx.chooseLocation;
+  global.wx.chooseLocation = ({ success }) => success({
+    name: "People Square",
+    address: "Shanghai People Square",
+    latitude: 31.2304,
+    longitude: 121.4737
+  });
+  const chooseLocationPage = makePage({
+    data: {
+      meetupRoomId: "room-pick",
+      meetupSharedMode: true,
+      meetupSelfId: "self-pick",
+      meetupSelfName: "Alice",
+      multiAreaRows: [
+        { id: "self-pick", role: "Alice", people: 1, location: "", isHost: true, isSelf: true, joined: false }
+      ]
+    }
+  });
+  chooseLocationPage.chooseMultiAreaLocation({ currentTarget: { dataset: { index: 0 } } });
+  assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].location, "People Square");
+  assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].latitude, 31.2304);
+  assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].longitude, 121.4737);
+  chooseLocationPage.onMultiAreaLocationInput({ currentTarget: { dataset: { index: 0 } }, detail: { value: "Manual Address" } });
+  assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].location, "Manual Address");
+  assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].latitude, null);
+  assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].longitude, null);
+  global.wx.chooseLocation = previousChooseLocation;
+
   // 单设备多人组局:更新我的位置 → 始终写进 host 行(已无主客/分享区别)
   const hostUpdatePage = makePage({
     data: {

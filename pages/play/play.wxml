@@ -82,7 +82,10 @@
                   </view>
                   <text wx:if="{{multiAreaRows.length > 2 && !item.isHost}}" class="mrRemove" data-index="{{index}}" catchtap="removeMultiAreaRow">×</text>
                 </view>
-                <input class="mrLocation" value="{{item.location}}" placeholder="{{item.placeholder}}" data-index="{{index}}" bindinput="onMultiAreaLocationInput" />
+                <view class="mrLocationRow">
+                  <input class="mrLocation" value="{{item.location}}" placeholder="{{item.placeholder}}" data-index="{{index}}" bindinput="onMultiAreaLocationInput" />
+                  <button class="mrPickLocation" data-index="{{index}}" hover-class="is-press" hover-stay-time="80" catchtap="chooseMultiAreaLocation">地图选点</button>
+                </view>
                 <view class="mrPrefsBody">
                   <view class="mrPrefInputRow">
                     <input class="mrPrefInput" value="{{item.pref}}" placeholder="口味/忌口，如：清淡、不吃香菜、不吃辣" data-index="{{index}}" bindinput="onMultiAreaPrefInput" />
@@ -116,7 +119,10 @@
                     <text class="mrStepBtn" data-index="{{item.index}}" data-delta="1" catchtap="adjustMultiAreaPeople">＋</text>
                   </view>
                 </view>
-                <input class="mrLocation" value="{{item.location}}" placeholder="{{item.placeholder}}" data-index="{{item.index}}" bindinput="onMultiAreaLocationInput" />
+                <view class="mrLocationRow">
+                  <input class="mrLocation" value="{{item.location}}" placeholder="{{item.placeholder}}" data-index="{{item.index}}" bindinput="onMultiAreaLocationInput" />
+                  <button class="mrPickLocation" data-index="{{item.index}}" hover-class="is-press" hover-stay-time="80" catchtap="chooseMultiAreaLocation">地图选点</button>
+                </view>
                 <view class="mrPrefsBody">
                   <view class="mrPrefInputRow">
                     <input class="mrPrefInput" value="{{item.pref}}" placeholder="口味/忌口，比如：清淡、不吃香菜、不吃辣" data-index="{{item.index}}" bindinput="onMultiAreaPrefInput" />

@@ -1690,8 +1690,44 @@ Page({
     const value = String(e.detail && e.detail.value || "");
     const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
     if (!rows[index]) return;
-    rows[index] = { ...rows[index], location: value.trim() };
+    rows[index] = { ...rows[index], location: value.trim(), latitude: null, longitude: null };
     this.setMultiAreaRows(rows);
+  },
+
+  chooseMultiAreaLocation(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
+    if (!rows[index]) return;
+    if (typeof wx === "undefined" || typeof wx.chooseLocation !== "function") {
+      this.showToast("当前微信版本不支持地图选点，可手动输入");
+      return;
+    }
+    wx.chooseLocation({
+      success: (res) => {
+        const latitude = Number(res && res.latitude);
+        const longitude = Number(res && res.longitude);
+        const name = String(res && res.name || "").trim();
+        const address = String(res && res.address || "").trim();
+        const location = name || address || rows[index].location;
+        const nextRows = normalizeMultiAreaRows(this.data.multiAreaRows);
+        if (!nextRows[index] || !location) return;
+        nextRows[index] = {
+          ...nextRows[index],
+          location,
+          latitude: Number.isFinite(latitude) ? latitude : null,
+          longitude: Number.isFinite(longitude) ? longitude : null,
+          joined: true,
+          statusText: nextRows[index].isSelf ? "已提交你的位置" : "已定位"
+        };
+        this.setMultiAreaRows(nextRows);
+      },
+      fail: (error) => {
+        const message = String(error && error.errMsg || "");
+        if (/cancel/i.test(message)) return;
+        console.warn("Choose meetup location failed", error);
+        this.showToast("地图选点暂时不可用，可手动输入");
+      }
+    });
   },
 
   onMultiAreaPeopleInput(e) {
