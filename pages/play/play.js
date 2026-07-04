@@ -40,7 +40,7 @@ function loadSpeechPlugin() {
 const speechPlugin = loadSpeechPlugin();
 const BGM_SRC = "/assets/audio/choice-loop.mp3";
 const MAP_NAV_LOCATION_MAX_DRIFT_METERS = 2000;
-const MEETUP_ROOM_ENDPOINT = "https://no-choice.pages.dev/api/meetup-room";
+const MEETUP_ROOM_ENDPOINT = "https://no-choice-meetup-room.pages.dev/api/meetup-room";
 const MEETUP_SELF_STORAGE_KEY = "choiceMeetupSelfProfile";
 const MEETUP_ROOM_POLL_MS = 7000;
 
