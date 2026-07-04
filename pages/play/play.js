@@ -555,9 +555,11 @@ function selfMultiAreaRow(profile = {}) {
   };
 }
 
-function meetupSharePath(roomId) {
+function meetupSharePath(roomId, expectedCount = 2) {
   const id = String(roomId || "").trim();
-  return id ? `/pages/play/play?roomId=${encodeURIComponent(id)}` : "/pages/play/play";
+  if (!id) return "/pages/play/play";
+  const target = meetupRoomExpectedCount(expectedCount);
+  return `/pages/play/play?roomId=${encodeURIComponent(id)}&count=${target}`;
 }
 
 function wxRequestJson(options = {}) {
@@ -861,9 +863,9 @@ function meetupRoomProgress(rows = [], expectedCount = 2) {
     target,
     ready,
     left,
-    badgeText: ready ? "已集齐" : `${count}/${target}`,
-    buttonText: ready ? "已集齐，开始" : `${count}/${target} 等朋友填完`,
-    hintText: ready ? "已集齐 · 点下面开始" : `当前 ${count}/${target} · 朋友打开链接后只填自己的这份`
+    badgeText: `${Math.min(count, target)}/${target}`,
+    buttonText: ready ? "已填齐，开始" : `${count}/${target} 等朋友填完`,
+    hintText: `${Math.min(count, target)} 人已填完 · ${left} 人正在填写`
   };
 }
 
@@ -955,6 +957,27 @@ function meetupRosterRows(rows = []) {
     role: row.role,
     rosterStatus: row.location ? row.location : "还没填位置"
   }));
+}
+
+function limitSharedMeetupRows(rows = [], profile = {}, expectedCount = 2) {
+  const normalizedProfile = normalizeMeetupSelfProfile(profile);
+  const selfId = normalizedProfile.id;
+  const target = meetupRoomExpectedCount(expectedCount);
+  const normalized = normalizeMultiAreaRows(rows);
+  const selfRow = normalized.find((row) => String(row.id) === selfId || row.isSelf) || selfMultiAreaRow(normalizedProfile);
+  const others = normalized
+    .filter((row) => String(row.id) !== selfId && !row.isSelf)
+    .sort((a, b) => {
+      const aHasLocation = a.location ? 1 : 0;
+      const bHasLocation = b.location ? 1 : 0;
+      if (aHasLocation !== bHasLocation) return bHasLocation - aHasLocation;
+      const aTime = Number(a.updatedAt) || 0;
+      const bTime = Number(b.updatedAt) || 0;
+      if (aTime !== bTime) return bTime - aTime;
+      return (Number(a.index) || 0) - (Number(b.index) || 0);
+    })
+    .slice(0, Math.max(0, target - 1));
+  return decorateSharedMeetupRows([selfRow, ...others], normalizedProfile);
 }
 
 function mergeMeetupRemoteRows(localRows = [], remoteRows = [], profile = {}) {
@@ -1097,7 +1120,7 @@ Page({
     meetupRoomReady: false,
     meetupProgressBadgeText: "0/2",
     meetupProgressButtonText: "0/2 等朋友填完",
-    meetupProgressHint: "当前 0/2 · 朋友打开链接后只填自己的这份",
+    meetupProgressHint: "0 人已填完 · 2 人正在填写",
     meetupRoomSharePath: "",
     meetupRoomSyncing: false,
     meetupRoomSyncText: "",
@@ -1187,7 +1210,8 @@ Page({
     this.updateChoiceNextAction();
     this.primeLocationStatus();
     const sharedRoomId = options && options.roomId ? decodeURIComponent(String(options.roomId)) : "";
-    if (sharedRoomId) this.enterMeetupRoom(sharedRoomId, null, { fromShare: true });
+    const sharedCount = options && (options.count || options.partySize || options.people);
+    if (sharedRoomId) this.enterMeetupRoom(sharedRoomId, null, { fromShare: true, expectedCount: sharedCount });
   },
 
   onHide() {
@@ -1223,7 +1247,7 @@ Page({
       this.publishMeetupSelfRow(this.data.multiAreaRows, { silent: true, roomId });
       return {
         title: "来填你的位置，一起找中间点吃饭",
-        path: meetupSharePath(roomId)
+        path: meetupSharePath(roomId, this.data.partySize)
       };
     }
     return {
@@ -1237,7 +1261,7 @@ Page({
       const roomId = this.ensureMeetupRoomId();
       return {
         title: "来填你的位置，一起找中间点吃饭",
-        query: roomId ? `roomId=${encodeURIComponent(roomId)}` : ""
+        query: roomId ? `roomId=${encodeURIComponent(roomId)}&count=${meetupRoomExpectedCount(this.data.partySize)}` : ""
       };
     }
     return {
@@ -1445,7 +1469,7 @@ Page({
     if (mode === "single") {
       this.stopMeetupRoomPolling();
       clearTimeout(this.meetupRoomPublishTimer);
-      // 回单人:清掉组局的中间点结果,单人就按"我的位置"附近找,不再残留两人居中
+      // 回到首页时清掉组局结果，避免单人开牌残留多人中点。
       this.setData({
         areaMode: "single",
         areaStep: "input",
@@ -1483,7 +1507,7 @@ Page({
 
   ensureMeetupRoomId() {
     const roomId = String(this.data.meetupRoomId || "").trim() || createMeetupRoomId();
-    const sharePath = meetupSharePath(roomId);
+    const sharePath = meetupSharePath(roomId, this.data.partySize);
     if (roomId !== this.data.meetupRoomId || sharePath !== this.data.meetupRoomSharePath) {
       this.setData({ meetupRoomId: roomId, meetupRoomSharePath: sharePath });
     }
@@ -1573,7 +1597,7 @@ Page({
         participant: participantFromMeetupRow(selfRow, profile)
       }
     }).then(() => {
-      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "已同步，朋友打开链接就能看到" });
+      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "" });
       return true;
     }).catch((error) => {
       console.warn("Publish meetup room failed", error);
@@ -1604,8 +1628,7 @@ Page({
       const remoteRows = meetupRowsFromParticipants(data && data.participants);
       const rows = mergeMeetupRemoteRows(this.data.multiAreaRows, remoteRows, profile);
       this.refreshMeetupRoomState(rows, { skipPublish: true });
-      const readyCount = validMultiAreaRows(rows).length;
-      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: readyCount ? `已刷新 ${readyCount} 个出发地` : "等大家填写自己的位置" });
+      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "" });
       return data;
     }).catch((error) => {
       console.warn("Pull meetup room failed", error);
@@ -1639,7 +1662,7 @@ Page({
       name: this.data.meetupSelfName
     };
     const normalized = this.data.meetupSharedMode
-      ? decorateSharedMeetupRows(rows, profile)
+      ? limitSharedMeetupRows(rows, profile, this.data.partySize)
       : normalizeMultiAreaRows(rows);
     const center = meetupRoomMapCenter(normalized, options.coords || this.data.lastCoords);
     const progress = meetupRoomProgress(normalized, this.data.partySize);
@@ -1712,22 +1735,24 @@ Page({
     }
   },
 
-  enterMeetupRoom(roomId = "", rowsOverride = null) {
+  enterMeetupRoom(roomId = "", rowsOverride = null, options = {}) {
     const nextRoomId = String(roomId || this.ensureMeetupRoomId()).trim() || createMeetupRoomId();
     const profile = this.ensureMeetupSelfProfile();
+    const expectedCount = meetupRoomExpectedCount(options.expectedCount || this.data.partySize);
     const draft = this.loadMeetupRoomDraft(nextRoomId);
     const seedRows = rowsOverride || (draft && draft.rows) || [selfMultiAreaRow(profile)];
-    const rows = decorateSharedMeetupRows(seedRows, profile);
+    const rows = limitSharedMeetupRows(seedRows, profile, expectedCount);
     this.setData({
       screen: "game",
       areaMode: "multi",
       areaStep: "multi",
+      partySize: expectedCount,
       meetupRoomId: nextRoomId,
       meetupSharedMode: true,
       meetupSelfId: profile.id,
       meetupSelfName: profile.name,
-      meetupRoomSharePath: meetupSharePath(nextRoomId),
-      meetupRoomSyncText: "分享给朋友后，每个人只填自己的位置",
+      meetupRoomSharePath: meetupSharePath(nextRoomId, expectedCount),
+      meetupRoomSyncText: "",
       showVoiceInsight: false,
       editingVoiceIntentIndex: -1,
       confirmedChoiceIntent: null,

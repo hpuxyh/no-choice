@@ -69,7 +69,7 @@ function defer() {
   assert.strictEqual(sharedRoomPage.data.meetupProgressBadgeText, "0/2");
   assert.strictEqual(sharedRoomPage.data.meetupProgressButtonText, "0/2 等朋友填完");
   const sharedRoomShare = sharedRoomPage.onShareAppMessage();
-  assert.strictEqual(sharedRoomShare.path, "/pages/play/play?roomId=room-shared");
+  assert.strictEqual(sharedRoomShare.path, "/pages/play/play?roomId=room-shared&count=2");
 
   let requestCount = 0;
   const previousRequest = global.wx.request;
@@ -130,8 +130,37 @@ function defer() {
   });
   progressPage.refreshMeetupRoomState(progressPage.data.multiAreaRows, { skipPublish: true });
   assert.strictEqual(progressPage.data.meetupRoomReady, true);
-  assert.strictEqual(progressPage.data.meetupProgressBadgeText, "已集齐");
-  assert.strictEqual(progressPage.data.meetupProgressButtonText, "已集齐，开始");
+  assert.strictEqual(progressPage.data.meetupProgressBadgeText, "2/2");
+  assert.strictEqual(progressPage.data.meetupProgressButtonText, "已填齐，开始");
+
+  global.wx.request = ({ success }) => success({
+    statusCode: 200,
+    data: {
+      ok: true,
+      roomId: "room-overflow",
+      participants: [
+        { id: "friend-old", name: "Old", location: "Old Place", lat: 1, lng: 2, updatedAt: 10 },
+        { id: "friend-new", name: "New", location: "New Place", lat: 3, lng: 4, updatedAt: 20 }
+      ]
+    }
+  });
+  const overflowPullPage = makePage({
+    data: {
+      meetupRoomId: "room-overflow",
+      meetupSharedMode: true,
+      meetupSelfId: "self-overflow",
+      meetupSelfName: "Alice",
+      partySize: 2,
+      multiAreaRows: [
+        { id: "self-overflow", role: "Alice", people: 1, location: "Self Place", isHost: true, isSelf: true, joined: true }
+      ]
+    }
+  });
+  await overflowPullPage.pullMeetupRoom({ silent: true });
+  assert.strictEqual(overflowPullPage.data.multiAreaRows.length, 2);
+  assert.deepStrictEqual(overflowPullPage.data.multiAreaRows.map((row) => row.id), ["self-overflow", "friend-new"]);
+  assert.strictEqual(overflowPullPage.data.meetupProgressBadgeText, "2/2");
+  global.wx.request = previousRequest;
 
   const sharedUpdatePage = makePage({
     data: {
@@ -146,12 +175,11 @@ function defer() {
     }
   });
   assert.strictEqual(sharedUpdatePage.syncMeetupCurrentLocation({ label: "Xujiahui", addressMeta: "Xujiahui", lat: 31.19, lng: 121.43, locationSource: "gps" }), true);
-  assert.strictEqual(sharedUpdatePage.data.multiAreaRows[0].location, "Suzhoujie");
-  assert.strictEqual(sharedUpdatePage.data.multiAreaRows[1].id, "self-1");
-  assert.strictEqual(sharedUpdatePage.data.multiAreaRows[1].location, "Xujiahui");
+  assert.strictEqual(sharedUpdatePage.data.multiAreaRows.find((row) => row.id === "friend-1").location, "Suzhoujie");
+  assert.strictEqual(sharedUpdatePage.data.multiAreaRows.find((row) => row.id === "self-1").location, "Xujiahui");
   assert.strictEqual(sharedUpdatePage.data.meetupSelfRows[0].id, "self-1");
-  assert.strictEqual(sharedUpdatePage.data.meetupProgressBadgeText, "已集齐");
-  assert.strictEqual(sharedUpdatePage.data.meetupProgressButtonText, "已集齐，开始");
+  assert.strictEqual(sharedUpdatePage.data.meetupProgressBadgeText, "2/2");
+  assert.strictEqual(sharedUpdatePage.data.meetupProgressButtonText, "已填齐，开始");
 
   const previousChooseLocation = global.wx.chooseLocation;
   global.wx.chooseLocation = ({ success }) => success({

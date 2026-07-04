@@ -28,11 +28,14 @@
             <view class="mrHeader">
               <view class="mrHeaderText">
                 <text class="mrTitle">多人组局</text>
-                <text class="mrSub">{{meetupRoomReady ? '位置已收齐，下一步直接算中点' : '每人填自己的位置和说明，收齐后自动开始'}}</text>
+                <text class="mrSub">每人填自己的位置和说明，收齐后自动开始</text>
               </view>
               <view class="mrHeaderActions">
-                <text class="mrProgressBadge {{meetupRoomReady ? 'ready' : ''}}">{{meetupProgressBadgeText}}</text>
-                <text class="mrBack" data-mode="single" bindtap="selectAreaMode">← 回单人</text>
+                <text class="mrProgressBadge">{{meetupProgressBadgeText}}</text>
+                <view class="mrHomeLink" data-mode="single" bindtap="selectAreaMode">
+                  <view class="mrHomeIcon"><view class="mrHomeRoof"></view><view class="mrHomeBody"></view></view>
+                  <text>回到首页</text>
+                </view>
               </view>
             </view>
 
@@ -126,7 +129,6 @@
 
             <view wx:if="{{meetupSharedMode}}" class="mrRoster">
               <button class="mrShareBtn large" open-type="share" hover-class="is-press" hover-stay-time="80">邀请朋友填位置</button>
-              <text class="mrSyncText">{{meetupProgressHint}}</text>
               <text wx:if="{{meetupRoomSyncText}}" class="mrSyncSub">{{meetupRoomSyncText}}</text>
             </view>
 
@@ -143,7 +145,10 @@
               </view>
               <view class="mrBackGroup">
                 <text class="mrBack" bindtap="backToMeetupCollect">← 改出发地</text>
-                <text class="mrBack" data-mode="single" bindtap="selectAreaMode">退出组局 · 回单人</text>
+                <view class="mrHomeLink" data-mode="single" bindtap="selectAreaMode">
+                  <view class="mrHomeIcon"><view class="mrHomeRoof"></view><view class="mrHomeBody"></view></view>
+                  <text>回到首页</text>
+                </view>
               </view>
             </view>
 

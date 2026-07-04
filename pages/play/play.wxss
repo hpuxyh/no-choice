@@ -4123,11 +4123,25 @@ button.detailRouteTab,
 /* 多人到达榜卡片:缩小照片给到达榜留足空间 */
 .faceCard.hasBoard .art,
 .faceCard.hasBoard .photoCarouselWrap {
-  height: 42%;
+  height: 36%;
+}
+
+.faceCard.hasBoard .info {
+  gap: 8rpx;
+  padding-bottom: 34rpx;
 }
 
 .faceCard.hasBoard .arrivalBoard {
   margin-top: 6rpx;
+  padding: 10rpx 13rpx;
+}
+
+.faceCard.hasBoard .arrivalRow {
+  padding: 8rpx 0;
+}
+
+.faceCard.hasBoard .arrivalSummary {
+  margin-top: 8rpx;
 }
 
 .cardFootRow {
@@ -4135,7 +4149,9 @@ button.detailRouteTab,
   align-items: center;
   justify-content: space-between;
   gap: 12rpx;
-  margin-top: 8rpx;
+  margin-top: auto;
+  padding-top: 8rpx;
+  padding-bottom: 8rpx;
 }
 
 .cardDetailHint {
@@ -4221,6 +4237,50 @@ button.detailRouteTab,
   padding: 4rpx 0;
 }
 
+.mrHomeLink {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8rpx;
+  color: #6b6353;
+  font-size: 23rpx;
+  font-weight: 850;
+  padding: 4rpx 0;
+}
+
+.mrHomeIcon {
+  position: relative;
+  width: 28rpx;
+  height: 28rpx;
+  flex: none;
+}
+
+.mrHomeRoof {
+  position: absolute;
+  left: 4rpx;
+  top: 0;
+  width: 18rpx;
+  height: 18rpx;
+  border-left: 4rpx solid #6b6353;
+  border-top: 4rpx solid #6b6353;
+  transform: rotate(45deg);
+  transform-origin: center;
+  box-sizing: border-box;
+}
+
+.mrHomeBody {
+  position: absolute;
+  left: 5rpx;
+  right: 5rpx;
+  bottom: 0;
+  height: 16rpx;
+  border: 4rpx solid #6b6353;
+  border-top: 0;
+  border-radius: 2rpx;
+  box-sizing: border-box;
+}
+
 .mrBackGroup {
   flex: none;
   display: flex;
@@ -4252,10 +4312,6 @@ button.detailRouteTab,
   font-weight: 950;
   line-height: 1;
   box-sizing: border-box;
-}
-
-.mrProgressBadge.ready {
-  min-width: 116rpx;
 }
 
 .meetupMapShell {
@@ -4323,17 +4379,6 @@ button.mrShareBtn,
 
 button.mrShareBtn::after {
   border: 0;
-}
-
-.mrSyncText {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  color: #6f6a63;
-  font-size: 21rpx;
-  font-weight: 800;
-  text-align: center;
-  line-height: 1.35;
 }
 
 button.mrShareBtn,
