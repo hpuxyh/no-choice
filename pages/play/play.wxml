@@ -142,9 +142,10 @@
 
             <view wx:if="{{meetupSharedMode}}" class="mrRoster">
               <view class="mrRosterHead">
-                <text>已收集成员</text>
+                <text>已收集朋友</text>
                 <text bindtap="refreshSharedMeetupRoom">刷新</text>
               </view>
+              <view wx:if="{{meetupRosterRows.length === 0}}" class="mrRosterEmpty">还在等朋友提交位置</view>
               <view wx:for="{{meetupRosterRows}}" wx:key="id" class="mrRosterRow {{item.location ? 'ready' : ''}}">
                 <text class="mrRosterAvatar">{{item.roleShort}}</text>
                 <view class="mrRosterText">

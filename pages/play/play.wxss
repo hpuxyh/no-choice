@@ -4409,6 +4409,17 @@ button.mrShareBtn,
   text-decoration: underline;
 }
 
+.mrRosterEmpty {
+  min-height: 52rpx;
+  border-radius: 12rpx;
+  background: rgba(239, 232, 216, .72);
+  color: #7b7165;
+  font-size: 20rpx;
+  font-weight: 850;
+  line-height: 52rpx;
+  text-align: center;
+}
+
 .mrRosterRow {
   min-height: 56rpx;
 }

@@ -565,18 +565,53 @@ function wxRequestJson(options = {}) {
         "content-type": "application/json",
         ...(options.header || {})
       },
+      timeout: options.timeout || 12000,
       success: (res) => {
         const status = Number(res && res.statusCode) || 0;
-        const data = res && res.data;
+        let data = res && res.data;
+        if (typeof data === "string") {
+          try {
+            data = JSON.parse(data);
+          } catch (error) {
+            // Keep the original string so the non-JSON guard below can report it.
+          }
+        }
+        if (status >= 200 && status < 300 && data && typeof data !== "object") {
+          const error = new Error("response not json");
+          error.statusCode = status;
+          error.responseData = data;
+          error.url = options.url;
+          reject(error);
+          return;
+        }
         if (status >= 200 && status < 300 && (!data || data.ok !== false)) {
           resolve(data || {});
           return;
         }
-        reject(new Error((data && data.message) || `request failed ${status}`));
+        const error = new Error((data && data.message) || `request failed ${status}`);
+        error.statusCode = status;
+        error.responseData = data;
+        error.url = options.url;
+        reject(error);
       },
-      fail: reject
+      fail: (error) => {
+        const wrapped = new Error(String(error && error.errMsg || "wx.request fail"));
+        wrapped.wxError = error;
+        wrapped.url = options.url;
+        reject(wrapped);
+      }
     });
   });
+}
+
+function meetupRoomRequestIssue(error) {
+  const raw = String(error && (error.message || error.errMsg) || error || "").trim();
+  if (/not in domain list|合法域名|url not in/i.test(raw)) return "同步域名还没生效，请重新扫码";
+  if (/response not json/i.test(raw)) return "同步接口返回了网页，请检查域名";
+  if (/timeout|time out/i.test(raw)) return "同步服务超时";
+  if (/fail|network|ERR_|abort|interrupted/i.test(raw)) return "手机暂时连不上同步服务";
+  if (error && error.statusCode) return `接口返回 ${error.statusCode}`;
+  return raw ? raw.slice(0, 34) : "未知网络错误";
 }
 
 function defaultMultiAreaRole(index) {
@@ -871,10 +906,10 @@ function meetupSelfRows(rows = []) {
 }
 
 function meetupRosterRows(rows = []) {
-  return normalizeMultiAreaRows(rows).map((row, index) => ({
+  return normalizeMultiAreaRows(rows).filter((row) => !row.isSelf).map((row, index) => ({
     ...row,
     index,
-    role: row.isSelf ? `${row.role || "我"}（我）` : row.role,
+    role: row.role,
     rosterStatus: row.location ? row.location : "还没填位置"
   }));
 }
@@ -1495,7 +1530,9 @@ Page({
       return true;
     }).catch((error) => {
       console.warn("Publish meetup room failed", error);
-      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "本地已保存，网络恢复后再同步" });
+      const reason = meetupRoomRequestIssue(error);
+      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: `同步失败：${reason}` });
+      if (!options.silent) this.showToast(`同步失败：${reason}`);
       return false;
     });
   },
@@ -1521,8 +1558,9 @@ Page({
       return data;
     }).catch((error) => {
       console.warn("Pull meetup room failed", error);
-      if (!options.silent) this.showToast("房间暂时没刷新，稍后再试");
-      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "本地草稿可用，稍后自动刷新" });
+      const reason = meetupRoomRequestIssue(error);
+      if (!options.silent) this.showToast(`刷新失败：${reason}`);
+      this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: `刷新失败：${reason}` });
       return null;
     });
   },

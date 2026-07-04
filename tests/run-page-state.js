@@ -65,7 +65,7 @@ function defer() {
   assert.strictEqual(sharedRoomPage.data.meetupRoomId, "room-shared");
   assert.strictEqual(sharedRoomPage.data.multiAreaRows.length, 1);
   assert.strictEqual(sharedRoomPage.data.meetupSelfRows.length, 1);
-  assert.strictEqual(sharedRoomPage.data.meetupRosterRows.length, 1);
+  assert.strictEqual(sharedRoomPage.data.meetupRosterRows.length, 0);
   const sharedRoomShare = sharedRoomPage.onShareAppMessage();
   assert.strictEqual(sharedRoomShare.path, "/pages/play/play?roomId=room-shared");
 
