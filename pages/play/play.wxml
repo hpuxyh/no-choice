@@ -53,7 +53,7 @@
 
             <view wx:if="{{meetupSharedMode}}" class="mrProfileBox">
               <view class="mrProfileTop">
-                <input class="mrNameInput" type="nickname" value="{{meetupSelfName}}" placeholder="你的微信昵称" bindinput="onMeetupNameInput" />
+                <input class="mrNameInput" type="nickname" confirm-type="done" value="{{meetupSelfName}}" placeholder="你的微信昵称" bindinput="onMeetupNameInput" bindblur="onMeetupNameInput" bindconfirm="onMeetupNameInput" />
                 <button class="mrNickBtn" hover-class="is-press" hover-stay-time="80" bindtap="authorizeMeetupProfile">使用微信昵称</button>
               </view>
               <view class="mrShareRow">

@@ -528,9 +528,17 @@ function createMeetupParticipantId() {
   return `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function normalizeMeetupDisplayName(value) {
+  const name = String(value || "").trim().slice(0, 24);
+  if (!name) return "";
+  const key = name.replace(/\s+/g, "").toLowerCase();
+  if (/^(微信用户|微信用戶|wechatuser|wechat用户|微信昵称|你的微信昵称|匿名用户)$/iu.test(key)) return "";
+  return name;
+}
+
 function normalizeMeetupSelfProfile(profile = {}) {
   const id = String(profile.id || profile.openid || profile.unionid || "").trim() || createMeetupParticipantId();
-  const name = String(profile.name || profile.nickName || "").trim().slice(0, 24);
+  const name = normalizeMeetupDisplayName(profile.name || profile.nickName);
   return { id, name };
 }
 
@@ -661,6 +669,7 @@ function normalizeMultiAreaRows(rows = []) {
     const isHost = Boolean(hasExplicitHost ? row.isHost : index === 0);
     const isSelf = Boolean(row && row.isSelf);
     const pref = String(row && row.pref || "").trim();
+    const locationSource = String(row && row.locationSource || "").trim();
     const travels = normalizeTravels(row);
     const travelMap = {};
     travels.forEach((key) => { travelMap[key] = true; });
@@ -681,6 +690,7 @@ function normalizeMultiAreaRows(rows = []) {
       pref,
       travels,
       travelMap,
+      locationSource,
       updatedAt: row && row.updatedAt ? row.updatedAt : 0
     };
   });
@@ -838,20 +848,23 @@ function meetupRoomStatus(rows = []) {
 
 // 把冗长逆地理地址精简成「区 · 街道 · 门牌」可读短串,避免输入框里被截断
 function meetupRowsFromParticipants(participants = []) {
-  return (participants || []).map((item, index) => ({
-    id: String(item && item.id || `member-${index + 1}`),
-    role: String(item && item.name || `成员${index + 1}`),
-    people: clampMultiAreaPeople(item && item.people),
-    location: String(item && item.location || "").trim(),
-    latitude: Number.isFinite(Number(item && (item.lat ?? item.latitude))) ? Number(item.lat ?? item.latitude) : null,
-    longitude: Number.isFinite(Number(item && (item.lng ?? item.longitude))) ? Number(item.lng ?? item.longitude) : null,
-    pref: String(item && item.pref || "").trim(),
-    travels: Array.isArray(item && item.travels) ? item.travels : [],
-    updatedAt: Number(item && item.updatedAt) || 0,
-    isHost: false,
-    isSelf: false,
-    joined: Boolean(item && item.location)
-  }));
+  return (participants || []).map((item, index) => {
+    const role = normalizeMeetupDisplayName(item && item.name) || `成员${index + 1}`;
+    return {
+      id: String(item && item.id || `member-${index + 1}`),
+      role,
+      people: clampMultiAreaPeople(item && item.people),
+      location: String(item && item.location || "").trim(),
+      latitude: Number.isFinite(Number(item && (item.lat ?? item.latitude))) ? Number(item.lat ?? item.latitude) : null,
+      longitude: Number.isFinite(Number(item && (item.lng ?? item.longitude))) ? Number(item.lng ?? item.longitude) : null,
+      pref: String(item && item.pref || "").trim(),
+      travels: Array.isArray(item && item.travels) ? item.travels : [],
+      updatedAt: Number(item && item.updatedAt) || 0,
+      isHost: false,
+      isSelf: false,
+      joined: Boolean(item && item.location)
+    };
+  });
 }
 
 function participantFromMeetupRow(row, profile = {}) {
@@ -859,7 +872,7 @@ function participantFromMeetupRow(row, profile = {}) {
   const source = row || selfMultiAreaRow(normalized);
   return {
     id: normalized.id,
-    name: normalized.name || source.role || "我",
+    name: normalized.name,
     people: clampMultiAreaPeople(source.people),
     location: String(source.location || "").trim(),
     lat: Number.isFinite(Number(source.latitude)) ? Number(source.latitude) : null,
@@ -874,7 +887,8 @@ function decorateSharedMeetupRows(rows = [], profile = {}) {
   const selfId = normalizedProfile.id;
   const prepared = normalizeMultiAreaRows(rows).map((row) => {
     const isSelf = String(row.id) === selfId || row.isSelf;
-    const role = isSelf ? (normalizedProfile.name || row.role || "我") : (row.role || "成员");
+    const rowRole = normalizeMeetupDisplayName(row.role);
+    const role = isSelf ? (normalizedProfile.name || rowRole || "我") : (rowRole || "成员");
     return {
       ...row,
       role,
@@ -888,13 +902,14 @@ function decorateSharedMeetupRows(rows = [], profile = {}) {
   if (!prepared.some((row) => row.isSelf)) prepared.unshift(selfMultiAreaRow(normalizedProfile));
   return normalizeMultiAreaRows(prepared).map((row, index) => {
     const isSelf = String(row.id) === selfId;
+    const rowRole = normalizeMeetupDisplayName(row.role);
     return {
       ...row,
       index,
       isSelf,
       isHost: isSelf,
-      role: isSelf ? (normalizedProfile.name || row.role || "我") : row.role,
-      roleShort: isSelf ? "我" : shortMultiAreaRole(row.role, index),
+      role: isSelf ? (normalizedProfile.name || rowRole || "我") : (rowRole || "成员"),
+      roleShort: isSelf ? "我" : shortMultiAreaRole(rowRole || "成员", index),
       statusText: row.location ? (isSelf ? "已提交你的位置" : "已提交位置") : (isSelf ? "等你填写自己的位置" : "等待对方填写"),
       placeholder: isSelf ? "只填你自己的出发地" : row.placeholder
     };
@@ -952,6 +967,13 @@ function readableCurrentLocation(coords) {
   const text = String((coords && (coords.addressMeta || coords.label)) || "").trim();
   if (isCoarseLocationLabel(text)) return "";
   return compactAddressLabel(text);
+}
+
+function shouldKeepMeetupLocationAgainstGps(row, force) {
+  if (force || !row || !row.location) return false;
+  const source = String(row.locationSource || "").trim();
+  if (source === "gps" || source === "city") return false;
+  return true;
 }
 
 function collectCardCommuteTexts(card) {
@@ -1614,7 +1636,7 @@ Page({
     this.invalidateRestaurantContext();
   },
 
-  syncMeetupCurrentLocation(coords) {
+  syncMeetupCurrentLocation(coords, options = {}) {
     const readable = readableCurrentLocation(coords);
     if (!readable) return false;
     const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
@@ -1623,6 +1645,7 @@ Page({
     if (targetIndex < 0) targetIndex = rows.findIndex((row) => row.isHost);
     if (targetIndex < 0) targetIndex = 0;
     const target = rows[targetIndex] || (profile ? selfMultiAreaRow(profile) : normalizeMultiAreaRows(createDefaultMultiAreaRows())[0]);
+    if (shouldKeepMeetupLocationAgainstGps(target, options.force)) return false;
     const role = profile ? (profile.name || target.role || "我") : "我的位置";
     rows[targetIndex] = {
       ...target,
@@ -1634,6 +1657,7 @@ Page({
       location: readable,
       latitude: Number(coords.lat),
       longitude: Number(coords.lng),
+      locationSource: String(coords.locationSource || "gps"),
       joined: true,
       statusText: "已定位"
     };
@@ -1643,9 +1667,10 @@ Page({
 
   async refreshMeetupRoomLocation(options = {}) {
     try {
+      const force = Boolean(options && (options.force || options.currentTarget));
       const coords = await this.ensureLocation({ forceGps: true });
       const detailed = await this.refreshLocationAddress(coords).catch(() => coords);
-      const updated = this.syncMeetupCurrentLocation(detailed || coords);
+      const updated = this.syncMeetupCurrentLocation(detailed || coords, { force });
       if (!updated && !options.silent) this.showToast("只拿到城市定位，可手填具体出发地");
     } catch (error) {
       console.warn("Refresh meetup location failed", error);
@@ -1686,7 +1711,7 @@ Page({
   },
 
   onMeetupNameInput(e) {
-    const name = String(e.detail && e.detail.value || "").trim().slice(0, 24);
+    const name = normalizeMeetupDisplayName(e.detail && e.detail.value);
     const profile = this.saveMeetupSelfProfile({
       id: this.data.meetupSelfId || createMeetupParticipantId(),
       name
@@ -1696,6 +1721,17 @@ Page({
   },
 
   authorizeMeetupProfile() {
+    const existingName = normalizeMeetupDisplayName(this.data.meetupSelfName);
+    if (existingName) {
+      const profile = this.saveMeetupSelfProfile({
+        id: this.data.meetupSelfId || createMeetupParticipantId(),
+        name: existingName
+      });
+      const rows = decorateSharedMeetupRows(this.data.multiAreaRows, profile);
+      this.refreshMeetupRoomState(rows);
+      this.showToast("昵称已同步");
+      return;
+    }
     if (typeof wx === "undefined" || typeof wx.getUserProfile !== "function") {
       this.showToast("点昵称输入框，可使用微信昵称");
       return;
@@ -1703,9 +1739,9 @@ Page({
     wx.getUserProfile({
       desc: "用于在组局房间显示你的昵称",
       success: (res) => {
-        const name = String(res && res.userInfo && res.userInfo.nickName || "").trim();
+        const name = normalizeMeetupDisplayName(res && res.userInfo && res.userInfo.nickName);
         if (!name) {
-          this.showToast("没有拿到昵称，可以手动填");
+          this.showToast("微信只返回匿名昵称，请点左侧填写");
           return;
         }
         const profile = this.saveMeetupSelfProfile({
@@ -1728,7 +1764,7 @@ Page({
     const value = String(e.detail && e.detail.value || "");
     const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
     if (!rows[index]) return;
-    rows[index] = { ...rows[index], location: value.trim(), latitude: null, longitude: null };
+    rows[index] = { ...rows[index], location: value.trim(), latitude: null, longitude: null, locationSource: value.trim() ? "manual" : "" };
     this.setMultiAreaRows(rows);
   },
 
@@ -1754,6 +1790,7 @@ Page({
           location,
           latitude: Number.isFinite(latitude) ? latitude : null,
           longitude: Number.isFinite(longitude) ? longitude : null,
+          locationSource: "picked",
           joined: true,
           statusText: nextRows[index].isSelf ? "已提交你的位置" : "已定位"
         };
@@ -1837,7 +1874,11 @@ Page({
 
   // 收集完出发地→当场算中间点+逐人到达榜(结果态)
   async showMeetupRoomBoard() {
-    if (this.data.meetupSharedMode) await this.pullMeetupRoom({ silent: true });
+    if (this.data.meetupSharedMode) {
+      clearTimeout(this.meetupRoomPublishTimer);
+      await this.publishMeetupSelfRow(this.data.multiAreaRows, { silent: true });
+      await this.pullMeetupRoom({ silent: true });
+    }
     const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
     if (validMultiAreaRows(rows).length < 2) {
       this.showToast("先收齐至少两个出发地");

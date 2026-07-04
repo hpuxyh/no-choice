@@ -109,11 +109,47 @@ function defer() {
   assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].location, "People Square");
   assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].latitude, 31.2304);
   assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].longitude, 121.4737);
+  assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].locationSource, "picked");
   chooseLocationPage.onMultiAreaLocationInput({ currentTarget: { dataset: { index: 0 } }, detail: { value: "Manual Address" } });
   assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].location, "Manual Address");
   assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].latitude, null);
   assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].longitude, null);
+  assert.strictEqual(chooseLocationPage.data.multiAreaRows[0].locationSource, "manual");
   global.wx.chooseLocation = previousChooseLocation;
+
+  const manualLockPage = makePage({
+    data: {
+      meetupRoomId: "room-lock",
+      meetupSharedMode: true,
+      meetupSelfId: "self-lock",
+      meetupSelfName: "Alice",
+      multiAreaRows: [
+        { id: "self-lock", role: "Alice", people: 1, location: "北京西站", latitude: 39.89491, longitude: 116.32206, locationSource: "picked", isHost: true, isSelf: true, joined: true }
+      ]
+    }
+  });
+  assert.strictEqual(manualLockPage.syncMeetupCurrentLocation({ label: "劲松七区", addressMeta: "劲松七区", lat: 39.88, lng: 116.46, locationSource: "gps" }), false);
+  assert.strictEqual(manualLockPage.data.multiAreaRows[0].location, "北京西站");
+  assert.strictEqual(manualLockPage.data.multiAreaRows[0].latitude, 39.89491);
+  assert.strictEqual(manualLockPage.syncMeetupCurrentLocation({ label: "劲松七区", addressMeta: "劲松七区", lat: 39.88, lng: 116.46, locationSource: "gps" }, { force: true }), true);
+  assert.strictEqual(manualLockPage.data.multiAreaRows[0].location, "劲松七区");
+  assert.strictEqual(manualLockPage.data.multiAreaRows[0].locationSource, "gps");
+
+  const genericNamePage = makePage({
+    data: {
+      meetupRoomId: "room-name",
+      meetupSharedMode: true,
+      meetupSelfId: "self-name",
+      meetupSelfName: "",
+      multiAreaRows: [
+        { id: "self-name", role: "我", people: 1, location: "", isHost: true, isSelf: true, joined: false }
+      ]
+    }
+  });
+  genericNamePage.onMeetupNameInput({ detail: { value: "微信用户" } });
+  assert.strictEqual(genericNamePage.data.meetupSelfName, "");
+  genericNamePage.onMeetupNameInput({ detail: { value: "Alice" } });
+  assert.strictEqual(genericNamePage.data.meetupSelfName, "Alice");
 
   // 单设备多人组局:更新我的位置 → 始终写进 host 行(已无主客/分享区别)
   const hostUpdatePage = makePage({

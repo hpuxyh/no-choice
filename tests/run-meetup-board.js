@@ -5,6 +5,7 @@ assert.strictEqual(typeof engine.resolveMeetupRoomBoard, "function", "应导出 
 assert.strictEqual(typeof engine.__test.resolveMeetupRoomBoard, "function");
 assert.strictEqual(typeof engine.__test.meetupBoardMapGeometry, "function");
 assert.strictEqual(typeof engine.__test.meetupBoardRangeRadius, "function");
+assert.strictEqual(typeof engine.__test.meetupParticipantFromKnownCoords, "function");
 
 const participants = [
   { label: "我", short: "我", location: { lat: 39.98, lng: 116.31 } },
@@ -27,6 +28,19 @@ assert.strictEqual(geometry.includePoints.length, 3);
 assert(geometry.polylines.some((line) => (
   line.points[1].latitude === middle.lat && line.points[1].longitude === middle.lng
 )), "每组长虚线最后一段应抵达中点");
+
+const pickedHost = engine.__test.meetupParticipantFromKnownCoords(
+  { isHost: true, roleShort: "我", location: "北京西站", latitude: 39.89491, longitude: 116.32206 },
+  { label: "劲松七区", addressMeta: "劲松七区", lat: 39.88, lng: 116.46 }
+);
+assert.strictEqual(pickedHost.placeLabel, "北京西站", "host 已选出发地时不应用当前 GPS 名称");
+assert.strictEqual(pickedHost.location.lat, 39.89491, "host 已选出发地时应使用行内坐标");
+
+const currentHost = engine.__test.meetupParticipantFromKnownCoords(
+  { isHost: true, roleShort: "我", location: "" },
+  { label: "劲松七区", addressMeta: "劲松七区", lat: 39.88, lng: 116.46 }
+);
+assert.strictEqual(currentHost.placeLabel, "劲松七区", "host 没填出发地时才使用当前 GPS");
 
 (async () => {
   // 少于 2 行 → 直接 null(不触发网络)

@@ -3799,18 +3799,45 @@ function meetupBoardMapGeometry(participants = [], middle = null, rangeRadius = 
   return { markers, polylines, circles, includePoints };
 }
 
+function meetupParticipantFromKnownCoords(row = {}, coords = null) {
+  const hint = String(row.location || "").trim();
+  const hasExplicitHint = Boolean(hint && !isRestaurantCurrentLocationHint(hint));
+  const rowPoint = hasExplicitHint ? normalizeCoord(row) : null;
+  if (rowPoint && restaurantValidCoords(rowPoint)) {
+    const placeLabel = restaurantParticipantDisplayLabel(hint, rowPoint);
+    return {
+      label: placeLabel,
+      placeLabel,
+      short: String(row.roleShort || placeLabel || "友").slice(0, 1),
+      travels: Array.isArray(row.travels) ? row.travels : [],
+      location: { ...rowPoint, label: rowPoint.label || hint, addressMeta: rowPoint.addressMeta || hint }
+    };
+  }
+  if (row.isHost && !hasExplicitHint && coords) {
+    const userPoint = normalizeCoord(coords);
+    if (userPoint && restaurantValidCoords(userPoint)) {
+      const rawLabel = restaurantShortPlaceLabel(userPoint.addressMeta || userPoint.label);
+      const hostLabel = (rawLabel && rawLabel !== "位置" && rawLabel.length >= 2) ? rawLabel : "我这边";
+      return {
+        label: hostLabel,
+        placeLabel: hostLabel,
+        short: "我",
+        travels: Array.isArray(row.travels) ? row.travels : [],
+        location: { ...userPoint }
+      };
+    }
+  }
+  return null;
+}
+
 async function resolveMeetupRoomBoard(rows, coords) {
   const cleanRows = (Array.isArray(rows) ? rows : []).filter(Boolean);
   const participants = [];
   for (const row of cleanRows) {
-    if (row.isHost && coords) {
-      const userPoint = normalizeCoord(coords);
-      if (userPoint && restaurantValidCoords(userPoint)) {
-        const rawLabel = restaurantShortPlaceLabel(userPoint.addressMeta || userPoint.label);
-        const hostLabel = (rawLabel && rawLabel !== "位置" && rawLabel.length >= 2) ? rawLabel : "我这边";
-        participants.push({ label: hostLabel, placeLabel: hostLabel, short: "我", travels: Array.isArray(row.travels) ? row.travels : [], location: { ...userPoint } });
-        continue;
-      }
+    const knownParticipant = meetupParticipantFromKnownCoords(row, coords);
+    if (knownParticipant) {
+      if (!participants.some((item) => sameRestaurantCoords(item.location, knownParticipant.location))) participants.push(knownParticipant);
+      continue;
     }
     const hint = String(row.location || "").trim();
     if (!hint || isRestaurantCurrentLocationHint(hint)) continue;
@@ -4354,6 +4381,7 @@ module.exports = {
     detailRouteRowsForPoi,
     meetupBoardMapGeometry,
     meetupBoardRangeRadius,
+    meetupParticipantFromKnownCoords,
     restaurantCardImages,
     restaurantDetailPayloadForPoi,
     restaurantDishHintsForPoi
