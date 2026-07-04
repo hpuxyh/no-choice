@@ -66,8 +66,72 @@ function defer() {
   assert.strictEqual(sharedRoomPage.data.multiAreaRows.length, 1);
   assert.strictEqual(sharedRoomPage.data.meetupSelfRows.length, 1);
   assert.strictEqual(sharedRoomPage.data.meetupRosterRows.length, 0);
+  assert.strictEqual(sharedRoomPage.data.meetupProgressBadgeText, "0/2");
+  assert.strictEqual(sharedRoomPage.data.meetupProgressButtonText, "0/2 等朋友填完");
   const sharedRoomShare = sharedRoomPage.onShareAppMessage();
   assert.strictEqual(sharedRoomShare.path, "/pages/play/play?roomId=room-shared");
+
+  let requestCount = 0;
+  const previousRequest = global.wx.request;
+  global.wx.request = () => { requestCount += 1; };
+  const stalePublishPage = makePage({
+    data: {
+      meetupRoomId: "room-new",
+      meetupSharedMode: true,
+      meetupSelfId: "self-stale",
+      meetupSelfName: "Alice",
+      multiAreaRows: [
+        { id: "self-stale", role: "Alice", people: 1, location: "A", isHost: true, isSelf: true, joined: true }
+      ]
+    }
+  });
+  assert.strictEqual(await stalePublishPage.publishMeetupSelfRow(stalePublishPage.data.multiAreaRows, { silent: true, roomId: "room-old" }), false);
+  assert.strictEqual(requestCount, 0, "旧房间延迟发布不应打到当前房间");
+  global.wx.request = previousRequest;
+
+  global.wx.request = ({ success }) => success({
+    statusCode: 200,
+    data: {
+      ok: true,
+      roomId: "room-other",
+      participants: [
+        { id: "friend-other", name: "Other", location: "Should Not Merge", lat: 1, lng: 2 }
+      ]
+    }
+  });
+  const mismatchPullPage = makePage({
+    data: {
+      meetupRoomId: "room-current",
+      meetupSharedMode: true,
+      meetupSelfId: "self-current",
+      meetupSelfName: "Alice",
+      multiAreaRows: [
+        { id: "self-current", role: "Alice", people: 1, location: "Self Place", isHost: true, isSelf: true, joined: true }
+      ]
+    }
+  });
+  await mismatchPullPage.pullMeetupRoom({ silent: false });
+  assert.strictEqual(mismatchPullPage.data.multiAreaRows.length, 1);
+  assert.strictEqual(mismatchPullPage.data.multiAreaRows[0].location, "Self Place");
+  assert.strictEqual(mismatchPullPage.data.meetupRoomSyncText, "房间号不一致，已忽略");
+  global.wx.request = previousRequest;
+
+  const progressPage = makePage({
+    data: {
+      meetupRoomId: "room-progress",
+      meetupSharedMode: true,
+      meetupSelfId: "self-progress",
+      meetupSelfName: "Alice",
+      multiAreaRows: [
+        { id: "self-progress", role: "Alice", people: 1, location: "A", isHost: true, isSelf: true, joined: true },
+        { id: "friend-progress", role: "Bob", people: 1, location: "B", isHost: false, isSelf: false, joined: true }
+      ]
+    }
+  });
+  progressPage.refreshMeetupRoomState(progressPage.data.multiAreaRows, { skipPublish: true });
+  assert.strictEqual(progressPage.data.meetupRoomReady, true);
+  assert.strictEqual(progressPage.data.meetupProgressBadgeText, "已集齐");
+  assert.strictEqual(progressPage.data.meetupProgressButtonText, "已集齐，开始");
 
   const sharedUpdatePage = makePage({
     data: {
@@ -86,6 +150,8 @@ function defer() {
   assert.strictEqual(sharedUpdatePage.data.multiAreaRows[1].id, "self-1");
   assert.strictEqual(sharedUpdatePage.data.multiAreaRows[1].location, "Xujiahui");
   assert.strictEqual(sharedUpdatePage.data.meetupSelfRows[0].id, "self-1");
+  assert.strictEqual(sharedUpdatePage.data.meetupProgressBadgeText, "已集齐");
+  assert.strictEqual(sharedUpdatePage.data.meetupProgressButtonText, "已集齐，开始");
 
   const previousChooseLocation = global.wx.chooseLocation;
   global.wx.chooseLocation = ({ success }) => success({
@@ -134,22 +200,6 @@ function defer() {
   assert.strictEqual(manualLockPage.syncMeetupCurrentLocation({ label: "劲松七区", addressMeta: "劲松七区", lat: 39.88, lng: 116.46, locationSource: "gps" }, { force: true }), true);
   assert.strictEqual(manualLockPage.data.multiAreaRows[0].location, "劲松七区");
   assert.strictEqual(manualLockPage.data.multiAreaRows[0].locationSource, "gps");
-
-  const genericNamePage = makePage({
-    data: {
-      meetupRoomId: "room-name",
-      meetupSharedMode: true,
-      meetupSelfId: "self-name",
-      meetupSelfName: "",
-      multiAreaRows: [
-        { id: "self-name", role: "我", people: 1, location: "", isHost: true, isSelf: true, joined: false }
-      ]
-    }
-  });
-  genericNamePage.onMeetupNameInput({ detail: { value: "微信用户" } });
-  assert.strictEqual(genericNamePage.data.meetupSelfName, "");
-  genericNamePage.onMeetupNameInput({ detail: { value: "Alice" } });
-  assert.strictEqual(genericNamePage.data.meetupSelfName, "Alice");
 
   // 单设备多人组局:更新我的位置 → 始终写进 host 行(已无主客/分享区别)
   const hostUpdatePage = makePage({

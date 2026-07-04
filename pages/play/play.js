@@ -846,6 +846,27 @@ function meetupRoomStatus(rows = []) {
   return `已收集 ${valid.length} 个出发地 · 共 ${total} 人`;
 }
 
+function meetupRoomExpectedCount(value) {
+  const numeric = Math.round(Number(value) || 2);
+  return Math.max(2, Math.min(MAX_MULTI_AREA_ROWS, numeric));
+}
+
+function meetupRoomProgress(rows = [], expectedCount = 2) {
+  const count = validMultiAreaRows(rows).length;
+  const target = meetupRoomExpectedCount(expectedCount);
+  const ready = count >= target;
+  const left = Math.max(0, target - count);
+  return {
+    count,
+    target,
+    ready,
+    left,
+    badgeText: ready ? "已集齐" : `${count}/${target}`,
+    buttonText: ready ? "已集齐，开始" : `${count}/${target} 等朋友填完`,
+    hintText: ready ? "已集齐 · 点下面开始" : `当前 ${count}/${target} · 朋友打开链接后只填自己的这份`
+  };
+}
+
 // 把冗长逆地理地址精简成「区 · 街道 · 门牌」可读短串,避免输入框里被截断
 function meetupRowsFromParticipants(participants = []) {
   return (participants || []).map((item, index) => {
@@ -917,7 +938,14 @@ function decorateSharedMeetupRows(rows = [], profile = {}) {
 }
 
 function meetupSelfRows(rows = []) {
-  return normalizeMultiAreaRows(rows).filter((row) => row.isSelf).map((row, index) => ({ ...row, index: row.index ?? index }));
+  return normalizeMultiAreaRows(rows).filter((row) => row.isSelf).map((row, index) => {
+    const source = String(row.locationSource || "");
+    return {
+      ...row,
+      index: row.index ?? index,
+      locationSourceText: source === "picked" || source === "manual" ? "已手动修改" : "默认当前定位"
+    };
+  });
 }
 
 function meetupRosterRows(rows = []) {
@@ -1066,6 +1094,10 @@ Page({
     meetupSelfName: "",
     meetupSelfRows: [],
     meetupRosterRows: [],
+    meetupRoomReady: false,
+    meetupProgressBadgeText: "0/2",
+    meetupProgressButtonText: "0/2 等朋友填完",
+    meetupProgressHint: "当前 0/2 · 朋友打开链接后只填自己的这份",
     meetupRoomSharePath: "",
     meetupRoomSyncing: false,
     meetupRoomSyncText: "",
@@ -1187,7 +1219,8 @@ Page({
   onShareAppMessage() {
     if (this.data.meetupSharedMode || this.data.areaMode === "multi") {
       const roomId = this.ensureMeetupRoomId();
-      this.publishMeetupSelfRow(this.data.multiAreaRows, { silent: true });
+      clearTimeout(this.meetupRoomPublishTimer);
+      this.publishMeetupSelfRow(this.data.multiAreaRows, { silent: true, roomId });
       return {
         title: "来填你的位置，一起找中间点吃饭",
         path: meetupSharePath(roomId)
@@ -1483,19 +1516,6 @@ Page({
     return profile;
   },
 
-  saveMeetupSelfProfile(profile) {
-    const normalized = normalizeMeetupSelfProfile(profile);
-    if (typeof wx !== "undefined" && typeof wx.setStorageSync === "function") {
-      try {
-        wx.setStorageSync(MEETUP_SELF_STORAGE_KEY, normalized);
-      } catch (error) {
-        console.warn("Save meetup self profile failed", error);
-      }
-    }
-    this.setData({ meetupSelfId: normalized.id, meetupSelfName: normalized.name });
-    return normalized;
-  },
-
   loadMeetupRoomDraft(roomId) {
     if (!roomId || !wx.getStorageSync) return null;
     try {
@@ -1525,9 +1545,10 @@ Page({
   scheduleMeetupRoomPublish(rows = null) {
     if (!this.data.meetupSharedMode || typeof wx === "undefined" || typeof wx.request !== "function") return;
     clearTimeout(this.meetupRoomPublishTimer);
+    const roomId = this.ensureMeetupRoomId();
     const snapshot = normalizeMultiAreaRows(rows || this.data.multiAreaRows);
     this.meetupRoomPublishTimer = setTimeout(() => {
-      this.publishMeetupSelfRow(snapshot, { silent: true });
+      this.publishMeetupSelfRow(snapshot, { silent: true, roomId });
     }, 450);
   },
 
@@ -1535,7 +1556,11 @@ Page({
     if (!this.data.meetupSharedMode || typeof wx === "undefined" || typeof wx.request !== "function") {
       return Promise.resolve(false);
     }
-    const roomId = this.ensureMeetupRoomId();
+    const currentRoomId = this.ensureMeetupRoomId();
+    const roomId = String(options.roomId || currentRoomId).trim();
+    if (!roomId || roomId !== String(this.data.meetupRoomId || "").trim()) {
+      return Promise.resolve(false);
+    }
     const profile = this.ensureMeetupSelfProfile();
     const normalized = normalizeMultiAreaRows(rows || this.data.multiAreaRows);
     const selfRow = normalized.find((row) => String(row.id) === profile.id || row.isSelf) || selfMultiAreaRow(profile);
@@ -1572,6 +1597,10 @@ Page({
       url: `${MEETUP_ROOM_ENDPOINT}?roomId=${encodeURIComponent(roomId)}`
     }).then((data) => {
       if (seq !== this.meetupRoomPullSeq) return data;
+      if (String(data && data.roomId || "") !== roomId || String(this.data.meetupRoomId || "") !== roomId) {
+        this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "房间号不一致，已忽略" });
+        return data;
+      }
       const remoteRows = meetupRowsFromParticipants(data && data.participants);
       const rows = mergeMeetupRemoteRows(this.data.multiAreaRows, remoteRows, profile);
       this.refreshMeetupRoomState(rows, { skipPublish: true });
@@ -1613,12 +1642,17 @@ Page({
       ? decorateSharedMeetupRows(rows, profile)
       : normalizeMultiAreaRows(rows);
     const center = meetupRoomMapCenter(normalized, options.coords || this.data.lastCoords);
+    const progress = meetupRoomProgress(normalized, this.data.partySize);
     this.setData({
       multiAreaRows: normalized,
       meetupSelfRows: meetupSelfRows(normalized),
       meetupRosterRows: meetupRosterRows(normalized),
       multiAreaSummary: multiAreaSummary(normalized),
-      multiAreaReady: validMultiAreaRows(normalized).length >= 2,
+      multiAreaReady: progress.ready,
+      meetupRoomReady: progress.ready,
+      meetupProgressBadgeText: progress.badgeText,
+      meetupProgressButtonText: progress.buttonText,
+      meetupProgressHint: progress.hintText,
       meetupRoomStatus: meetupRoomStatus(normalized),
       meetupRoomMapLat: center.lat,
       meetupRoomMapLng: center.lng,
@@ -1708,51 +1742,6 @@ Page({
 
   goMultiAreaSetup() {
     this.enterMeetupRoom(this.data.meetupRoomId);
-  },
-
-  onMeetupNameInput(e) {
-    const name = normalizeMeetupDisplayName(e.detail && e.detail.value);
-    const profile = this.saveMeetupSelfProfile({
-      id: this.data.meetupSelfId || createMeetupParticipantId(),
-      name
-    });
-    const rows = decorateSharedMeetupRows(this.data.multiAreaRows, profile);
-    this.refreshMeetupRoomState(rows);
-  },
-
-  authorizeMeetupProfile() {
-    const existingName = normalizeMeetupDisplayName(this.data.meetupSelfName);
-    if (existingName) {
-      const profile = this.saveMeetupSelfProfile({
-        id: this.data.meetupSelfId || createMeetupParticipantId(),
-        name: existingName
-      });
-      const rows = decorateSharedMeetupRows(this.data.multiAreaRows, profile);
-      this.refreshMeetupRoomState(rows);
-      this.showToast("昵称已同步");
-      return;
-    }
-    if (typeof wx === "undefined" || typeof wx.getUserProfile !== "function") {
-      this.showToast("点昵称输入框，可使用微信昵称");
-      return;
-    }
-    wx.getUserProfile({
-      desc: "用于在组局房间显示你的昵称",
-      success: (res) => {
-        const name = normalizeMeetupDisplayName(res && res.userInfo && res.userInfo.nickName);
-        if (!name) {
-          this.showToast("微信只返回匿名昵称，请点左侧填写");
-          return;
-        }
-        const profile = this.saveMeetupSelfProfile({
-          id: this.data.meetupSelfId || createMeetupParticipantId(),
-          name
-        });
-        const rows = decorateSharedMeetupRows(this.data.multiAreaRows, profile);
-        this.refreshMeetupRoomState(rows);
-      },
-      fail: () => this.showToast("可以手动填昵称")
-    });
   },
 
   setMultiAreaRows(rows) {
@@ -1880,8 +1869,9 @@ Page({
       await this.pullMeetupRoom({ silent: true });
     }
     const rows = normalizeMultiAreaRows(this.data.multiAreaRows);
-    if (validMultiAreaRows(rows).length < 2) {
-      this.showToast("先收齐至少两个出发地");
+    const progress = meetupRoomProgress(rows, this.data.partySize);
+    if (!progress.ready) {
+      this.showToast(`还差 ${progress.left} 个出发地`);
       return;
     }
     if (this.data.meetupBoardLoading) return;

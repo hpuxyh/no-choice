@@ -16,7 +16,7 @@
           <text>开一局就有答案</text>
         </view>
 
-        <view class="locationStatus {{locationState}}">
+        <view wx:if="{{areaMode != 'multi' || (areaStep != 'multi' && areaStep != 'board')}}" class="locationStatus {{locationState}}">
           <view class="locationInner">
             <text class="locationMain">{{locationText}}</text>
             <text wx:if="{{locationMeta}}" class="locationMeta">{{locationMeta}}</text>
@@ -28,9 +28,12 @@
             <view class="mrHeader">
               <view class="mrHeaderText">
                 <text class="mrTitle">多人组局</text>
-                <text class="mrSub">每人报一个出发位置，自动找对谁都公平的中间点</text>
+                <text class="mrSub">{{meetupRoomReady ? '位置已收齐，下一步直接算中点' : '每人填自己的位置和说明，收齐后自动开始'}}</text>
               </view>
-              <text class="mrBack" data-mode="single" bindtap="selectAreaMode">← 回单人</text>
+              <view class="mrHeaderActions">
+                <text class="mrProgressBadge {{meetupRoomReady ? 'ready' : ''}}">{{meetupProgressBadgeText}}</text>
+                <text class="mrBack" data-mode="single" bindtap="selectAreaMode">← 回单人</text>
+              </view>
             </view>
 
             <view class="meetupMapShell">
@@ -46,23 +49,12 @@
                 show-location="{{true}}"
               ></map>
             </view>
-            <view class="mrMapStatus">
+            <view wx:if="{{!meetupSharedMode}}" class="mrMapStatus">
               <text class="mrMapStatusText">{{meetupRoomStatus}}</text>
               <text class="mrMapStatusBtn" bindtap="refreshMeetupRoomLocation">更新我的位置</text>
             </view>
 
-            <view wx:if="{{meetupSharedMode}}" class="mrProfileBox">
-              <view class="mrProfileTop">
-                <input class="mrNameInput" type="nickname" confirm-type="done" value="{{meetupSelfName}}" placeholder="你的微信昵称" bindinput="onMeetupNameInput" bindblur="onMeetupNameInput" bindconfirm="onMeetupNameInput" />
-                <button class="mrNickBtn" hover-class="is-press" hover-stay-time="80" bindtap="authorizeMeetupProfile">使用微信昵称</button>
-              </view>
-              <view class="mrShareRow">
-                <text class="mrSyncText">{{meetupRoomSyncText}}</text>
-                <button class="mrShareBtn" open-type="share" hover-class="is-press" hover-stay-time="80">邀请朋友填位置</button>
-              </view>
-            </view>
-
-            <view class="mrPeopleHead">
+            <view wx:if="{{!meetupSharedMode}}" class="mrPeopleHead">
               <text class="mrPeopleTitle">{{meetupSharedMode ? '我的出发地' : '成员出发地'}}</text>
               <text class="mrPeopleHint">{{meetupSharedMode ? '只填你自己的这一份' : '把群里大家的位置和口味填进来'}}</text>
             </view>
@@ -105,27 +97,19 @@
               <button wx:if="{{multiAreaRows.length < 6}}" class="mrAddPerson" hover-class="is-press" hover-stay-time="80" bindtap="addMultiAreaRow">＋ 加一个朋友位</button>
             </view>
 
-            <view wx:if="{{meetupSharedMode}}" class="mrPeopleList">
-              <view wx:for="{{meetupSelfRows}}" wx:key="id" class="mrPerson {{item.location ? 'joined' : 'pending'}} host">
-                <view class="mrPersonTop">
-                  <text class="mrAvatar">{{item.roleShort}}</text>
-                  <view class="mrNameWrap">
-                    <text class="mrName">{{item.role}}</text>
-                    <text class="mrStatus">{{item.statusText}}</text>
-                  </view>
-                  <view class="mrStepper">
-                    <text class="mrStepBtn" data-index="{{item.index}}" data-delta="-1" catchtap="adjustMultiAreaPeople">−</text>
-                    <text class="mrStepVal">{{item.people}}人</text>
-                    <text class="mrStepBtn" data-index="{{item.index}}" data-delta="1" catchtap="adjustMultiAreaPeople">＋</text>
-                  </view>
+            <view wx:if="{{meetupSharedMode}}" class="mrPeopleList mrSharedSelfList">
+              <view wx:for="{{meetupSelfRows}}" wx:key="id" class="mrSelfCard {{item.location ? 'joined' : 'pending'}}">
+                <view class="mrSelfHead">
+                  <text class="mrSelfTitle">我的出发信息</text>
+                  <text class="mrSelfSource">{{item.locationSourceText}}</text>
                 </view>
                 <view class="mrLocationRow">
-                  <input class="mrLocation" value="{{item.location}}" placeholder="{{item.placeholder}}" data-index="{{item.index}}" bindinput="onMultiAreaLocationInput" />
-                  <button class="mrPickLocation" data-index="{{item.index}}" hover-class="is-press" hover-stay-time="80" catchtap="chooseMultiAreaLocation">地图选点</button>
+                  <input class="mrLocation mrLocationUnified" value="{{item.location}}" placeholder="默认当前定位，可输入或点修改" data-index="{{item.index}}" bindinput="onMultiAreaLocationInput" />
+                  <button class="mrPickLocation compact" data-index="{{item.index}}" hover-class="is-press" hover-stay-time="80" catchtap="chooseMultiAreaLocation">修改</button>
                 </view>
                 <view class="mrPrefsBody">
                   <view class="mrPrefInputRow">
-                    <input class="mrPrefInput" value="{{item.pref}}" placeholder="口味/忌口，比如：清淡、不吃香菜、不吃辣" data-index="{{item.index}}" bindinput="onMultiAreaPrefInput" />
+                    <input class="mrPrefInput" value="{{item.pref}}" placeholder="口味/说明：清淡、不吃辣，想安静一点" data-index="{{item.index}}" bindinput="onMultiAreaPrefInput" />
                     <view class="mrPrefMic {{recording && voiceTarget == 'pref:' + item.index ? 'rec' : ''}}" data-index="{{item.index}}" catchtap="startMultiAreaPrefVoice">
                       <text class="mrPrefMicGlyph">🎙️</text>
                     </view>
@@ -141,23 +125,13 @@
             </view>
 
             <view wx:if="{{meetupSharedMode}}" class="mrRoster">
-              <view class="mrRosterHead">
-                <text>已收集朋友</text>
-                <text bindtap="refreshSharedMeetupRoom">刷新</text>
-              </view>
-              <view wx:if="{{meetupRosterRows.length === 0}}" class="mrRosterEmpty">还在等朋友提交位置</view>
-              <view wx:for="{{meetupRosterRows}}" wx:key="id" class="mrRosterRow {{item.location ? 'ready' : ''}}">
-                <text class="mrRosterAvatar">{{item.roleShort}}</text>
-                <view class="mrRosterText">
-                  <text class="mrRosterName">{{item.role}}</text>
-                  <text class="mrRosterStatus">{{item.rosterStatus}}</text>
-                </view>
-              </view>
+              <button class="mrShareBtn large" open-type="share" hover-class="is-press" hover-stay-time="80">邀请朋友填位置</button>
+              <text class="mrSyncText">{{meetupProgressHint}}</text>
+              <text wx:if="{{meetupRoomSyncText}}" class="mrSyncSub">{{meetupRoomSyncText}}</text>
             </view>
 
             <view class="mrFoot">
-              <text class="mrFootHint">收齐位置后，自动算出对谁都公平的中间点</text>
-              <button class="mrPrimaryBtn {{multiAreaReady ? '' : 'disabled'}}" hover-class="{{multiAreaReady ? 'is-press' : ''}}" hover-stay-time="100" bindtap="showMeetupRoomBoard">{{meetupBoardLoading ? '正在算中间点…' : (multiAreaReady ? '收齐了，看中间点' : '至少收齐 2 个出发地')}}</button>
+              <button class="mrPrimaryBtn {{multiAreaReady ? '' : 'disabled'}}" hover-class="{{multiAreaReady ? 'is-press' : ''}}" hover-stay-time="100" bindtap="showMeetupRoomBoard">{{meetupBoardLoading ? '正在算中间点…' : meetupProgressButtonText}}</button>
             </view>
           </view>
 
