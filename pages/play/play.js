@@ -1473,12 +1473,28 @@ Page({
       this.setData({
         areaMode: "single",
         areaStep: "input",
+        multiAreaRows: createDefaultMultiAreaRows(),
+        multiAreaSummary: "等待收集多个出发位置",
+        multiAreaReady: false,
+        meetupRoomId: "",
         meetupSharedMode: false,
+        meetupSelfRows: [],
+        meetupRosterRows: [],
+        meetupRoomReady: false,
+        meetupProgressBadgeText: "0/2",
+        meetupProgressButtonText: "0/2 等朋友填完",
+        meetupProgressHint: "0 人已填完 · 2 人正在填写",
+        meetupRoomSharePath: "",
         meetupRoomSyncing: false,
         meetupRoomSyncText: "",
+        meetupRoomStatus: "等待添加出发位置",
+        meetupRoomMarkers: [],
+        meetupRoomPolylines: [],
+        meetupRoomCircles: [],
+        meetupRoomIncludePoints: [],
         meetupBoard: null,
         meetupBoardLoading: false,
-        partySize: 1,
+        partySize: 2,
         showVoiceInsight: false,
         editingVoiceIntentIndex: -1,
         confirmedChoiceIntent: null,
@@ -1736,9 +1752,9 @@ Page({
   },
 
   enterMeetupRoom(roomId = "", rowsOverride = null, options = {}) {
-    const nextRoomId = String(roomId || this.ensureMeetupRoomId()).trim() || createMeetupRoomId();
-    const profile = this.ensureMeetupSelfProfile();
     const expectedCount = meetupRoomExpectedCount(options.expectedCount || this.data.partySize);
+    const nextRoomId = String(roomId || this.data.meetupRoomId || createMeetupRoomId()).trim() || createMeetupRoomId();
+    const profile = this.ensureMeetupSelfProfile();
     const draft = this.loadMeetupRoomDraft(nextRoomId);
     const seedRows = rowsOverride || (draft && draft.rows) || [selfMultiAreaRow(profile)];
     const rows = limitSharedMeetupRows(seedRows, profile, expectedCount);

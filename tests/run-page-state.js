@@ -55,6 +55,46 @@ function defer() {
   });
   assert.strictEqual(staleRoomSharePage.onShareAppMessage().path, "/pages/play/play");
 
+  const resetRoomPage = makePage({
+    refreshMeetupRoomLocation() {},
+    pullMeetupRoom() { return Promise.resolve(null); },
+    startMeetupRoomPolling() {},
+    startBgm() {},
+    data: {
+      meetupRoomId: "room-old",
+      meetupRoomSharePath: "/pages/play/play?roomId=room-old&count=2",
+      meetupSharedMode: true,
+      meetupRoomReady: true,
+      meetupProgressBadgeText: "2/2",
+      meetupProgressButtonText: "已填齐，开始",
+      partySize: 2,
+      multiAreaRows: [
+        { id: "self-old", role: "Alice", people: 1, location: "A", isHost: true, isSelf: true, joined: true },
+        { id: "friend-old", role: "Bob", people: 1, location: "B", isHost: false, isSelf: false, joined: true }
+      ],
+      meetupSelfRows: [
+        { id: "self-old", role: "Alice", people: 1, location: "A", isHost: true, isSelf: true, joined: true }
+      ],
+      meetupRosterRows: [
+        { id: "friend-old", role: "Bob", people: 1, location: "B", isHost: false, isSelf: false, joined: true }
+      ],
+      meetupBoard: { middle: { latitude: 1, longitude: 2 } }
+    }
+  });
+  resetRoomPage.selectAreaMode({ currentTarget: { dataset: { mode: "single" } } });
+  assert.strictEqual(resetRoomPage.data.meetupRoomId, "");
+  assert.strictEqual(resetRoomPage.data.meetupRoomSharePath, "");
+  assert.strictEqual(resetRoomPage.data.meetupSharedMode, false);
+  assert.strictEqual(resetRoomPage.data.meetupRoomReady, false);
+  assert.deepStrictEqual(resetRoomPage.data.meetupSelfRows, []);
+  assert.deepStrictEqual(resetRoomPage.data.meetupRosterRows, []);
+  assert.strictEqual(resetRoomPage.onShareAppMessage().path, "/pages/play/play");
+  resetRoomPage.goGroupGame();
+  assert.notStrictEqual(resetRoomPage.data.meetupRoomId, "room-old");
+  assert.match(resetRoomPage.data.meetupRoomId, /^room-/);
+  assert.strictEqual(resetRoomPage.data.meetupSharedMode, true);
+  assert.strictEqual(resetRoomPage.data.meetupRoomSharePath, `/pages/play/play?roomId=${resetRoomPage.data.meetupRoomId}&count=2`);
+
   const sharedRoomPage = makePage({
     refreshMeetupRoomLocation() {},
     pullMeetupRoom() { return Promise.resolve(null); },
