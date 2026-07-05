@@ -2017,6 +2017,12 @@ function normalizeWorkerRestaurantPoi(poi, searchKeyword = "") {
   if (!poi || !poi.name) return null;
   const location = normalizeCoord(poi.location || { lat: poi.lat, lng: poi.lng });
   const navLocation = normalizeCoord(poi.navLocation || poi.nav_location);
+  const rawType = String(poi.rawType || poi.typeFull || poi.type || "").trim();
+  const typeParts = rawType.split(";").map((item) => item.trim()).filter(Boolean);
+  const typeCategories = uniqueKeywords([
+    ...(Array.isArray(poi.typeCategories) ? poi.typeCategories : []),
+    ...restaurantPoiTypeTagsFromText(rawType)
+  ]).slice(0, 5);
   const photoItems = normalizeAmapPoiPhotoItems([
     ...(Array.isArray(poi.photoItems) ? poi.photoItems : []),
     ...(Array.isArray(poi.photos) ? poi.photos : []),
@@ -2029,7 +2035,9 @@ function normalizeWorkerRestaurantPoi(poi, searchKeyword = "") {
     id: poi.id || poi.name,
     name: poi.name,
     address: Array.isArray(poi.address) ? poi.address.join("") : String(poi.address || ""),
-    type: poi.type || "餐厅",
+    type: typeParts[typeParts.length - 1] || rawType || "餐厅",
+    rawType,
+    typeCategories,
     typecode: poi.typecode || "",
     area,
     city: poi.city || poi.cityname || "",
@@ -2080,7 +2088,9 @@ function normalizeAmapPoi(poi) {
   const business = poi.business || {};
   const [lng, lat] = String(poi.location || "").split(",").map(Number);
   const navLocation = parseAmapLocation(poi.navi?.entr_location || poi.navi?.entrance_location || poi.entr_location);
-  const typeParts = String(poi.type || "").split(";");
+  const rawType = String(poi.type || "").trim();
+  const typeParts = rawType.split(";").map((item) => item.trim()).filter(Boolean);
+  const typeCategories = restaurantPoiTypeTagsFromText(rawType);
   const menuItems = normalizeRestaurantDetailList([
     business.menu,
     business.menus,
@@ -2101,6 +2111,8 @@ function normalizeAmapPoi(poi) {
     name: poi.name,
     address: Array.isArray(poi.address) ? poi.address.join("") : (poi.address || ""),
     type: typeParts[typeParts.length - 1] || typeParts[0] || "餐厅",
+    rawType,
+    typeCategories,
     typecode: poi.typecode || "",
     area: [poi.cityname, poi.adname].filter(Boolean).join(" "),
     city: poi.cityname || "",
@@ -2133,6 +2145,9 @@ function parseAmapLocation(value) {
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
+const RESTAURANT_CARD_PHOTO_LIMIT = 7;
+const RESTAURANT_DISH_PHOTO_TARGET = 5;
+const RESTAURANT_PHOTO_POOL_LIMIT = 24;
 const AMAP_PHOTO_CATEGORY_SCORE = { menu: 460, food: 420, drink: 410, interior: 300, storefront: 220, unknown: 100, fallback: 40 };
 
 function normalizeAmapPoiPhotoItems(photos) {
@@ -2149,15 +2164,15 @@ function normalizeAmapPoiPhotoItems(photos) {
       source: "amap",
       score: (AMAP_PHOTO_CATEGORY_SCORE[category] || AMAP_PHOTO_CATEGORY_SCORE.unknown) + sourceBonus - index
     };
-  }).filter(Boolean).sort((a, b) => b.score - a.score).filter(uniquePhotoItemByUrl).slice(0, 8);
+  }).filter(Boolean).sort((a, b) => b.score - a.score).filter(uniquePhotoItemByUrl).slice(0, RESTAURANT_PHOTO_POOL_LIMIT);
 }
 
 function selectAmapPoiPhotoUrls(photos) {
-  return uniqueRestaurantPhotoItems(photos, 8).map((item) => item.url).slice(0, 6);
+  return uniqueRestaurantPhotoItems(photos, RESTAURANT_PHOTO_POOL_LIMIT).map((item) => item.url).slice(0, RESTAURANT_CARD_PHOTO_LIMIT);
 }
 
 function selectAmapPoiPhotoUrl(photos) {
-  return uniqueRestaurantPhotoItems(photos, 8)[0]?.url || "";
+  return uniqueRestaurantPhotoItems(photos, RESTAURANT_PHOTO_POOL_LIMIT)[0]?.url || "";
 }
 
 function normalizeAmapPhotoUrl(url) {
@@ -2214,11 +2229,11 @@ function uniquePhotoItemByUrl(item, index, arr) {
   return item && arr.findIndex((candidate) => candidate && candidate.url === item.url) === index;
 }
 
-function uniqueRestaurantPhotoItems(items, limit = 8) {
+function uniqueRestaurantPhotoItems(items, limit = RESTAURANT_PHOTO_POOL_LIMIT) {
   return (items || []).map(normalizeRestaurantPhotoItem).filter(uniquePhotoItemByUrl).slice(0, limit);
 }
 
-function realRestaurantPhotoItems(items, fallbackImage = "", limit = 8) {
+function realRestaurantPhotoItems(items, fallbackImage = "", limit = RESTAURANT_PHOTO_POOL_LIMIT) {
   const fallbackUrl = normalizeAmapPhotoUrl(fallbackImage);
   return uniqueRestaurantPhotoItems(items, limit).filter((item) => {
     if (!item || item.kind === "fallback" || item.source === "fallback") return false;
@@ -2227,12 +2242,12 @@ function realRestaurantPhotoItems(items, fallbackImage = "", limit = 8) {
 }
 
 function restaurantCardImages(poi = {}, fallbackImage = "") {
-  const realItems = realRestaurantPhotoItems([...(poi.photoItems || []), ...(poi.photos || []), poi.image].filter(Boolean), fallbackImage, 12);
+  const realItems = realRestaurantPhotoItems([...(poi.photoItems || []), ...(poi.photos || []), poi.image].filter(Boolean), fallbackImage, RESTAURANT_PHOTO_POOL_LIMIT);
   const picked = [];
   const used = new Set();
   const pushWhere = (predicate, limit = 1) => {
     for (const item of realItems) {
-      if (picked.length >= 6 || limit <= 0) break;
+      if (picked.length >= RESTAURANT_CARD_PHOTO_LIMIT || limit <= 0) break;
       if (!item || used.has(item.url) || !predicate(item)) continue;
       picked.push(item);
       used.add(item.url);
@@ -2241,10 +2256,11 @@ function restaurantCardImages(poi = {}, fallbackImage = "") {
   };
   pushWhere((item) => item.kind === "storefront");
   pushWhere((item) => item.kind === "interior");
-  pushWhere((item) => item.kind === "food" || item.kind === "drink", 3);
-  pushWhere((item) => item.kind === "menu");
-  pushWhere(() => true, 6);
-  return realRestaurantPhotoItems(picked, fallbackImage, 6);
+  pushWhere((item) => item.kind === "food" || item.kind === "drink", RESTAURANT_DISH_PHOTO_TARGET);
+  const dishPhotoCount = picked.filter((item) => item.kind === "food" || item.kind === "drink").length;
+  pushWhere((item) => item.kind === "menu", Math.max(0, RESTAURANT_DISH_PHOTO_TARGET - dishPhotoCount));
+  pushWhere(() => true, RESTAURANT_CARD_PHOTO_LIMIT);
+  return realRestaurantPhotoItems(picked, fallbackImage, RESTAURANT_CARD_PHOTO_LIMIT);
 }
 
 function filterRestaurantPois(pois, { minCost = 0, maxCost = 0, minRating = 0, mustKeywords = [], avoidKeywords = [] } = {}) {
@@ -2356,6 +2372,8 @@ function poisToCards(pois, options = {}) {
       navLocation: navPoint || null,
       address: p.address || "",
       type: p.type || "",
+      rawType: p.rawType || p.typeFull || p.type || "",
+      typeCategories: restaurantPoiTypeTagsForPoi(p),
       area: p.area || "",
       navUrl: amapNavigationUrl(p),
       orderUrl: amapStoreUrl(p)
@@ -3270,8 +3288,9 @@ function restaurantDetailPayloadForPoi(poi = {}, { photoGallery = [], photoItems
   const openTimeText = compactDetailText(poi.opentimeToday || poi.opentimeWeek || "营业以高德为准", 18);
   const primaryDistance = primaryDetailDistanceText(poi, routeTags) || "距离待算";
   const photos = detailPhotoItemsForPoi(poi, photoItems.length ? photoItems : photoGallery);
-  const menuDishes = restaurantDishHintsForPoi(poi);
-  const features = uniqueKeywords([...menuDishes, ...restaurantFeatureTagsForPoi(poi)]).slice(0, 12);
+  const menuDishes = restaurantDishHintsForPoi(poi).slice(0, 8);
+  const typeTags = restaurantPoiTypeTagsForPoi(poi);
+  const features = uniqueKeywords([...menuDishes, ...typeTags, ...restaurantFeatureTagsForPoi(poi)]).slice(0, 12);
   return {
     openTimeText,
     photos,
@@ -3296,7 +3315,7 @@ function detailPhotoItemsForPoi(poi = {}, photoGallery = []) {
       ...(poi.photos || []),
       poi.image
     ].filter(Boolean)
-  }, poi.fallbackImage || "").slice(0, 6).map((item) => ({
+  }, poi.fallbackImage || "").slice(0, RESTAURANT_CARD_PHOTO_LIMIT).map((item) => ({
     url: item.url,
     label: item.label || restaurantPhotoKindLabel(item.kind, item.label)
   }));
@@ -3318,11 +3337,33 @@ function primaryDetailDistanceText(poi = {}, routeText = []) {
 
 function restaurantFeatureTagsForPoi(poi = {}) {
   const rawTags = [poi.tag, poi.recommend, poi.keytag, poi.rectag, poi.searchKeyword].join(" ");
-  const tags = uniqueKeywords(rawTags.split(/[、,，;；/|\s]+/).filter(Boolean))
+  return uniqueKeywords(rawTags.split(/[、,，;；/|\s]+/).filter(Boolean))
     .filter((tag) => !["餐厅", "美食", "附近真实餐厅"].includes(tag))
     .slice(0, 6);
-  if (tags.length) return tags;
-  return uniqueKeywords(String(poi.type || "").split(/[;、,，/|\s]+/).filter(Boolean)).slice(0, 3);
+}
+
+const GENERIC_RESTAURANT_TYPE_TAGS = new Set([
+  "餐饮服务",
+  "餐饮",
+  "餐厅",
+  "美食",
+  "餐饮相关场所",
+  "餐饮相关",
+  "其它餐饮相关",
+  "其它美食"
+]);
+
+function restaurantPoiTypeTagsFromText(typeText = "") {
+  return uniqueKeywords(String(typeText || "").split(/[;、,，/|>\s]+/).map((item) => item.trim()).filter(Boolean))
+    .filter((tag) => tag && !GENERIC_RESTAURANT_TYPE_TAGS.has(tag) && !/^\d+$/.test(tag))
+    .slice(0, 5);
+}
+
+function restaurantPoiTypeTagsForPoi(poi = {}) {
+  return uniqueKeywords([
+    ...(Array.isArray(poi.typeCategories) ? poi.typeCategories : []),
+    ...restaurantPoiTypeTagsFromText([poi.rawType, poi.typeFull, poi.type].filter(Boolean).join(";"))
+  ]).filter((tag) => !GENERIC_RESTAURANT_TYPE_TAGS.has(tag)).slice(0, 5);
 }
 
 function restaurantDishHintsForPoi(poi = {}) {
@@ -4238,7 +4279,13 @@ function restaurantPoiFromCard(card = {}) {
     ...(card.photoGallery || []),
     venueImage,
     cardImage
-  ].filter(Boolean), fallbackImage, 8);
+  ].filter(Boolean), fallbackImage, RESTAURANT_PHOTO_POOL_LIMIT);
+  const rawType = (card.poi && (card.poi.rawType || card.poi.typeFull)) || card.rawType || card.typeFull || (card.poi && card.poi.type) || card.type || "";
+  const typeCategories = uniqueKeywords([
+    ...(Array.isArray(card.poi && card.poi.typeCategories) ? card.poi.typeCategories : []),
+    ...(Array.isArray(card.typeCategories) ? card.typeCategories : []),
+    ...restaurantPoiTypeTagsFromText(rawType)
+  ]).slice(0, 5);
   return sanitizeRestaurantPoiNavigationPoint({
     ...(card.poi || {}),
     fallbackImage,
@@ -4249,6 +4296,8 @@ function restaurantPoiFromCard(card = {}) {
     photoItems,
     address: (card.poi && card.poi.address) || card.address || "",
     type: (card.poi && card.poi.type) || card.type || "",
+    rawType,
+    typeCategories,
     area: (card.poi && card.poi.area) || card.area || "",
     businessArea: (card.poi && card.poi.businessArea) || card.businessArea || "",
     tag: (card.poi && card.poi.tag) || card.tag || "",
@@ -4299,8 +4348,9 @@ function mergeRestaurantPoiDetails(base = {}, detail = {}) {
     ...(base.photoItems || []),
     ...(base.photos || []),
     base.image
-  ].filter(Boolean), fallbackImage, 8);
+  ].filter(Boolean), fallbackImage, RESTAURANT_PHOTO_POOL_LIMIT);
   const photos = photoItems.map((item) => item.url);
+  const rawType = detail.rawType || detail.typeFull || base.rawType || base.typeFull || detail.type || base.type || "";
   return {
     ...base,
     ...detail,
@@ -4316,6 +4366,12 @@ function mergeRestaurantPoiDetails(base = {}, detail = {}) {
     routeMetrics: base.routeMetrics || detail.routeMetrics,
     participantRoutes: base.participantRoutes || detail.participantRoutes,
     meetup: base.meetup || detail.meetup,
+    rawType,
+    typeCategories: uniqueKeywords([
+      ...(detail.typeCategories || []),
+      ...(base.typeCategories || []),
+      ...restaurantPoiTypeTagsFromText(rawType)
+    ]).slice(0, 5),
     image: photos[0] || detail.image || base.image,
     photos,
     photoItems
@@ -4351,6 +4407,8 @@ function restaurantDetailCardFromPoi(card = {}, poi = {}) {
     detailPhotos: detail.photos,
     address: cleanedPoi.address || card.address || "",
     type: cleanedPoi.type || card.type || "",
+    rawType: cleanedPoi.rawType || cleanedPoi.typeFull || card.rawType || card.typeFull || cleanedPoi.type || card.type || "",
+    typeCategories: restaurantPoiTypeTagsForPoi(cleanedPoi).length ? restaurantPoiTypeTagsForPoi(cleanedPoi) : (card.typeCategories || []),
     area: cleanedPoi.area || card.area || "",
     businessArea: cleanedPoi.businessArea || card.businessArea || "",
     tag: cleanedPoi.tag || card.tag || "",

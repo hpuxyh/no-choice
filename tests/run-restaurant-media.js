@@ -15,15 +15,18 @@ const photoItems = restaurantCardImages({
     { url: "https://example.com/inside.jpg", kind: "interior", label: "环境" },
     { url: "https://example.com/drink.jpg", kind: "drink", label: "饮品" },
     { url: "https://example.com/food-2.jpg", kind: "food", label: "菜品" },
+    { url: "https://example.com/food-3.jpg", kind: "food", label: "菜品" },
+    { url: "https://example.com/food-4.jpg", kind: "food", label: "菜品" },
     { url: "https://example.com/menu.jpg", kind: "menu", label: "菜单" }
   ]
 }, "");
 
 assert.deepStrictEqual(
-  photoItems.slice(0, 5).map((item) => item.kind),
-  ["storefront", "interior", "food", "drink", "food"],
-  "卡面照片应优先门头、环境，再补菜品/饮品"
+  photoItems.map((item) => item.kind),
+  ["storefront", "interior", "food", "drink", "food", "food", "food"],
+  "卡面照片应优先门头、环境，再补足 5 张菜品/饮品"
 );
+assert.strictEqual(photoItems.length, 7, "卡面最多保留 7 张真实高德照片");
 
 const poi = {
   name: "测试餐厅",
@@ -42,5 +45,15 @@ const dishes = restaurantDishHintsForPoi(poi);
 const detail = restaurantDetailPayloadForPoi(poi);
 assert(detail.features.includes("炸酱面"));
 assert(detail.features.includes("烤鸭"));
+
+const typedDetail = restaurantDetailPayloadForPoi({
+  name: "真实类别餐厅",
+  rawType: "餐饮服务;中餐厅;粤菜",
+  type: "粤菜",
+  typeCategories: ["中餐厅", "粤菜"]
+});
+assert(typedDetail.features.includes("中餐厅"));
+assert(typedDetail.features.includes("粤菜"));
+assert(!typedDetail.features.includes("餐饮服务"));
 
 console.log("restaurant media ok");

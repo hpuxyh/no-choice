@@ -135,7 +135,7 @@ function normalizePhotoLabel(item, index) {
   return index === 0 ? "菜品" : "图片";
 }
 
-function normalizeCardPhotoItems(card, limit = 6) {
+function normalizeCardPhotoItems(card, limit = 7) {
   const fallbackUrl = normalizeImageUrl(card && card.fallbackImage);
   const sources = []
     .concat((card && card.carouselImages) || [])
@@ -176,7 +176,7 @@ function stripDuplicateCardReason(reason) {
 function decorateCard(card, index) {
   const theme = themeFor(index);
   const artTheme = DEFAULT_ART_THEMES[index % DEFAULT_ART_THEMES.length];
-  const photoSlides = normalizeCardPhotoItems(card, 6);
+  const photoSlides = normalizeCardPhotoItems(card, 7);
   const photoGallery = photoSlides.map((item) => item.url);
   const fallbackUrl = normalizeImageUrl(card.fallbackImage);
   const image = normalizeImageUrl(card.image);
@@ -239,7 +239,7 @@ function decorateDetailCard(card) {
   const detailPhotos = normalizeCardPhotoItems({
     ...card,
     photoItems: (card.detailPhotos || []).concat(card.photoItems || []).concat(card.carouselImages || [])
-  }, 5);
+  }, 7);
   return withSelectedDetailRoute({
     ...base,
     detailPhotos,
