@@ -103,6 +103,10 @@
             <view wx:if="{{meetupSharedMode}}" class="mrPeopleList mrSharedSelfList">
               <view wx:for="{{meetupSelfRows}}" wx:key="id" class="mrSelfCard {{item.location ? 'joined' : 'pending'}}">
                 <view class="mrSelfHead">
+                  <button class="mrAvatarChoose" open-type="chooseAvatar" bindchooseavatar="onMeetupAvatarChoose">
+                    <image wx:if="{{meetupSelfAvatarUrl}}" src="{{meetupSelfAvatarUrl}}" mode="aspectFill"></image>
+                    <text wx:else>头像</text>
+                  </button>
                   <text class="mrSelfTitle">我的出发信息</text>
                   <input class="mrNicknameInput" type="nickname" value="{{meetupSelfName}}" placeholder="点一下用微信昵称" bindinput="onMeetupNicknameInput" />
                   <text class="mrSelfSource">{{item.locationSourceText}}</text>
@@ -130,6 +134,19 @@
 
             <view wx:if="{{meetupSharedMode}}" class="mrRoster">
               <button class="mrShareBtn large" open-type="share" hover-class="is-press" hover-stay-time="80">邀请朋友填位置</button>
+              <view wx:if="{{meetupMemberStatusRows && meetupMemberStatusRows.length}}" class="mrStatusList">
+                <view wx:for="{{meetupMemberStatusRows}}" wx:key="id" class="mrStatusRow {{item.fillDone ? 'done' : 'editing'}}">
+                  <view class="mrStatusAvatar">
+                    <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill"></image>
+                    <text wx:else>{{item.avatarText}}</text>
+                  </view>
+                  <view class="mrStatusText">
+                    <text class="mrStatusName">{{item.label}}</text>
+                    <text class="mrStatusDetail">{{item.fillDetailText}}</text>
+                  </view>
+                  <text class="mrStatusPill {{item.fillDone ? 'done' : 'editing'}}">{{item.fillStatusText}}</text>
+                </view>
+              </view>
               <text wx:if="{{meetupRoomSyncText}}" class="mrSyncSub">{{meetupRoomSyncText}}</text>
             </view>
 

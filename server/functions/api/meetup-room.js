@@ -34,26 +34,45 @@ async function ensureSchema(env) {
       lng REAL,
       pref TEXT,
       travels TEXT,
+      avatar_url TEXT,
+      status TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       PRIMARY KEY (room_id, participant_id)
     )`
   ).run();
+  await ensureColumn(env, "avatar_url", "TEXT");
+  await ensureColumn(env, "status", "TEXT");
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_meetup_room_updated ON meetup_participants(room_id, updated_at)").run();
+}
+
+async function ensureColumn(env, name, type) {
+  try {
+    await env.DB.prepare(`ALTER TABLE meetup_participants ADD COLUMN ${name} ${type}`).run();
+  } catch (error) {
+    if (!/duplicate column|already exists/i.test(String(error && (error.message || error)))) {
+      throw error;
+    }
+  }
 }
 
 function normalizeParticipant(body = {}) {
   const source = body.participant && typeof body.participant === "object" ? body.participant : body;
   const travels = Array.isArray(source.travels) ? source.travels.map((item) => str(item, 12)).filter(Boolean).slice(0, 6) : [];
+  const location = str(source.location, 120);
+  const rawStatus = str(source.status || source.fillStatus, 16);
+  const status = rawStatus === "done" || rawStatus === "editing" ? rawStatus : (location ? "done" : "editing");
   return {
     id: str(source.id || source.participantId || body.participantId, 64),
     name: str(source.name || source.nickName || source.role, 24),
     people: Math.max(1, Math.min(20, Math.round(Number(source.people) || 1))),
-    location: str(source.location, 120),
+    location,
     lat: numberOrNull(source.lat ?? source.latitude),
     lng: numberOrNull(source.lng ?? source.longitude),
     pref: str(source.pref, 120),
-    travels
+    travels,
+    avatarUrl: str(source.avatarUrl || source.avatar, 300),
+    status
   };
 }
 
@@ -73,6 +92,8 @@ function rowToParticipant(row) {
     lng: row.lng,
     pref: row.pref || "",
     travels: Array.isArray(travels) ? travels : [],
+    avatarUrl: row.avatar_url || "",
+    status: row.status || (row.location ? "done" : "editing"),
     updatedAt: row.updated_at
   };
 }
@@ -116,8 +137,8 @@ export async function onRequestPost({ request, env }) {
   await env.DB.prepare("DELETE FROM meetup_participants WHERE updated_at < ?").bind(cutoff).run();
   await env.DB.prepare(
     `INSERT INTO meetup_participants
-      (room_id, participant_id, name, people, location, lat, lng, pref, travels, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (room_id, participant_id, name, people, location, lat, lng, pref, travels, avatar_url, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(room_id, participant_id) DO UPDATE SET
       name = excluded.name,
       people = excluded.people,
@@ -126,6 +147,8 @@ export async function onRequestPost({ request, env }) {
       lng = excluded.lng,
       pref = excluded.pref,
       travels = excluded.travels,
+      avatar_url = excluded.avatar_url,
+      status = excluded.status,
       updated_at = excluded.updated_at`
   ).bind(
     roomId,
@@ -137,6 +160,8 @@ export async function onRequestPost({ request, env }) {
     participant.lng,
     participant.pref,
     JSON.stringify(participant.travels),
+    participant.avatarUrl,
+    participant.status,
     now,
     now
   ).run();

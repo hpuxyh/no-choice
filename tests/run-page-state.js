@@ -127,6 +127,9 @@ function defer() {
   assert.strictEqual(nicknamePage.data.meetupSelfName, "Alice");
   assert.strictEqual(nicknamePage.data.multiAreaRows[0].role, "Alice");
   assert.strictEqual(nicknamePage.data.meetupSelfRows[0].role, "Alice");
+  nicknamePage.onMeetupAvatarChoose({ detail: { avatarUrl: "wxfile://avatar-local" } });
+  assert.strictEqual(nicknamePage.data.meetupSelfAvatarUrl, "wxfile://avatar-local");
+  assert.strictEqual(nicknamePage.data.meetupMemberStatusRows[0].avatarUrl, "wxfile://avatar-local");
 
   let requestCount = 0;
   const previousRequest = global.wx.request;
@@ -217,6 +220,37 @@ function defer() {
   assert.strictEqual(overflowPullPage.data.multiAreaRows.length, 2);
   assert.deepStrictEqual(overflowPullPage.data.multiAreaRows.map((row) => row.id), ["self-overflow", "friend-new"]);
   assert.strictEqual(overflowPullPage.data.meetupProgressBadgeText, "2/2");
+  global.wx.request = previousRequest;
+
+  global.wx.request = ({ success }) => success({
+    statusCode: 200,
+    data: {
+      ok: true,
+      roomId: "room-status",
+      participants: [
+        { id: "friend-editing", name: "Charlie", location: "", status: "editing", updatedAt: 20 },
+        { id: "friend-done", name: "Dora", location: "D Place", status: "done", updatedAt: 30 }
+      ]
+    }
+  });
+  const statusPullPage = makePage({
+    data: {
+      meetupRoomId: "room-status",
+      meetupSharedMode: true,
+      meetupSelfId: "self-status",
+      meetupSelfName: "Alice",
+      partySize: 3,
+      multiAreaRows: [
+        { id: "self-status", role: "Alice", people: 1, location: "Self Place", isHost: true, isSelf: true, joined: true }
+      ]
+    }
+  });
+  await statusPullPage.pullMeetupRoom({ silent: true });
+  assert.deepStrictEqual(statusPullPage.data.meetupMemberStatusRows.map((row) => `${row.role}:${row.fillStatusText}`), [
+    "Alice:已完成",
+    "Dora:已完成",
+    "Charlie:正在填写"
+  ]);
   global.wx.request = previousRequest;
 
   const sharedUpdatePage = makePage({
