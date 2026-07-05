@@ -1556,6 +1556,34 @@ Page({
     return profile;
   },
 
+  saveMeetupSelfProfile(profile = {}) {
+    const normalized = normalizeMeetupSelfProfile(profile);
+    if (typeof wx !== "undefined" && typeof wx.setStorageSync === "function") {
+      try {
+        wx.setStorageSync(MEETUP_SELF_STORAGE_KEY, normalized);
+      } catch (error) {
+        console.warn("Save meetup self profile failed", error);
+      }
+    }
+    return normalized;
+  },
+
+  onMeetupNicknameInput(e) {
+    const current = this.ensureMeetupSelfProfile();
+    const profile = this.saveMeetupSelfProfile({
+      id: current.id,
+      name: normalizeMeetupDisplayName(e.detail && e.detail.value)
+    });
+    const rows = normalizeMultiAreaRows(this.data.multiAreaRows).map((row) => {
+      const isSelf = String(row.id) === profile.id || row.isSelf;
+      return isSelf ? { ...row, id: profile.id, role: profile.name || "我", isSelf: true, isHost: true } : row;
+    });
+    this.setData({
+      meetupSelfId: profile.id,
+      meetupSelfName: profile.name
+    }, () => this.refreshMeetupRoomState(rows));
+  },
+
   loadMeetupRoomDraft(roomId) {
     if (!roomId || !wx.getStorageSync) return null;
     try {

@@ -111,6 +111,23 @@ function defer() {
   const sharedRoomShare = sharedRoomPage.onShareAppMessage();
   assert.strictEqual(sharedRoomShare.path, "/pages/play/play?roomId=room-shared&count=2");
 
+  const nicknamePage = makePage({
+    data: {
+      meetupSharedMode: true,
+      meetupRoomId: "room-nick",
+      meetupSelfId: "self-nick",
+      meetupSelfName: "",
+      multiAreaRows: [
+        { id: "self-nick", role: "我", people: 1, location: "A", isHost: true, isSelf: true, joined: true },
+        { id: "friend-nick", role: "Bob", people: 1, location: "B", isHost: false, isSelf: false, joined: true }
+      ]
+    }
+  });
+  nicknamePage.onMeetupNicknameInput({ detail: { value: "Alice" } });
+  assert.strictEqual(nicknamePage.data.meetupSelfName, "Alice");
+  assert.strictEqual(nicknamePage.data.multiAreaRows[0].role, "Alice");
+  assert.strictEqual(nicknamePage.data.meetupSelfRows[0].role, "Alice");
+
   let requestCount = 0;
   const previousRequest = global.wx.request;
   global.wx.request = () => { requestCount += 1; };

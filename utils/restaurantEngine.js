@@ -2439,34 +2439,38 @@ function restaurantMeetupPanelForPoi(p = {}) {
   };
 }
 
-// 到达榜:逐人到店的推荐方式 + 分钟数 + 地铁分段,点开看驾车/地铁/步行三方式
+// 到达榜:逐人到店的推荐方式 + 分钟数 + 地铁分段; 展开后只看个人选过的方式。
 function restaurantArrivalBoard(p = {}) {
   const routes = Array.isArray(p && p.participantRoutes) ? p.participantRoutes : [];
   if (routes.length < 2) return null;
   const rows = routes.map((route, index) => {
     const label = restaurantRoutePlaceLabel(route, index);
-    const walkMin = minutesFromSeconds(route.walkingDurationSeconds);
+    const rawDistanceMeters = restaurantRouteDisplayDistanceMeters(route);
+    const rawWalkMin = minutesFromSeconds(route.walkingDurationSeconds);
+    const distanceMeters = rawDistanceMeters || (rawWalkMin ? rawWalkMin * 75 : 0);
+    const walkMin = rawWalkMin || estimateArrivalMinutes(distanceMeters, "walk");
+    const rideMin = minutesFromSeconds(route.ridingDurationSeconds)
+      || estimateArrivalMinutes(distanceMeters, "ride");
     const driveMin = minutesFromSeconds(route.drivingDurationSeconds);
     const subwayMin = minutesFromSeconds(route.subwayDurationSeconds);
     const subwayWalkMeters = Math.round(Number(route.subwayWalkingDistanceMeters) || 0);
     const subwayWalkMin = subwayWalkMeters ? Math.max(1, Math.round(subwayWalkMeters / 75)) : 0;
     const subwayRideMin = subwayMin ? Math.max(1, subwayMin - subwayWalkMin * 2) : 0;
-    const recommendedKey = pickPreferredArrivalMode(route.preferredModes, { walkMin, driveMin, subwayMin })
-      || pickArrivalMode({ walkMin, driveMin, subwayMin });
-    const modes = [];
-    if (driveMin) {
-      modes.push({ key: "drive", icon: "🚗", name: "驾车", min: driveMin, minText: `${driveMin} 分钟`, note: "晚高峰已计入", on: recommendedKey === "drive" });
-    }
-    if (subwayMin) {
-      modes.push({
-        key: "subway", icon: "🚇", name: "地铁", min: subwayMin, minText: `${subwayMin} 分钟`,
-        walkMin: subwayWalkMin, rideMin: subwayRideMin,
-        note: subwayWalkMin ? `含步行换乘 ${subwayWalkMin * 2} 分` : "", on: recommendedKey === "subway"
-      });
-    }
-    if (walkMin) {
-      modes.push({ key: "walk", icon: "🚶", name: "步行", min: walkMin, minText: `${walkMin} 分钟`, tooFar: walkMin > 30, note: walkMin > 30 ? "太远，不推荐" : "", on: recommendedKey === "walk" });
-    }
+    const selectedModeKeys = arrivalModeKeysFromTravels(route.preferredModes);
+    const visibleModeKeys = selectedModeKeys.length ? selectedModeKeys : defaultArrivalModeKeys(distanceMeters);
+    const recommendedKey = pickPreferredArrivalMode(route.preferredModes, { walkMin, rideMin, driveMin, subwayMin })
+      || pickArrivalMode({ walkMin, rideMin, driveMin, subwayMin, visibleModeKeys });
+    const modes = arrivalModeItems({
+      visibleModeKeys,
+      walkMin,
+      rideMin,
+      driveMin,
+      subwayMin,
+      subwayWalkMin,
+      subwayRideMin,
+      recommendedKey,
+      selectedTravels: route.preferredModes
+    });
     const recMode = modes.find((m) => m.key === recommendedKey) || modes[0] || null;
     return {
       label,
@@ -2505,15 +2509,71 @@ function minutesFromSeconds(value) {
   return Math.max(1, Math.round(seconds / 60));
 }
 
+function estimateArrivalMinutes(distanceMeters, mode) {
+  const distance = Number(distanceMeters);
+  if (!Number.isFinite(distance) || distance <= 0) return 0;
+  if (mode === "walk") return Math.max(1, Math.round(distance / 75));
+  if (mode === "ride") return Math.max(1, Math.round(distance / 180));
+  return 0;
+}
+
+function arrivalModeKeysFromTravels(travels) {
+  const list = Array.isArray(travels) ? travels : (travels ? [travels] : []);
+  const keys = [];
+  list.forEach((travel) => {
+    if (travel === "地铁" || travel === "公交") keys.push("subway");
+    if (travel === "驾车") keys.push("drive");
+    if (travel === "骑行") keys.push("ride");
+    if (travel === "步行") keys.push("walk");
+  });
+  return [...new Set(keys)];
+}
+
+function defaultArrivalModeKeys(distanceMeters) {
+  const distance = Number(distanceMeters);
+  if (Number.isFinite(distance) && distance > 0 && distance <= 2000) return ["walk", "ride", "drive"];
+  return ["subway", "drive"];
+}
+
+function arrivalModeItems({
+  visibleModeKeys = [],
+  walkMin = 0,
+  rideMin = 0,
+  driveMin = 0,
+  subwayMin = 0,
+  subwayWalkMin = 0,
+  subwayRideMin = 0,
+  recommendedKey = "",
+  selectedTravels = []
+} = {}) {
+  const selectedList = Array.isArray(selectedTravels) ? selectedTravels : (selectedTravels ? [selectedTravels] : []);
+  const transitName = selectedList.includes("公交") && !selectedList.includes("地铁") ? "公交" : "地铁";
+  const transitIcon = transitName === "公交" ? "🚌" : "🚇";
+  const modeByKey = {
+    drive: driveMin ? { key: "drive", icon: "🚗", name: "驾车", min: driveMin, minText: `${driveMin} 分钟`, note: "晚高峰已计入" } : null,
+    subway: subwayMin ? {
+      key: "subway", icon: transitIcon, name: transitName, min: subwayMin, minText: `${subwayMin} 分钟`,
+      walkMin: subwayWalkMin, rideMin: subwayRideMin,
+      note: subwayWalkMin ? `含步行换乘 ${subwayWalkMin * 2} 分` : ""
+    } : null,
+    ride: rideMin ? { key: "ride", icon: "🚲", name: "骑行", min: rideMin, minText: `${rideMin} 分钟`, note: "按骑行速度估算" } : null,
+    walk: walkMin ? { key: "walk", icon: "🚶", name: "步行", min: walkMin, minText: `${walkMin} 分钟`, tooFar: walkMin > 30, note: walkMin > 30 ? "太远，不推荐" : "" } : null
+  };
+  return (visibleModeKeys || [])
+    .map((key) => modeByKey[key] ? { ...modeByKey[key], on: key === recommendedKey } : null)
+    .filter(Boolean);
+}
+
 // 个人指定的出行方式(可多选)→ 到达榜模式 key:在所选方式里取有估时且最快的那种;
-// 骑行无估时,公交近似走地铁;都没有则回退自动选择。
-function pickPreferredArrivalMode(travels, { walkMin, driveMin, subwayMin } = {}) {
+// 公交近似走地铁;都没有则回退自动选择。
+function pickPreferredArrivalMode(travels, { walkMin, rideMin, driveMin, subwayMin } = {}) {
   const list = Array.isArray(travels) ? travels : (travels ? [travels] : []);
   if (!list.length) return "";
   const candidates = [];
   list.forEach((travel) => {
     if ((travel === "地铁" || travel === "公交") && subwayMin) candidates.push(["subway", subwayMin]);
     if (travel === "驾车" && driveMin) candidates.push(["drive", driveMin]);
+    if (travel === "骑行" && rideMin) candidates.push(["ride", rideMin]);
     if (travel === "步行" && walkMin) candidates.push(["walk", walkMin]);
   });
   if (!candidates.length) return "";
@@ -2521,17 +2581,20 @@ function pickPreferredArrivalMode(travels, { walkMin, driveMin, subwayMin } = {}
   return candidates[0][0];
 }
 
-// 自动推荐:可步行(≤15分)优先步行;否则驾车与地铁取更快;只有一种则用它
-function pickArrivalMode({ walkMin, driveMin, subwayMin }) {
-  if (walkMin && walkMin <= 15) return "walk";
+// 自动推荐:在当前可展示方式里取最合适的;近距离可步行(≤15分)优先步行。
+function pickArrivalMode({ walkMin, rideMin, driveMin, subwayMin, visibleModeKeys = [] }) {
+  const visible = new Set(visibleModeKeys && visibleModeKeys.length ? visibleModeKeys : ["walk", "ride", "drive", "subway"]);
+  if (visible.has("walk") && walkMin && walkMin <= 15) return "walk";
   const candidates = [];
-  if (driveMin) candidates.push(["drive", driveMin]);
-  if (subwayMin) candidates.push(["subway", subwayMin]);
+  if (visible.has("drive") && driveMin) candidates.push(["drive", driveMin]);
+  if (visible.has("subway") && subwayMin) candidates.push(["subway", subwayMin]);
+  if (visible.has("ride") && rideMin) candidates.push(["ride", rideMin]);
+  if (visible.has("walk") && walkMin) candidates.push(["walk", walkMin]);
   if (candidates.length) {
     candidates.sort((a, b) => a[1] - b[1]);
     return candidates[0][0];
   }
-  return walkMin ? "walk" : "";
+  return "";
 }
 
 function restaurantMeetupRouteItems(p = {}) {

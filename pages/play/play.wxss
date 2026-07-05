@@ -4129,11 +4129,14 @@ button.detailRouteTab,
 .faceCard.hasBoard .info {
   gap: 8rpx;
   padding-bottom: 34rpx;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .faceCard.hasBoard .arrivalBoard {
   margin-top: 6rpx;
   padding: 10rpx 13rpx;
+  flex: none;
 }
 
 .faceCard.hasBoard .arrivalRow {
@@ -4470,12 +4473,28 @@ button.mrShareBtn.large,
   color: #1a1714;
   font-size: 28rpx;
   font-weight: 950;
+  flex: none;
+}
+
+.mrNicknameInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 48rpx;
+  padding: 0 14rpx;
+  border: 3rpx solid #d9cfb7;
+  border-radius: 12rpx;
+  background: #fffdf6;
+  color: #1a1714;
+  font-size: 22rpx;
+  font-weight: 850;
+  box-sizing: border-box;
 }
 
 .mrSelfSource {
   color: #8a8270;
   font-size: 20rpx;
   font-weight: 850;
+  flex: none;
 }
 
 .mrPerson {

@@ -104,6 +104,7 @@
               <view wx:for="{{meetupSelfRows}}" wx:key="id" class="mrSelfCard {{item.location ? 'joined' : 'pending'}}">
                 <view class="mrSelfHead">
                   <text class="mrSelfTitle">我的出发信息</text>
+                  <input class="mrNicknameInput" type="nickname" value="{{meetupSelfName}}" placeholder="点一下用微信昵称" bindinput="onMeetupNicknameInput" />
                   <text class="mrSelfSource">{{item.locationSourceText}}</text>
                 </view>
                 <view class="mrLocationRow">

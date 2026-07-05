@@ -31,9 +31,20 @@ const xeqSubway = board.rows[1].modes.find((m) => m.key === "subway");
 assert.ok(xeqSubway.walkMin >= 4 && xeqSubway.walkMin <= 6, "地铁步行段约5分");
 assert.strictEqual(xeqSubway.rideMin, 23 - xeqSubway.walkMin * 2);
 
-// 步行超30分应标记 tooFar
-const wjWalk = wangjing.modes.find((m) => m.key === "walk");
-assert.strictEqual(wjWalk.tooFar, true);
+// 未选交通方式时,远距离默认只展示地铁/驾车,不再把步行/骑行灰色列出来
+assert.deepStrictEqual(wangjing.modes.map((m) => m.key), ["subway", "drive"]);
+
+// 未选交通方式时,2km 内默认展示步行/骑行/驾车
+assert.deepStrictEqual(guomao.modes.map((m) => m.key), ["walk", "ride", "drive"]);
+
+// 如果用户只选步行,展开后只列步行
+const walkOnlyBoard = engine.__test.restaurantArrivalBoard({
+  participantRoutes: [
+    { placeLabel: "北大", preferredModes: ["步行"], distanceMeters: 3500, walkingDurationSeconds: 50 * 60, drivingDurationSeconds: 15 * 60, subwayDurationSeconds: 20 * 60 },
+    { placeLabel: "国贸", distanceMeters: 1200, walkingDurationSeconds: 14 * 60, drivingDurationSeconds: 16 * 60, subwayDurationSeconds: 18 * 60 }
+  ]
+});
+assert.deepStrictEqual(walkOnlyBoard.rows[0].modes.map((m) => m.key), ["walk"]);
 
 // 少于2人不出榜
 assert.strictEqual(engine.__test.restaurantArrivalBoard({ participantRoutes: [{ placeLabel: "望京", drivingDurationSeconds: 600 }] }), null);

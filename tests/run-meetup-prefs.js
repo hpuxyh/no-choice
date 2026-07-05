@@ -38,13 +38,13 @@ const dietPlan = engine.__test.applyTextDietaryRules(base, { question: "有人�
 assert.ok(dietPlan.avoidKeywords.includes("辣"));
 assert.ok(!dietPlan.keywords.some((k) => /火锅|烧烤|川|湘|麻辣|重庆/.test(k)));
 
-// 6. 多选出行 → 到达榜模式:所选里取有估时且最快;骑行无估时;空回退自动
-const t = { walkMin: 40, driveMin: 20, subwayMin: 30 };
+// 6. 多选出行 → 到达榜模式:所选里取有估时且最快;空回退自动
+const t = { walkMin: 40, rideMin: 18, driveMin: 20, subwayMin: 30 };
 assert.strictEqual(engine.__test.pickPreferredArrivalMode(["地铁"], t), "subway");
 assert.strictEqual(engine.__test.pickPreferredArrivalMode(["公交"], t), "subway");
 assert.strictEqual(engine.__test.pickPreferredArrivalMode(["驾车"], t), "drive");
 assert.strictEqual(engine.__test.pickPreferredArrivalMode(["步行"], t), "walk");
-assert.strictEqual(engine.__test.pickPreferredArrivalMode(["骑行"], t), "");
+assert.strictEqual(engine.__test.pickPreferredArrivalMode(["骑行"], t), "ride");
 assert.strictEqual(engine.__test.pickPreferredArrivalMode(["地铁", "驾车"], t), "drive"); // 取更快
 assert.strictEqual(engine.__test.pickPreferredArrivalMode([], t), "");
 
