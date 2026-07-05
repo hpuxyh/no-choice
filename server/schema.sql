@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS meetup_participants (
   lng            REAL,
   pref           TEXT,
   travels        TEXT,
-  avatar_url     TEXT,
   status         TEXT,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL,

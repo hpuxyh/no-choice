@@ -539,13 +539,7 @@ function normalizeMeetupDisplayName(value) {
 function normalizeMeetupSelfProfile(profile = {}) {
   const id = String(profile.id || profile.openid || profile.unionid || "").trim() || createMeetupParticipantId();
   const name = normalizeMeetupDisplayName(profile.name || profile.nickName);
-  const avatarUrl = String(profile.avatarUrl || profile.avatar || "").trim();
-  return { id, name, avatarUrl };
-}
-
-function meetupSyncableAvatarUrl(value) {
-  const url = String(value || "").trim();
-  return /^https?:\/\//i.test(url) ? url : "";
+  return { id, name };
 }
 
 function selfMultiAreaRow(profile = {}) {
@@ -555,7 +549,6 @@ function selfMultiAreaRow(profile = {}) {
     role: normalized.name || "我",
     people: 1,
     location: "",
-    avatarUrl: normalized.avatarUrl,
     isHost: true,
     isSelf: true,
     fillStatus: "editing",
@@ -627,7 +620,8 @@ function meetupRoomRequestIssue(error) {
   if (/not in domain list|合法域名|url not in/i.test(raw)) return "同步域名还没生效，请重新扫码";
   if (/response not json/i.test(raw)) return "同步接口返回了网页，请检查域名";
   if (/timeout|time out/i.test(raw)) return "同步服务超时";
-  if (/fail|network|ERR_|abort|interrupted/i.test(raw)) return "手机暂时连不上同步服务";
+  if (/domain list|url not in domain|合法域名|不在.*域名/i.test(raw)) return "同步域名未配置";
+  if (/fail|network|ERR_|abort|interrupted/i.test(raw)) return "同步服务暂时不可达";
   if (error && error.statusCode) return `接口返回 ${error.statusCode}`;
   return raw ? raw.slice(0, 34) : "未知网络错误";
 }
@@ -691,7 +685,6 @@ function normalizeMultiAreaRows(rows = []) {
       roleShort: shortMultiAreaRole(role, index),
       people: clampMultiAreaPeople(row && row.people),
       location,
-      avatarUrl: String(row && row.avatarUrl || "").trim(),
       latitude: hasCoord ? latitude : null,
       longitude: hasCoord ? longitude : null,
       isHost,
@@ -893,7 +886,6 @@ function meetupRowsFromParticipants(participants = []) {
       longitude: Number.isFinite(Number(item && (item.lng ?? item.longitude))) ? Number(item.lng ?? item.longitude) : null,
       pref: String(item && item.pref || "").trim(),
       travels: Array.isArray(item && item.travels) ? item.travels : [],
-      avatarUrl: String(item && item.avatarUrl || item && item.avatar || "").trim(),
       fillStatus: String(item && (item.status || item.fillStatus) || (item && item.location ? "done" : "editing")),
       updatedAt: Number(item && item.updatedAt) || 0,
       isHost: false,
@@ -915,7 +907,6 @@ function participantFromMeetupRow(row, profile = {}) {
     lng: Number.isFinite(Number(source.longitude)) ? Number(source.longitude) : null,
     pref: String(source.pref || "").trim(),
     travels: Array.isArray(source.travels) ? source.travels : [],
-    avatarUrl: meetupSyncableAvatarUrl(normalized.avatarUrl || source.avatarUrl),
     status: source.location ? "done" : "editing"
   };
 }
@@ -931,7 +922,6 @@ function decorateSharedMeetupRows(rows = [], profile = {}) {
       ...row,
       role,
       roleShort: isSelf ? "我" : shortMultiAreaRole(role, row.index),
-      avatarUrl: isSelf ? (normalizedProfile.avatarUrl || row.avatarUrl || "") : (row.avatarUrl || ""),
       isHost: isSelf,
       isSelf,
       statusText: row.location ? (isSelf ? "已提交你的位置" : "已提交位置") : (isSelf ? "等你填写自己的位置" : "等待对方填写"),
@@ -949,7 +939,6 @@ function decorateSharedMeetupRows(rows = [], profile = {}) {
       isHost: isSelf,
       role: isSelf ? (normalizedProfile.name || rowRole || "我") : (rowRole || "成员"),
       roleShort: isSelf ? "我" : shortMultiAreaRole(rowRole || "成员", index),
-      avatarUrl: isSelf ? (normalizedProfile.avatarUrl || row.avatarUrl || "") : (row.avatarUrl || ""),
       statusText: row.location ? (isSelf ? "已提交你的位置" : "已提交位置") : (isSelf ? "等你填写自己的位置" : "等待对方填写"),
       placeholder: isSelf ? "只填你自己的出发地" : row.placeholder
     };
@@ -1147,7 +1136,6 @@ Page({
     meetupSharedMode: false,
     meetupSelfId: "",
     meetupSelfName: "",
-    meetupSelfAvatarUrl: "",
     meetupSelfRows: [],
     meetupRosterRows: [],
     meetupMemberStatusRows: [],
@@ -1576,8 +1564,7 @@ Page({
     }
     profile = normalizeMeetupSelfProfile(profile || {
       id: this.data.meetupSelfId,
-      name: this.data.meetupSelfName,
-      avatarUrl: this.data.meetupSelfAvatarUrl
+      name: this.data.meetupSelfName
     });
     if (typeof wx !== "undefined" && typeof wx.setStorageSync === "function") {
       try {
@@ -1586,8 +1573,8 @@ Page({
         console.warn("Save meetup self profile failed", error);
       }
     }
-    if (profile.id !== this.data.meetupSelfId || profile.name !== this.data.meetupSelfName || profile.avatarUrl !== this.data.meetupSelfAvatarUrl) {
-      this.setData({ meetupSelfId: profile.id, meetupSelfName: profile.name, meetupSelfAvatarUrl: profile.avatarUrl });
+    if (profile.id !== this.data.meetupSelfId || profile.name !== this.data.meetupSelfName) {
+      this.setData({ meetupSelfId: profile.id, meetupSelfName: profile.name });
     }
     return profile;
   },
@@ -1608,37 +1595,15 @@ Page({
     const current = this.ensureMeetupSelfProfile();
     const profile = this.saveMeetupSelfProfile({
       id: current.id,
-      name: normalizeMeetupDisplayName(e.detail && e.detail.value),
-      avatarUrl: current.avatarUrl
+      name: normalizeMeetupDisplayName(e.detail && e.detail.value)
     });
     const rows = normalizeMultiAreaRows(this.data.multiAreaRows).map((row) => {
       const isSelf = String(row.id) === profile.id || row.isSelf;
-      return isSelf ? { ...row, id: profile.id, role: profile.name || "我", avatarUrl: profile.avatarUrl, isSelf: true, isHost: true } : row;
+      return isSelf ? { ...row, id: profile.id, role: profile.name || "我", isSelf: true, isHost: true } : row;
     });
     this.setData({
       meetupSelfId: profile.id,
-      meetupSelfName: profile.name,
-      meetupSelfAvatarUrl: profile.avatarUrl
-    }, () => this.refreshMeetupRoomState(rows));
-  },
-
-  onMeetupAvatarChoose(e) {
-    const avatarUrl = String(e && e.detail && e.detail.avatarUrl || "").trim();
-    if (!avatarUrl) return;
-    const current = this.ensureMeetupSelfProfile();
-    const profile = this.saveMeetupSelfProfile({
-      id: current.id,
-      name: current.name,
-      avatarUrl
-    });
-    const rows = normalizeMultiAreaRows(this.data.multiAreaRows).map((row) => {
-      const isSelf = String(row.id) === profile.id || row.isSelf;
-      return isSelf ? { ...row, id: profile.id, role: profile.name || row.role || "我", avatarUrl: profile.avatarUrl, isSelf: true, isHost: true } : row;
-    });
-    this.setData({
-      meetupSelfId: profile.id,
-      meetupSelfName: profile.name,
-      meetupSelfAvatarUrl: profile.avatarUrl
+      meetupSelfName: profile.name
     }, () => this.refreshMeetupRoomState(rows));
   },
 
@@ -1814,7 +1779,6 @@ Page({
       isHost: Boolean(profile) || target.isHost,
       role,
       roleShort: shortMultiAreaRole(role, targetIndex),
-      avatarUrl: profile ? profile.avatarUrl : target.avatarUrl,
       location: readable,
       latitude: Number(coords.lat),
       longitude: Number(coords.lng),
@@ -1855,7 +1819,6 @@ Page({
       meetupSharedMode: true,
       meetupSelfId: profile.id,
       meetupSelfName: profile.name,
-      meetupSelfAvatarUrl: profile.avatarUrl,
       meetupRoomSharePath: meetupSharePath(nextRoomId, expectedCount),
       meetupRoomSyncText: "",
       showVoiceInsight: false,

@@ -127,9 +127,6 @@ function defer() {
   assert.strictEqual(nicknamePage.data.meetupSelfName, "Alice");
   assert.strictEqual(nicknamePage.data.multiAreaRows[0].role, "Alice");
   assert.strictEqual(nicknamePage.data.meetupSelfRows[0].role, "Alice");
-  nicknamePage.onMeetupAvatarChoose({ detail: { avatarUrl: "wxfile://avatar-local" } });
-  assert.strictEqual(nicknamePage.data.meetupSelfAvatarUrl, "wxfile://avatar-local");
-  assert.strictEqual(nicknamePage.data.meetupMemberStatusRows[0].avatarUrl, "wxfile://avatar-local");
 
   let requestCount = 0;
   const previousRequest = global.wx.request;
