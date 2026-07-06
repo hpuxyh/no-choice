@@ -233,7 +233,7 @@
             <view class="choiceComposer">
               <view class="composerInputPanel {{composerFocused ? 'is-focused' : ''}}">
                 <view class="composerMiniHead">
-                  <text class="composerAiBadge">说说此刻想吃啥</text>
+                  <text class="composerAiBadge">AI生成入口</text>
                   <text class="composerMiniHint">不用先选标签</text>
                 </view>
                 <textarea
@@ -368,6 +368,10 @@
           </view>
 
           <view wx:if="{{showVoiceInsight}}" class="voiceInsight {{voiceInsightState}}">
+            <view class="aiGeneratedNotice">
+              <text>AI生成内容提示</text>
+              <text>餐厅筛选和条件整理由 AI/规则辅助生成，仅供参考</text>
+            </view>
             <view class="voiceInsightHeader">
               <text>{{voiceInsightQuestion}}</text>
             </view>
@@ -432,6 +436,7 @@
     <view wx:if="{{screen == 'deck'}}" class="screen deckScreen active">
       <view class="topbar">
         <text class="badge purple">{{loadingDeck ? '牌局开始' : '第 ' + (activeCard ? activeCard.no : 1) + ' / ' + totalCards + ' 张'}}</text>
+        <text class="aiDeckNotice">AI生成推荐，仅供参考</text>
         <button class="intentEditLink" bindtap="openIntentEditor">条件不对？改一下</button>
         <button class="back" bindtap="goBackGame">← 返回</button>
       </view>
@@ -552,7 +557,7 @@
                   <text wx:if="{{activeCard.meetupPanel.activeRoute}}" class="meetupRouteText">{{activeCard.meetupPanel.activeRoute.text}}</text>
                 </view>
                 <view class="cardFootRow">
-                  <text class="cardDetailHint">点卡片看招牌菜</text>
+                  <text class="cardDetailHint">AI生成推荐 · 点卡片看详情</text>
                   <view class="cardFootBtns">
                     <button wx:if="{{activeCard.category}}" class="cardNavBtn order" data-card-action="navigation" hover-stop-propagation="{{true}}" catchtap="orderActiveCard">
                       <text class="cardNavIcon" data-card-action="navigation">🛒</text>
@@ -641,6 +646,10 @@
         <text class="detailName">{{detailCard.name}}</text>
       </view>
       <scroll-view class="detailBody" scroll-y enhanced show-scrollbar="{{false}}">
+        <view class="detailAiNotice">
+          <text>AI生成内容提示</text>
+          <text>菜品、到店时间和筛选理由由 AI/规则辅助整理，请以商家和地图信息为准</text>
+        </view>
         <view class="detailFactGrid">
           <view wx:for="{{detailCard.detailFacts}}" wx:key="label" class="detailFact">
             <text>{{item.value}}</text>
