@@ -329,6 +329,38 @@ function rotateReplayCards(cards = []) {
   return cards.slice(1).concat(cards[0]);
 }
 
+function stableMeetupHash(value) {
+  const text = String(value || "");
+  let left = 2166136261;
+  let right = 2246822507;
+  for (let i = 0; i < text.length; i += 1) {
+    const code = text.charCodeAt(i);
+    left = Math.imul(left ^ code, 16777619);
+    right = Math.imul(right ^ code, 3266489917);
+  }
+  return [left, right].map((part) => (part >>> 0).toString(16).padStart(8, "0")).join("");
+}
+
+function sharedMeetupDeckSignature(roomId, rows = [], count = 2, modeName = "AI 模式") {
+  const participants = validMultiAreaRows(rows).map((row) => ({
+    id: String(row.id || ""),
+    people: clampMultiAreaPeople(row.people),
+    location: String(row.location || "").trim(),
+    latitude: Number.isFinite(Number(row.latitude)) ? Number(Number(row.latitude).toFixed(5)) : null,
+    longitude: Number.isFinite(Number(row.longitude)) ? Number(Number(row.longitude).toFixed(5)) : null,
+    pref: String(row.pref || "").trim(),
+    travels: (Array.isArray(row.travels) ? row.travels : []).map(String).sort()
+  })).sort((a, b) => a.id.localeCompare(b.id));
+  const payload = {
+    version: "room-deck-v1",
+    roomId: String(roomId || ""),
+    expectedCount: meetupRoomExpectedCount(count),
+    modeName,
+    participants
+  };
+  return `room-deck-v1-${stableMeetupHash(JSON.stringify(payload))}`;
+}
+
 function choiceText(data) {
   const tags = Array.isArray(data.tags) ? data.tags : selectedTagTexts([data.sceneTags || [], data.needTags || [], data.moreTags || []]);
   const question = data.question || data.problem || "";
@@ -1134,6 +1166,9 @@ Page({
     travelOptions: MEETUP_TRAVEL_OPTIONS,
     meetupRoomId: "",
     meetupSharedMode: false,
+    meetupRoomOwnerId: "",
+    meetupRoomIsOwner: false,
+    meetupSharedDeckSignature: "",
     meetupSelfId: "",
     meetupSelfName: "",
     meetupSelfRows: [],
@@ -1500,6 +1535,9 @@ Page({
         multiAreaReady: false,
         meetupRoomId: "",
         meetupSharedMode: false,
+        meetupRoomOwnerId: "",
+        meetupRoomIsOwner: false,
+        meetupSharedDeckSignature: "",
         meetupSelfRows: [],
         meetupRosterRows: [],
         meetupMemberStatusRows: [],
@@ -1661,9 +1699,12 @@ Page({
       method: "POST",
       data: {
         roomId,
+        ownerId: this.data.meetupRoomIsOwner ? profile.id : "",
+        expectedCount: this.data.partySize,
         participant: participantFromMeetupRow(selfRow, profile)
       }
-    }).then(() => {
+    }).then((data) => {
+      this.applyMeetupRoomMeta(data && data.room, profile);
       this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "" });
       return true;
     }).catch((error) => {
@@ -1692,9 +1733,11 @@ Page({
         this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "房间号不一致，已忽略" });
         return data;
       }
+      const roomMeta = this.applyMeetupRoomMeta(data && data.room, profile);
+      const expectedCount = roomMeta.expectedCount;
       const remoteRows = meetupRowsFromParticipants(data && data.participants);
       const rows = mergeMeetupRemoteRows(this.data.multiAreaRows, remoteRows, profile);
-      this.refreshMeetupRoomState(rows, { skipPublish: true });
+      this.refreshMeetupRoomState(rows, { skipPublish: true, expectedCount });
       this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: "" });
       return data;
     }).catch((error) => {
@@ -1703,6 +1746,61 @@ Page({
       if (!options.silent) this.showToast(`刷新失败：${reason}`);
       this.setData({ meetupRoomSyncing: false, meetupRoomSyncText: `刷新失败：${reason}` });
       return null;
+    });
+  },
+
+  applyMeetupRoomMeta(room = null, profileOverride = null) {
+    const profile = profileOverride || this.ensureMeetupSelfProfile();
+    const ownerId = String(room && room.ownerId || this.data.meetupRoomOwnerId || "");
+    const expected = meetupRoomExpectedCount(room && room.expectedCount || this.data.partySize);
+    const isOwner = Boolean(ownerId && ownerId === profile.id);
+    const updates = {
+      meetupRoomOwnerId: ownerId,
+      meetupRoomIsOwner: isOwner,
+      partySize: expected,
+      meetupRoomSharePath: meetupSharePath(this.data.meetupRoomId, expected)
+    };
+    this.setData(updates);
+    return { ownerId, isOwner, expectedCount: expected };
+  },
+
+  publishMeetupRoomSettings(expected = this.data.partySize) {
+    if (!this.data.meetupSharedMode || !this.data.meetupRoomIsOwner) return Promise.resolve(false);
+    const profile = this.ensureMeetupSelfProfile();
+    return wxRequestJson({
+      url: MEETUP_ROOM_ENDPOINT,
+      method: "POST",
+      data: {
+        action: "room",
+        roomId: this.data.meetupRoomId,
+        participantId: profile.id,
+        expectedCount: meetupRoomExpectedCount(expected)
+      }
+    }).then((data) => {
+      this.applyMeetupRoomMeta(data && data.room, profile);
+      return true;
+    }).catch((error) => {
+      console.warn("Update meetup room settings failed", error);
+      this.showToast("房间人数暂时没同步，请重试");
+      return false;
+    });
+  },
+
+  adjustMeetupExpectedCount(event) {
+    if (!this.data.meetupRoomIsOwner) {
+      this.showToast("房间人数由发起人设置");
+      return;
+    }
+    const delta = Number(event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.delta) || 0;
+    const next = meetupRoomExpectedCount(Number(this.data.partySize) + delta);
+    if (next === Number(this.data.partySize)) return;
+    this.setData({
+      partySize: next,
+      meetupRoomSharePath: meetupSharePath(this.data.meetupRoomId, next),
+      meetupSharedDeckSignature: ""
+    }, () => {
+      this.refreshMeetupRoomState(this.data.multiAreaRows, { skipPublish: true, expectedCount: next });
+      this.publishMeetupRoomSettings(next);
     });
   },
 
@@ -1728,13 +1826,16 @@ Page({
       id: this.data.meetupSelfId,
       name: this.data.meetupSelfName
     };
+    const expectedCount = meetupRoomExpectedCount(options.expectedCount || this.data.partySize);
     const normalized = this.data.meetupSharedMode
-      ? limitSharedMeetupRows(rows, profile, this.data.partySize)
+      ? limitSharedMeetupRows(rows, profile, expectedCount)
       : normalizeMultiAreaRows(rows);
     const center = meetupRoomMapCenter(normalized, options.coords || this.data.lastCoords);
-    const progress = meetupRoomProgress(normalized, this.data.partySize);
+    const progress = meetupRoomProgress(normalized, expectedCount);
     this.setData({
       multiAreaRows: normalized,
+      partySize: expectedCount,
+      meetupRoomSharePath: meetupSharePath(this.data.meetupRoomId, expectedCount),
       meetupSelfRows: meetupSelfRows(normalized),
       meetupRosterRows: meetupRosterRows(normalized),
       meetupMemberStatusRows: meetupMemberStatusRows(normalized),
@@ -1804,12 +1905,15 @@ Page({
   },
 
   enterMeetupRoom(roomId = "", rowsOverride = null, options = {}) {
+    const providedRoomId = String(roomId || "").trim();
     const expectedCount = meetupRoomExpectedCount(options.expectedCount || this.data.partySize);
     const nextRoomId = String(roomId || this.data.meetupRoomId || createMeetupRoomId()).trim() || createMeetupRoomId();
     const profile = this.ensureMeetupSelfProfile();
     const draft = this.loadMeetupRoomDraft(nextRoomId);
     const seedRows = rowsOverride || (draft && draft.rows) || [selfMultiAreaRow(profile)];
     const rows = limitSharedMeetupRows(seedRows, profile, expectedCount);
+    const knownOwnerId = String(this.data.meetupRoomOwnerId || "");
+    const isOwner = options.isOwner !== undefined ? Boolean(options.isOwner) : (!providedRoomId || knownOwnerId === profile.id);
     this.setData({
       screen: "game",
       areaMode: "multi",
@@ -1819,6 +1923,9 @@ Page({
       meetupSharedMode: true,
       meetupSelfId: profile.id,
       meetupSelfName: profile.name,
+      meetupRoomOwnerId: isOwner ? profile.id : knownOwnerId,
+      meetupRoomIsOwner: isOwner,
+      meetupSharedDeckSignature: "",
       meetupRoomSharePath: meetupSharePath(nextRoomId, expectedCount),
       meetupRoomSyncText: "",
       showVoiceInsight: false,
@@ -2523,9 +2630,10 @@ Page({
       this.showDeckError("没有拿到真实餐厅", "这次高德没有返回可用餐厅，点下面重新定位再试。");
       return;
     }
-    const deckCards = this.arrangeReplayCards(readyCards, this.pendingDeckSignature);
+    const sharedRoom = Boolean(this.data.meetupSharedMode && this.data.meetupRoomId);
+    const deckCards = sharedRoom ? readyCards : this.arrangeReplayCards(readyCards, this.pendingDeckSignature);
     this.resetDeck(deckCards, { shuffle: false });
-    this.rememberReplayDeck(this.pendingDeckSignature, deckCards);
+    if (!sharedRoom) this.rememberReplayDeck(this.pendingDeckSignature, deckCards);
   },
 
   resetDeck(cards, options = {}) {
@@ -2792,6 +2900,72 @@ Page({
     return Promise.resolve(card);
   },
 
+  meetupDeckSignature(modeName = "AI 模式") {
+    return sharedMeetupDeckSignature(
+      this.data.meetupRoomId,
+      this.data.multiAreaRows,
+      this.data.partySize,
+      modeName
+    );
+  },
+
+  meetupDeckSearchCoords(fallback = null) {
+    const middle = this.data.meetupBoard && this.data.meetupBoard.middle;
+    const lat = Number(middle && (middle.lat ?? middle.latitude));
+    const lng = Number(middle && (middle.lng ?? middle.longitude));
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return fallback;
+    return {
+      ...(fallback || {}),
+      lat,
+      lng,
+      latitude: lat,
+      longitude: lng,
+      label: middle.label || "组局中间点",
+      amap: true
+    };
+  },
+
+  fetchMeetupSharedDeck(signature) {
+    if (!this.data.meetupSharedMode || !this.data.meetupRoomId || !signature) return Promise.resolve([]);
+    return wxRequestJson({
+      url: `${MEETUP_ROOM_ENDPOINT}?roomId=${encodeURIComponent(this.data.meetupRoomId)}&deckSignature=${encodeURIComponent(signature)}`
+    }).then((data) => (
+      data && data.deckSignature === signature && Array.isArray(data.deck) ? data.deck.filter(Boolean).slice(0, TOTAL) : []
+    )).catch((error) => {
+      console.warn("Load shared meetup deck failed", error);
+      return [];
+    });
+  },
+
+  publishMeetupSharedDeck(signature, cards = []) {
+    if (!this.data.meetupSharedMode || !this.data.meetupRoomId || !signature || !cards.length) return Promise.resolve([]);
+    const profile = this.ensureMeetupSelfProfile();
+    let safeDeck = [];
+    try {
+      safeDeck = JSON.parse(JSON.stringify(cards.slice(0, TOTAL)));
+    } catch (error) {
+      console.warn("Serialize shared meetup deck failed", error);
+      return Promise.resolve([]);
+    }
+    return wxRequestJson({
+      url: MEETUP_ROOM_ENDPOINT,
+      method: "POST",
+      data: {
+        action: "deck",
+        roomId: this.data.meetupRoomId,
+        participantId: profile.id,
+        deckSignature: signature,
+        deck: safeDeck
+      }
+    }).then((data) => (
+      data && data.deckSignature === signature && Array.isArray(data.deck) ? data.deck.filter(Boolean).slice(0, TOTAL) : []
+    )).catch((error) => {
+      console.warn("Publish shared meetup deck failed", error);
+      const syncError = new Error("shared deck sync failed");
+      throw syncError;
+    });
+  },
+
   async loadCards(modeName, options = {}) {
     const searchRunId = options.searchRunId || this.searchRunId;
     const guardedSetLoading = (title, text, progress) => {
@@ -2801,32 +2975,53 @@ Page({
       if (this.isActiveSearchRun(searchRunId)) this.showToast(text);
     };
     try {
+      const sharedRoom = Boolean(this.data.meetupSharedMode && this.data.meetupRoomId);
       guardedSetLoading("正在读取当前位置", "3 秒内拿不到精准定位，就先按城市定位发牌。");
-      const coords = await this.ensureLocation({ forceGps: Boolean(options.forceLocationRefresh) });
+      const currentCoords = await this.ensureLocation({ forceGps: Boolean(options.forceLocationRefresh) });
       if (!this.isActiveSearchRun(searchRunId)) return [];
+      const coords = sharedRoom ? this.meetupDeckSearchCoords(currentCoords) : currentCoords;
       if (!coords) throw new Error("no location");
       guardedSetLoading("正在定位附近餐厅", "位置已确认，正在从高德拿真实餐厅。");
       const choice = buildChoiceContext(this.data);
-      choice.preferredBrands = consumerProfile.getPreferredBrands(); // 画像:优先用户常点品牌
-      const replaySignature = this.choiceReplaySignature(modeName, coords);
+      choice.preferredBrands = sharedRoom ? [] : consumerProfile.getPreferredBrands();
+      const replaySignature = sharedRoom ? this.meetupDeckSignature(modeName) : this.choiceReplaySignature(modeName, coords);
       this.pendingDeckSignature = replaySignature;
+      if (sharedRoom) {
+        this.setData({ meetupSharedDeckSignature: replaySignature });
+        await this.publishMeetupSelfRow(this.data.multiAreaRows, { silent: true });
+        const sharedDeck = await this.fetchMeetupSharedDeck(replaySignature);
+        if (!this.isActiveSearchRun(searchRunId)) return [];
+        if (sharedDeck.length) {
+          guardedToast("已载入本房间统一推荐");
+          return sharedDeck;
+        }
+      }
       const result = await loadRestaurantDeck({
         modeName,
         choice,
         coords,
-        avoidCardKeys: this.replayAvoidKeys(replaySignature),
+        avoidCardKeys: sharedRoom ? [] : this.replayAvoidKeys(replaySignature),
         setLoading: guardedSetLoading,
         toast: guardedToast
       });
       if (!this.isActiveSearchRun(searchRunId)) return [];
-      if (result.cards.length >= TOTAL) return result.cards;
-      if (result.cards.length > 0) return result.cards;
-      throw new Error("empty pois");
+      const cards = (result.cards || []).filter(Boolean).slice(0, TOTAL);
+      if (!cards.length) throw new Error("empty pois");
+      if (!sharedRoom) return cards;
+      const canonicalDeck = await this.publishMeetupSharedDeck(replaySignature, cards);
+      if (!this.isActiveSearchRun(searchRunId)) return [];
+      if (!canonicalDeck.length) throw new Error("shared deck sync failed");
+      return canonicalDeck;
     } catch (error) {
       console.warn("restaurant cards unavailable", error);
       if (!this.isActiveSearchRun(searchRunId)) return [];
-      this.showToast("没有拿到真实餐厅，请重试");
-      this.showDeckError("没有拿到真实餐厅", "这次高德没有返回可用餐厅，点下面重新定位再试。");
+      if (/shared deck sync failed/i.test(String(error && error.message || ""))) {
+        this.showToast("房间统一结果暂时没同步，请重试");
+        this.showDeckError("房间结果还没同步", "为保证大家看到同一顺序，本次不会展示各自不同的本地结果。请重试。");
+      } else {
+        this.showToast("没有拿到真实餐厅，请重试");
+        this.showDeckError("没有拿到真实餐厅", "这次高德没有返回可用餐厅，点下面重新定位再试。");
+      }
       return [];
     }
   },

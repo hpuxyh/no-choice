@@ -130,6 +130,18 @@
 
             <view wx:if="{{meetupSharedMode}}" class="mrRoster">
               <button class="mrShareBtn large" open-type="share" hover-class="is-press" hover-stay-time="80">邀请朋友填位置</button>
+              <view class="mrRoomSize">
+                <view class="mrRoomSizeCopy">
+                  <text class="mrRoomSizeTitle">房间人数</text>
+                  <text class="mrRoomSizeHint">{{meetupRoomIsOwner ? '发起人可加减，最多 6 人' : '由发起人统一设置'}}</text>
+                </view>
+                <view wx:if="{{meetupRoomIsOwner}}" class="mrRoomSizeStepper">
+                  <text class="mrRoomSizeBtn {{partySize <= 2 ? 'disabled' : ''}}" data-delta="-1" catchtap="adjustMeetupExpectedCount">−</text>
+                  <text class="mrRoomSizeValue">{{partySize}}人</text>
+                  <text class="mrRoomSizeBtn {{partySize >= 6 ? 'disabled' : ''}}" data-delta="1" catchtap="adjustMeetupExpectedCount">＋</text>
+                </view>
+                <text wx:else class="mrRoomSizeValue guest">{{partySize}}人</text>
+              </view>
               <view wx:if="{{meetupMemberStatusRows && meetupMemberStatusRows.length}}" class="mrStatusList">
                 <view wx:for="{{meetupMemberStatusRows}}" wx:key="id" class="mrStatusRow {{item.fillDone ? 'done' : 'editing'}}">
                   <view class="mrStatusAvatar">

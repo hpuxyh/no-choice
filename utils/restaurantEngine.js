@@ -44,7 +44,7 @@ const RESTAURANT_MEETUP_RADIUS_RATIO = 0.18;
 const LOCATION_SUFFIX_PATTERN = "(?:区|县|市|镇|乡|街道|商圈|机场|火车站|高铁站|大学|学院|大厦|写字楼|广场|公园|园区|CBD)";
 const RESTAURANT_ACTOR_PATTERN = "(?:我|本人|自己|朋友|对象|男朋友|女朋友|男友|女友|对方|同事|他|她|一个|一个人|另一个|另一个人|一位|另一位|第一个|第二个|第三个|第四个|A|B|a|b)";
 const RESTAURANT_LOCATION_CAPTURE = "([\\u4e00-\\u9fa5A-Za-z0-9·\\-]{2,24}?)(?=\\s*(?:附近|周边|这边|那边|吃什么|吃啥|吃点什么|吃点啥|吃饭|吃|找|搜|搜索|安排|看看|餐厅|饭店|一个|另一个|一位|另一位|第一个|第二个|第三个|第四个|两个人|三个人|几个人|共?\\d+(?:到|-)?\\d*人|[一二两三四五六七八九十]+人|人均|预算|折中|，|,|。|!|！|\\?|？|；|;|但|但是|不过|可是|我|本人|自己|朋友|对方|同事|他|她|我们|咱们|大家|一起|$))";
-const FOOD_SEARCH_TERMS = ["火锅", "夜宵", "烤肉", "烧烤", "日料", "日本料理", "寿司", "韩餐", "韩国料理", "泰餐", "西餐", "牛排", "意面", "披萨", "粤菜", "川菜", "湘菜", "云南菜", "云贵菜", "傣味", "菌子火锅", "过桥米线", "云南米线", "贵州菜", "东北菜", "新疆菜", "西北菜", "北京菜", "烤鸭", "本帮菜", "江浙菜", "海鲜", "素食", "轻食", "咖啡甜品", "咖啡", "甜品", "brunch", "早午餐", "小酒馆", "酒吧", "烧鸟", "居酒屋", "麻辣烫", "拉面", "面馆", "米粉", "私房菜", "中餐", "餐厅"];
+const FOOD_SEARCH_TERMS = ["糟粕醋火锅", "海鲜自助餐", "烤肉自助餐", "火锅自助餐", "日料自助餐", "自助餐", "糟粕醋", "火锅", "夜宵", "烤肉", "烧烤", "日料", "日本料理", "寿司", "韩餐", "韩国料理", "泰餐", "西餐", "牛排", "意面", "披萨", "粤菜", "川菜", "湘菜", "云南菜", "云贵菜", "傣味", "菌子火锅", "过桥米线", "云南米线", "贵州菜", "东北菜", "新疆菜", "西北菜", "北京菜", "烤鸭", "本帮菜", "江浙菜", "融合菜", "海鲜", "素食", "轻食", "咖啡甜品", "咖啡", "甜品", "brunch", "早午餐", "小酒馆", "酒吧", "烧鸟", "居酒屋", "麻辣烫", "拉面", "面馆", "米粉", "私房菜", "中餐", "餐厅"];
 const GENERIC_FOOD_INTENT_TERMS = new Set(["餐厅", "夜宵"]);
 const DEFAULT_DIVERSE_RESTAURANT_INTENTS = [
   { keyword: "中餐", types: "050100" },
@@ -351,6 +351,7 @@ function buildChoiceContext(data) {
   const partySize = isMultiArea ? multiAreaTotal : Math.max(0, Math.min(20, Math.round(Number(data.partySize) || 0)));
   const budgetPerPerson = Math.max(0, Math.min(2000, Math.round(Number(data.budgetPerPerson) || 0)));
   const hasBudgetControl = data.budgetPerPerson !== undefined && data.budgetPerPerson !== null && data.budgetPerPerson !== "";
+  const explicitBudget = inferExplicitRestaurantBudgetIntent({ question: data.problem || "", tags: [], scenes: [], needs: [] });
   const intentOverrides = normalizeChoiceIntentOverrides(data.confirmedChoiceIntent || data.intentOverrides);
   const multiAreaText = isMultiArea ? choiceMultiAreaQuestionText(multiAreaRows, multiAreaTotal) : "";
   const multiAreaLocationHints = multiAreaRows.map((row) => row.location);
@@ -358,7 +359,7 @@ function buildChoiceContext(data) {
   const tastePref = isMultiArea ? aggregateMeetupTaste(multiAreaRows) : "";
   const controls = [
     partySize ? `共${partySize}人` : "",
-    hasBudgetControl ? `人均${budgetPerPerson}元左右` : ""
+    hasBudgetControl && !explicitBudget ? `人均${budgetPerPerson}元左右` : ""
   ].filter(Boolean).join("，");
   return {
     question: [multiAreaText, cleanChoiceQuestion(data.problem || ""), controls].filter(Boolean).join(" "),
@@ -746,6 +747,8 @@ function normalizeRestaurantSearchPlan(plan, choice) {
   const amapFields = source.amapFields || source.amapParams || source.amap || {};
   const fallback = localRestaurantSearchPlan(choice);
   const rawKeywords = normalizePlanKeywords(source.keywords || source.searchKeywords || source.amapKeywords || source.tags);
+  const explicitFoodKeywords = explicitRestaurantFoodKeywords(choice);
+  const explicitBudget = inferExplicitRestaurantBudgetIntent(choice);
   const minCost = readPlanCost(source.minCost ?? source.min_price ?? source.minPrice);
   const maxCost = readPlanCost(source.maxCost ?? source.max_price ?? source.maxPrice);
   const minRating = readPlanRating(source.minRating ?? source.min_rating ?? source.ratingMin);
@@ -777,13 +780,17 @@ function normalizeRestaurantSearchPlan(plan, choice) {
   const multiParticipantMeetup = participantTargets.length >= 2 || resolvedLocationHints.length >= 2 || currentPlusFriendMeetup || (sourceIncludesCurrentLocation && resolvedLocationHints.length >= 1);
   const includeCurrentLocationInMeetup = Boolean((sourceIncludesCurrentLocation && resolvedLocationHints.length >= 1) || (currentPlusFriendMeetup && resolvedLocationHints.length === 1));
   const meetupParticipantCount = resolvedLocationHints.length + (includeCurrentLocationInMeetup ? 1 : 0);
+  const preferredKeywords = explicitFoodKeywords.length ? explicitFoodKeywords : rawKeywords;
   const keywords = multiParticipantMeetup
-    ? restaurantKeywordsWithoutLocationHints(rawKeywords, [...resolvedLocationHints, ...sourceCurrentLocationHints], { fallbackKeywords: fallback.keywords })
-    : rawKeywords;
+    ? restaurantKeywordsWithoutLocationHints(preferredKeywords, [...resolvedLocationHints, ...sourceCurrentLocationHints], { fallbackKeywords: fallback.keywords })
+    : preferredKeywords;
   const fallbackDestinationHint = multiParticipantMeetup ? "" : (extractRestaurantDestinationHint(choice)?.name || "");
   const sourceLocationHint = multiParticipantMeetup ? "" : cleanRestaurantDestinationHint(source.locationHint || source.destinationHint || source.destination || source.area || source.landmark || "");
-  const resolvedMinCost = Number.isFinite(minCost) ? minCost : fallback.minCost;
+  const resolvedMinCost = explicitBudget ? explicitBudget.minCost : (Number.isFinite(minCost) ? minCost : fallback.minCost);
   const fallbackMaxCost = fallback.maxCost && (!resolvedMinCost || fallback.maxCost >= resolvedMinCost) ? fallback.maxCost : 0;
+  const resolvedMaxCost = explicitBudget
+    ? explicitBudget.maxCost
+    : (Number.isFinite(maxCost) && (!resolvedMinCost || maxCost >= resolvedMinCost) ? maxCost : fallbackMaxCost);
   const resolvedRadiusMeters = explicitRadius || (forceCurrentPlusFallbackMeetup
     ? normalizeAmapRadius(fallback.radiusMeters, fallback.radiusMeters)
     : normalizeAmapRadius(radius, fallback.radiusMeters));
@@ -806,7 +813,9 @@ function normalizeRestaurantSearchPlan(plan, choice) {
   const resolved = {
     keywords: keywords.length ? keywords : fallback.keywords,
     minCost: resolvedMinCost,
-    maxCost: Number.isFinite(maxCost) && (!resolvedMinCost || maxCost >= resolvedMinCost) ? maxCost : fallbackMaxCost,
+    maxCost: resolvedMaxCost,
+    strictMinCost: Boolean(explicitBudget && explicitBudget.strictMinCost),
+    strictMaxCost: Boolean(explicitBudget && explicitBudget.strictMaxCost),
     radiusMeters: resolvedRadiusMeters,
     types: mergeAmapTypes(declaredTypes, inferredTypes !== "050000" ? inferredTypes : "", broadSceneTypes),
     sortrule: normalizeAmapSortRule(source.sortrule || source.sortRule || amapFields.sortrule || amapFields.sortRule || fallback.sortrule),
@@ -816,14 +825,15 @@ function normalizeRestaurantSearchPlan(plan, choice) {
     minRating: Number.isFinite(minRating) ? minRating : fallback.minRating,
     preferOpenLate: Boolean(source.preferOpenLate || source.openLate || source.lateNight || fallback.preferOpenLate),
     openAtHour: readPlanHour(source.openAtHour || source.open_at_hour || source.openAt),
-    mustKeywords: normalizeSimpleKeywords(source.mustKeywords || source.includeKeywords || source.requiredKeywords, 8),
+    mustKeywords: explicitFoodKeywords.length ? explicitFoodKeywords : normalizeSimpleKeywords(source.mustKeywords || source.includeKeywords || source.requiredKeywords, 8),
+    strictMustKeywords: explicitFoodKeywords.length > 0,
     avoidKeywords: normalizeSimpleKeywords(source.avoidKeywords || source.excludeKeywords || source.negativeKeywords, 8),
     locationHint: multiParticipantMeetup ? "" : (fallbackDestinationHint || sourceLocationHint || (resolvedLocationHints.length === 1 ? resolvedLocationHints[0] : fallback.locationHint)),
     locationHints: resolvedLocationHints,
     includeCurrentLocationInMeetup,
     sceneIntent: source.sceneIntent || source.scenarioIntent || null,
     keywordStrategy: Array.isArray(source.keywordStrategy) ? source.keywordStrategy.slice(0, 8) : [],
-    priceIntent: source.priceIntent || null,
+    priceIntent: explicitBudget || source.priceIntent || null,
     locationIntent: normalizedLocationIntent,
     restaurantTypeIntent: source.restaurantTypeIntent || source.typeIntent || null,
     explanation: String(source.explanation || source.reason || "").slice(0, 120),
@@ -831,7 +841,8 @@ function normalizeRestaurantSearchPlan(plan, choice) {
   };
   if (!resolved.region) resolved.cityLimit = false;
   resolved.needsCompanionLocation = needsRestaurantCompanionLocation(choice, resolved);
-  resolved.searchRequests = normalizePlanSearchRequests(source.searchRequests || source.queries || source.queryIntents, resolved.keywords, resolved)
+  const searchRequestSource = explicitFoodKeywords.length ? [] : (source.searchRequests || source.queries || source.queryIntents);
+  resolved.searchRequests = normalizePlanSearchRequests(searchRequestSource, resolved.keywords, resolved)
     .map((request) => ({ ...request, radiusMeters: Math.min(request.radiusMeters, resolved.radiusMeters) }));
   applyDefaultRestaurantTypeDiversity(resolved, choice);
   if (multiParticipantMeetup) {
@@ -846,7 +857,8 @@ function normalizeRestaurantSearchPlan(plan, choice) {
 }
 
 function localRestaurantSearchPlan(choice, { forceGeneric = false } = {}) {
-  const keywords = forceGeneric ? [RESTAURANT_KEYWORD_FALLBACK] : restaurantSearchKeywords(choice);
+  const explicitFoodKeywords = forceGeneric ? [] : explicitRestaurantFoodKeywords(choice);
+  const keywords = forceGeneric ? [RESTAURANT_KEYWORD_FALLBACK] : (explicitFoodKeywords.length ? explicitFoodKeywords : restaurantSearchKeywords(choice));
   const locationHints = extractedRestaurantParticipantLocationNames(choice);
   const currentPlusFriendMeetup = shouldUseCurrentLocationForMeetup(choice, locationHints);
   const destinationHint = extractRestaurantParticipantTargetHints(choice).length >= 2 || currentPlusFriendMeetup
@@ -858,10 +870,13 @@ function localRestaurantSearchPlan(choice, { forceGeneric = false } = {}) {
   const radiusMeters = inferRestaurantSearchRadius(choice, { hasDestination: Boolean(destinationHint), participantCount: locationHints.length + (currentPlusFriendMeetup ? 1 : 0) });
   const sortrule = inferRestaurantSortRule(choice);
   const costRange = forceGeneric ? { minCost: 0, maxCost: 0 } : inferRestaurantCostRange(choice);
+  const explicitBudget = forceGeneric ? null : inferExplicitRestaurantBudgetIntent(choice);
   const plan = {
     keywords,
     minCost: !forceGeneric && choice.tags.includes("人均150+") ? Math.max(MIN_RESTAURANT_COST, costRange.minCost || 0) : costRange.minCost,
     maxCost: costRange.maxCost,
+    strictMinCost: Boolean(explicitBudget && explicitBudget.strictMinCost),
+    strictMaxCost: Boolean(explicitBudget && explicitBudget.strictMaxCost),
     radiusMeters,
     types,
     sortrule,
@@ -871,8 +886,10 @@ function localRestaurantSearchPlan(choice, { forceGeneric = false } = {}) {
     minRating: 0,
     preferOpenLate: !forceGeneric && preferOpenLate,
     openAtHour: !forceGeneric && preferOpenLate ? 23 : 0,
-    mustKeywords: [],
+    mustKeywords: explicitFoodKeywords,
+    strictMustKeywords: explicitFoodKeywords.length > 0,
     avoidKeywords: [],
+    priceIntent: explicitBudget,
     locationHint: destinationHint,
     locationHints,
     explanation: "",
@@ -906,15 +923,7 @@ function applyDefaultRestaurantTypeDiversity(plan, choice = {}) {
 }
 
 function hasExplicitRestaurantFoodPreference(choice = {}) {
-  const tags = Array.isArray(choice.tags) ? choice.tags : [];
-  if (tags.some((tag) => MORE_TAGS.includes(tag))) return true;
-  const sourceText = cleanChoiceQuestion(`${choice.question || ""} ${tags.join(" ")}`);
-  const normalizedText = normalizeMatchText(sourceText);
-  return FOOD_SEARCH_TERMS.some((term) => {
-    if (GENERIC_FOOD_INTENT_TERMS.has(term)) return false;
-    const key = normalizeMatchText(term);
-    return key && normalizedText.includes(key);
-  });
+  return explicitRestaurantFoodKeywords(choice).length > 0;
 }
 
 // 多人组局综合口味:清淡/重口 → 关键词覆盖(仅当没人显式点具体菜系时,尊重显式选择)
@@ -1090,6 +1099,38 @@ function applyTextDietaryRules(plan, choice = {}) {
   return plan;
 }
 
+const SPECIFIC_FOOD_TOKEN_PATTERN = /(?:糟粕醋火锅|自助餐|火锅|烤肉|烧烤|料理|中餐|西餐|韩餐|泰餐|法餐|早午餐|粤菜|川菜|湘菜|融合菜|牛排|寿司|烤鱼|海鲜|米线|拉面|面馆|米粉|饺子|小吃|甜品|咖啡|奶茶)$/i;
+
+function specificRestaurantFoodKeywords(question) {
+  const text = cleanChoiceQuestion(question).replace(/\s+/g, " ");
+  const tokens = text.split(/[\s，,。.!！?？；;:：、/|]+/).map((token) => (
+    token.replace(/^(?:今天|今晚|现在)?(?:想吃|想要吃|要吃|吃点|吃|来点|找|搜|搜索|安排)/, "")
+  ));
+  const matches = tokens
+    .flatMap((token) => expandQuestionFoodKeywords(normalizeQuestionFoodKeyword(token)))
+    .filter((token) => token && token.length <= 12 && SPECIFIC_FOOD_TOKEN_PATTERN.test(token));
+  return preferSpecificRestaurantKeywords(matches);
+}
+
+function preferSpecificRestaurantKeywords(keywords = []) {
+  const unique = uniqueKeywords(keywords.map(cleanRestaurantKeyword).filter(Boolean));
+  return unique.filter((keyword, index) => {
+    const key = normalizeMatchText(keyword);
+    return !unique.some((other, otherIndex) => {
+      if (otherIndex === index) return false;
+      const otherKey = normalizeMatchText(other);
+      return otherKey.length > key.length && otherKey.includes(key);
+    });
+  });
+}
+
+function explicitRestaurantFoodKeywords(choice = {}) {
+  const tags = Array.isArray(choice.tags) ? choice.tags : [];
+  const source = `${choice.question || ""} ${tags.join(" ")}`;
+  const extracted = extractRestaurantQuestionKeywords(source).filter((term) => !GENERIC_FOOD_INTENT_TERMS.has(term));
+  return preferSpecificRestaurantKeywords(extracted).slice(0, 4);
+}
+
 function restaurantSearchKeywords(choice) {
   const raw = [];
   const questionKeywords = extractRestaurantQuestionKeywords(choice.question);
@@ -1114,7 +1155,7 @@ function restaurantSearchKeywords(choice) {
 
 function extractRestaurantQuestionKeywords(question) {
   const text = cleanChoiceQuestion(question).replace(/\s+/g, " ");
-  const keywords = [];
+  const keywords = specificRestaurantFoodKeywords(text);
   const actionPattern = /(?:想吃|想要吃|要吃|吃点|吃|来点|找|搜|搜索|安排)([\u4e00-\u9fa5A-Za-z0-9]{1,12})/g;
   let match;
   while ((match = actionPattern.exec(text))) {
@@ -1124,7 +1165,7 @@ function extractRestaurantQuestionKeywords(question) {
   FOOD_SEARCH_TERMS.forEach((term) => {
     if (text.toLowerCase().includes(term.toLowerCase())) keywords.push(term);
   });
-  return uniqueKeywords(keywords.map(cleanRestaurantKeyword).filter(Boolean)).slice(0, 4);
+  return preferSpecificRestaurantKeywords(keywords).slice(0, 4);
 }
 
 function normalizeQuestionFoodKeyword(value) {
@@ -1748,29 +1789,41 @@ function inferRestaurantSortRule(choice) {
   return "distance";
 }
 
+function restaurantBudgetText(choice = {}) {
+  return cleanChoiceQuestion(`${choice.question || ""} ${(choice.tags || []).join(" ")} ${(choice.scenes || []).join(" ")} ${(choice.needs || []).join(" ")}`);
+}
+
+function restaurantBudgetNumber(value) {
+  const amount = Math.round(Number(value));
+  return Number.isFinite(amount) ? Math.max(1, Math.min(2000, amount)) : 0;
+}
+
+function inferExplicitRestaurantBudgetIntent(choice = {}) {
+  const text = restaurantBudgetText(choice);
+  let match = text.match(/(?:人均(?:金额|价格|消费)?|每人|预算(?:人均)?)\s*(\d{1,4})\s*(?:-|~|到|至)\s*(\d{1,4})/);
+  if (match) {
+    const first = restaurantBudgetNumber(match[1]);
+    const second = restaurantBudgetNumber(match[2]);
+    return { minCost: Math.min(first, second), maxCost: Math.max(first, second), strictMinCost: true, strictMaxCost: true, source: "text" };
+  }
+  match = text.match(/(?:人均(?:金额|价格|消费)?|每人|预算(?:人均)?)\s*(?:不超过|最多|上限(?:为)?|控制在)\s*(\d{1,4})\s*(?:元)?/)
+    || text.match(/(?:人均(?:金额|价格|消费)?|每人|预算(?:人均)?)\s*(\d{1,4})\s*(?:元)?\s*(?:以内|以下|内|封顶)/)
+    || text.match(/(?:不超过|低于|少于|最多)\s*(?:人均(?:金额|价格|消费)?|每人|预算(?:人均)?)?\s*(\d{1,4})\s*(?:元)?/);
+  if (match) return { minCost: 0, maxCost: restaurantBudgetNumber(match[1]), strictMinCost: false, strictMaxCost: true, source: "text" };
+  match = text.match(/(?:人均(?:金额|价格|消费)?|每人|预算(?:人均)?)\s*(\d{1,4})\s*(?:元)?\s*(?:\+|以上|起)/);
+  if (match) return { minCost: restaurantBudgetNumber(match[1]), maxCost: 0, strictMinCost: true, strictMaxCost: false, source: "text" };
+  match = text.match(/(?:人均(?:金额|价格|消费)?|每人)\s*(\d{1,4})(?!\s*(?:-|~|到|至|\+|以上|起|以内|以下|内|封顶))/);
+  if (match) {
+    const target = restaurantBudgetNumber(match[1]);
+    return { minCost: Math.max(20, Math.round(target * 0.75)), maxCost: Math.round(target * 1.25), strictMinCost: false, strictMaxCost: false, source: "text" };
+  }
+  return null;
+}
+
 function inferRestaurantCostRange(choice) {
   const text = cleanChoiceQuestion(`${choice.question || ""} ${(choice.tags || []).join(" ")} ${(choice.scenes || []).join(" ")} ${(choice.needs || []).join(" ")}`);
-  const rangeMatch = text.match(/人均\s*(\d{1,4})\s*(?:-|~|到|至)\s*(\d{1,4})/);
-  if (rangeMatch) {
-    const first = Math.round(Number(rangeMatch[1]));
-    const second = Math.round(Number(rangeMatch[2]));
-    return { minCost: Math.min(first, second), maxCost: Math.max(first, second) };
-  }
-  const plusMatch = text.match(/(?:人均\s*)?(\d{2,4})\s*(?:\+|以上|起)/);
-  if (plusMatch) {
-    const minCost = Math.max(MIN_RESTAURANT_COST, Math.round(Number(plusMatch[1])));
-    return { minCost, maxCost: Math.max(300, Math.round(minCost * 2.2)) };
-  }
-  const underMatch = text.match(/(?:人均|预算)\s*(\d{1,4})\s*(?:元)?\s*(?:以内|以下|内|封顶|左右)?/);
-  if (underMatch) {
-    const maxCost = Math.round(Number(underMatch[1]));
-    return { minCost: maxCost <= 90 ? 25 : 50, maxCost };
-  }
-  const exactMatch = text.match(/人均\s*(\d{1,4})(?!\s*(?:-|~|到|至|\+|以上|起|以内|以下|内|封顶))/);
-  if (exactMatch) {
-    const target = Math.round(Number(exactMatch[1]));
-    return { minCost: Math.max(20, Math.round(target * 0.75)), maxCost: Math.round(target * 1.25) };
-  }
+  const explicit = inferExplicitRestaurantBudgetIntent(choice);
+  if (explicit) return { minCost: explicit.minCost, maxCost: explicit.maxCost };
   if (/不差钱|预算不限|高端|高级|奢侈|米其林|黑珍珠|贵一点|贵的|仪式感/.test(text)) return { minCost: 250, maxCost: 600 };
   if (/约会|对象|情侣|请客|纪念日|精致|环境好|有氛围/.test(text)) return { minCost: 150, maxCost: 350 };
   if (/朋友|聚餐|多人|同事|安静|好聊|不踩雷|好吃|评分|推荐/.test(text)) return { minCost: 80, maxCost: 220 };
@@ -1783,6 +1836,7 @@ function inferRestaurantCostRange(choice) {
 }
 
 function readCostValue(value) {
+  if (value === undefined || value === null || String(value).trim() === "") return Number.NaN;
   const direct = Number(value);
   if (Number.isFinite(direct)) return direct;
   const match = String(value || "").match(/\d+(?:\.\d+)?/);
@@ -1845,10 +1899,13 @@ function restaurantSearchOptions(searchPlan = {}) {
   return {
     minCost: searchPlan.minCost || 0,
     maxCost: searchPlan.maxCost || 0,
+    strictMinCost: Boolean(searchPlan.strictMinCost),
+    strictMaxCost: Boolean(searchPlan.strictMaxCost),
     minRating: searchPlan.minRating || 0,
     preferOpenLate: Boolean(searchPlan.preferOpenLate),
     openAtHour: searchPlan.openAtHour || 0,
     mustKeywords: normalizeSimpleKeywords(searchPlan.mustKeywords, 8),
+    strictMustKeywords: Boolean(searchPlan.strictMustKeywords),
     avoidKeywords: normalizeSimpleKeywords(searchPlan.avoidKeywords, AVOID_KEYWORD_LIMIT),
     types: normalizeAmapTypes(searchPlan.types),
     sortrule: normalizeAmapSortRule(searchPlan.sortrule),
@@ -1913,8 +1970,16 @@ async function trySearchNearbyRestaurants(coords, radius, keywords, options, lab
 }
 
 function relaxedRestaurantSearchOptions(options = {}) {
-  // 放宽价格/评分/必含词/区域来凑够候选,但"忌口/否定"(avoidKeywords)是硬性约束,永不放开
-  return { ...options, minCost: 0, maxCost: 0, minRating: 0, mustKeywords: [], avoidKeywords: normalizeSimpleKeywords(options.avoidKeywords, AVOID_KEYWORD_LIMIT), region: "", cityLimit: false, types: "050000", sortrule: "distance", showFields: AMAP_SHOW_FIELDS_DEFAULT, searchRequests: [] };
+  // 只放宽启发式条件。用户明确说出的预算上/下限、具体品类和忌口始终是硬条件。
+  return {
+    ...options,
+    minCost: options.strictMinCost ? options.minCost : 0,
+    maxCost: options.strictMaxCost ? options.maxCost : 0,
+    minRating: 0,
+    mustKeywords: options.strictMustKeywords ? normalizeSimpleKeywords(options.mustKeywords, 8) : [],
+    avoidKeywords: normalizeSimpleKeywords(options.avoidKeywords, AVOID_KEYWORD_LIMIT),
+    region: "", cityLimit: false, types: "050000", sortrule: "distance", showFields: AMAP_SHOW_FIELDS_DEFAULT, searchRequests: []
+  };
 }
 
 async function searchNearbyRestaurants(coords, radius = 3500, keywords = [RESTAURANT_KEYWORD_FALLBACK], options = {}, meetup = null) {
@@ -2287,7 +2352,8 @@ function filterRestaurantPois(pois, { minCost = 0, maxCost = 0, minRating = 0, m
 function preferredRestaurantPois(pois, options = {}) {
   const strict = filterRestaurantPois(pois, options);
   if (strict.length >= TOTAL) return strict;
-  const relaxedMust = normalizeSimpleKeywords(options.mustKeywords, 8).length ? filterRestaurantPois(pois, { ...options, mustKeywords: [] }) : [];
+  const canRelaxMust = normalizeSimpleKeywords(options.mustKeywords, 8).length && !options.strictMustKeywords;
+  const relaxedMust = canRelaxMust ? filterRestaurantPois(pois, { ...options, mustKeywords: [] }) : [];
   const strictAndMust = uniquePois([...strict, ...relaxedMust]);
   if (strictAndMust.length >= TOTAL) return strictAndMust;
   const relaxedCost = filterRestaurantPois(pois, relaxedRestaurantSearchOptions(options));
@@ -3622,7 +3688,9 @@ function restaurantBrandKey(name) {
 function compareRestaurantCandidate(a, b) {
   const scoreDiff = restaurantCandidateScore(b) - restaurantCandidateScore(a);
   if (Math.abs(scoreDiff) > 0.01) return scoreDiff;
-  return comparePoiCostDesc(a, b);
+  const secondary = comparePoiCostDesc(a, b);
+  if (Number.isFinite(secondary) && secondary !== 0) return secondary;
+  return restaurantCardReplayKey(a).localeCompare(restaurantCardReplayKey(b), "zh-CN");
 }
 
 function restaurantCandidateScore(poi) {
@@ -4473,6 +4541,10 @@ module.exports = {
     normalizeChoiceIntentOverrides,
     applyChoiceIntentOverrides,
     localRestaurantSearchPlan,
+    inferExplicitRestaurantBudgetIntent,
+    explicitRestaurantFoodKeywords,
+    extractRestaurantQuestionKeywords,
+    inferRestaurantCostRange,
     ensureRestaurantMeetupPlanForMode,
     inferExplicitRestaurantRadiusMeters,
     restaurantAmapRequests,

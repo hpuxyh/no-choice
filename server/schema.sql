@@ -36,3 +36,25 @@ CREATE TABLE IF NOT EXISTS meetup_participants (
 );
 
 CREATE INDEX IF NOT EXISTS idx_meetup_room_updated ON meetup_participants(room_id, updated_at);
+
+CREATE TABLE IF NOT EXISTS meetup_rooms (
+  room_id        TEXT PRIMARY KEY,
+  owner_id       TEXT    NOT NULL,
+  expected_count INTEGER DEFAULT 2,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_meetup_rooms_updated ON meetup_rooms(updated_at);
+
+CREATE TABLE IF NOT EXISTS meetup_decks (
+  room_id        TEXT    NOT NULL,
+  deck_signature TEXT    NOT NULL,
+  deck_json      TEXT    NOT NULL,
+  creator_id     TEXT    NOT NULL,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL,
+  PRIMARY KEY (room_id, deck_signature)
+);
+
+CREATE INDEX IF NOT EXISTS idx_meetup_decks_updated ON meetup_decks(updated_at);
