@@ -41,6 +41,20 @@ function defer() {
 }
 
 (async () => {
+  const sharedResultPage = makePage({
+    data: {
+      showWin: true,
+      winner: { name: "同一张餐厅卡" },
+      shareResultReady: true,
+      shareResultId: "card-test-share-1234567890"
+    }
+  });
+  const sharedResultShare = sharedResultPage.onShareAppMessage();
+  assert.strictEqual(sharedResultShare.path, "/pages/play/play?sharedCardId=card-test-share-1234567890");
+  assert.match(sharedResultShare.title, /同一张餐厅卡/);
+  const sharedResultTimeline = sharedResultPage.onShareTimeline();
+  assert.strictEqual(sharedResultTimeline.query, "sharedCardId=card-test-share-1234567890");
+
   const genericSharePage = makePage();
   const genericShare = genericSharePage.onShareAppMessage();
   assert.strictEqual(genericShare.path, "/pages/play/play");
@@ -316,6 +330,71 @@ function defer() {
   assert.strictEqual(manualLockPage.syncMeetupCurrentLocation({ label: "劲松七区", addressMeta: "劲松七区", lat: 39.88, lng: 116.46, locationSource: "gps" }, { force: true }), true);
   assert.strictEqual(manualLockPage.data.multiAreaRows[0].location, "劲松七区");
   assert.strictEqual(manualLockPage.data.multiAreaRows[0].locationSource, "gps");
+
+  let sharedCardPost = null;
+  global.wx.request = ({ url, method, data, success }) => {
+    if (!/\/api\/shared-card$/.test(url) || method !== "POST") return;
+    sharedCardPost = data;
+    success({
+      statusCode: 200,
+      data: {
+        ok: true,
+        shareId: data.shareId,
+        result: { card: data.card, settleText: data.settleText, departureAdvice: data.departureAdvice }
+      }
+    });
+  };
+  const winnerPage = makePage();
+  winnerPage.showWinner({
+    id: "poi-1",
+    name: "测试餐厅",
+    reason: "大家都方便",
+    slogan: "就这家",
+    poi: {
+      id: "poi-1",
+      participantRoutes: [{ participantId: "secret", lat: 1, lng: 2 }]
+    },
+    participantRoutes: [{ participantId: "secret", lat: 1, lng: 2 }],
+    routeMetrics: { participantId: "secret" },
+    meetup: { participantIds: ["secret"] },
+    arrivalBoard: { rows: [{ label: "小王", recommendedText: "步行 8 分钟" }] }
+  }, false);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(sharedCardPost);
+  assert.strictEqual(sharedCardPost.card.name, "测试餐厅");
+  assert.strictEqual(sharedCardPost.card.poi, undefined);
+  assert.strictEqual(sharedCardPost.card.participantRoutes, undefined);
+  assert.strictEqual(sharedCardPost.card.routeMetrics, undefined);
+  assert.strictEqual(sharedCardPost.card.meetup, undefined);
+  assert.deepStrictEqual(sharedCardPost.card.arrivalBoard.rows, [{ label: "小王", recommendedText: "步行 8 分钟" }]);
+  assert.strictEqual(winnerPage.data.shareResultReady, true);
+  assert.match(winnerPage.onShareAppMessage().path, /^\/pages\/play\/play\?sharedCardId=card-/);
+
+  const storedShareId = "card-open-share-1234567890";
+  global.wx.request = ({ url, success }) => {
+    assert.match(url, new RegExp("shareId=" + storedShareId + "$"));
+    success({
+      statusCode: 200,
+      data: {
+        ok: true,
+        shareId: storedShareId,
+        result: {
+          card: { id: "same-poi", name: "群里同一张卡", reason: "固定快照", no: 2 },
+          settleText: "群里已经拍板",
+          departureAdvice: ["18:30 出发"]
+        }
+      }
+    });
+  };
+  const openSharedPage = makePage();
+  const openedWinner = await openSharedPage.openSharedResult(storedShareId);
+  assert.strictEqual(openedWinner.name, "群里同一张卡");
+  assert.strictEqual(openSharedPage.data.winner.name, "群里同一张卡");
+  assert.strictEqual(openSharedPage.data.settleText, "群里已经拍板");
+  assert.deepStrictEqual(openSharedPage.data.departureAdvice, ["18:30 出发"]);
+  assert.strictEqual(openSharedPage.data.sharedResultFromLink, true);
+  assert.strictEqual(openSharedPage.data.shareResultReady, true);
+  global.wx.request = previousRequest;
 
   // 单设备多人组局:更新我的位置 → 始终写进 host 行(已无主客/分享区别)
   const hostUpdatePage = makePage({

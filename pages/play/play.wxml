@@ -604,13 +604,24 @@
 
   <view wx:if="{{toastText}}" class="toast show">{{toastText}}</view>
 
+  <view wx:if="{{sharedResultOpening || sharedResultOpenError}}" class="sharedResultGate">
+    <view class="sharedResultGateCard">
+      <text class="sharedResultGateTitle">{{sharedResultOpening ? '正在打开群里选中的卡片' : '这张卡片暂时打不开'}}</text>
+      <text class="sharedResultGateText">{{sharedResultOpening ? '正在同步同一份餐厅结果…' : sharedResultOpenError}}</text>
+      <view wx:if="{{sharedResultOpenError}}" class="sharedResultGateActions">
+        <button class="btn alt" bindtap="retryOpenSharedResult">重试</button>
+        <button class="btn ghost" bindtap="resetAll">回到首页</button>
+      </view>
+    </view>
+  </view>
+
   <view wx:if="{{showWin}}" class="confetti">
     <text wx:for="{{confettiPieces}}" wx:key="index" class="conf conf{{index}}" style="left: {{item.left}}%; background: {{item.color}}; animation-delay: {{item.delay}}ms; animation-duration: {{item.duration}}ms;"></text>
   </view>
 
   <view wx:if="{{showWin}}" class="win show">
     <view class="winCard">
-      <text class="tag">拍板</text>
+      <text class="tag">{{sharedResultFromLink ? '群里选定' : '拍板'}}</text>
       <text class="cg">就这家，别纠结了！</text>
       <text class="settleBig">{{settleText}}</text>
       <view wx:if="{{winner.image}}" class="face photo">
@@ -642,7 +653,9 @@
         <button class="btn alt" hover-class="is-press" hover-stay-time="80" bindtap="openWinnerNavigation">去导航</button>
         <button class="btn ghost" hover-class="is-press" hover-stay-time="80" bindtap="openWinnerDetail">看详情</button>
       </view>
-      <button class="btn" hover-class="is-press" hover-stay-time="80" bindtap="resetAll">不满意？再来一局</button>
+      <button wx:if="{{shareResultReady}}" class="btn shareResultBtn" open-type="share" data-share-kind="result" hover-class="is-press" hover-stay-time="80">分享到群，大家看同一张卡</button>
+      <button wx:else class="btn shareResultPending" loading="{{shareResultSyncing}}" hover-class="is-press" hover-stay-time="80" bindtap="retryShareWinner">{{shareResultSyncing ? '正在准备群分享…' : (shareResultSyncText || '重试群分享')}}</button>
+      <button class="btn" hover-class="is-press" hover-stay-time="80" bindtap="resetAll">{{sharedResultFromLink ? '我也来开一局' : '不满意？再来一局'}}</button>
     </view>
   </view>
 

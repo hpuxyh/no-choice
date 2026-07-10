@@ -58,3 +58,14 @@ CREATE TABLE IF NOT EXISTS meetup_decks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_meetup_decks_updated ON meetup_decks(updated_at);
+
+CREATE TABLE IF NOT EXISTS shared_cards (
+  share_id      TEXT PRIMARY KEY,
+  room_id       TEXT,
+  card_json     TEXT    NOT NULL,
+  creator_id    TEXT,
+  created_at    INTEGER NOT NULL,
+  expires_at    INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_shared_cards_expires ON shared_cards(expires_at);

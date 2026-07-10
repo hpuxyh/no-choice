@@ -1842,6 +1842,8 @@ button.ctrlSide,
   align-items: stretch;
   gap: 16rpx;
   text-align: center;
+  max-height: 92vh;
+  overflow-y: auto;
   animation: drop .6s cubic-bezier(.2,1.3,.4,1);
   box-sizing: border-box;
 }
@@ -1955,6 +1957,65 @@ button.ctrlSide,
 .links .btn {
   min-height: 80rpx;
   font-size: 26rpx;
+}
+
+.shareResultBtn {
+  background: #28c76f;
+  color: #10251a;
+}
+
+.shareResultPending {
+  background: #e7ddc8;
+  color: #5f574a;
+}
+
+.sharedResultGate {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  padding: 40rpx;
+  background: rgba(26, 23, 20, .66);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.sharedResultGateCard {
+  width: 100%;
+  max-width: 620rpx;
+  padding: 40rpx 34rpx;
+  border: 6rpx solid #1a1714;
+  border-radius: 28rpx;
+  background: #f3ecdd;
+  box-shadow: 9rpx 9rpx 0 #1a1714;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.sharedResultGateTitle {
+  font-size: 34rpx;
+  font-weight: 950;
+}
+
+.sharedResultGateText {
+  color: #5f574a;
+  font-size: 25rpx;
+  line-height: 1.5;
+}
+
+.sharedResultGateActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18rpx;
+}
+
+.sharedResultGateActions .btn {
+  min-height: 82rpx;
+  font-size: 27rpx;
 }
 
 .poiDetail {

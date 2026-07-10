@@ -41,6 +41,7 @@ const speechPlugin = loadSpeechPlugin();
 const BGM_SRC = "/assets/audio/choice-loop.mp3";
 const MAP_NAV_LOCATION_MAX_DRIFT_METERS = 2000;
 const MEETUP_ROOM_ENDPOINT = "https://no-choice-meetup-room.pages.dev/api/meetup-room";
+const SHARED_CARD_ENDPOINT = "https://no-choice-meetup-room.pages.dev/api/shared-card";
 const MEETUP_SELF_STORAGE_KEY = "choiceMeetupSelfProfile";
 const MEETUP_ROOM_POLL_MS = 3000;
 
@@ -595,6 +596,37 @@ function meetupSharePath(roomId, expectedCount = 2) {
   return `/pages/play/play?roomId=${encodeURIComponent(id)}&count=${target}`;
 }
 
+function createSharedCardId() {
+  const random = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`;
+  return `card-${Date.now().toString(36)}-${random}`;
+}
+
+function sharedCardSharePath(shareId) {
+  const id = String(shareId || "").trim();
+  return id ? `/pages/play/play?sharedCardId=${encodeURIComponent(id)}` : "/pages/play/play";
+}
+
+function sharedCardShareTitle(card = {}) {
+  const name = String(card.name || "这家餐厅").trim().slice(0, 32) || "这家餐厅";
+  return `就选 ${name}，点开看同一张餐厅卡`;
+}
+
+function sharedCardSnapshot(card = {}) {
+  let snapshot;
+  try {
+    snapshot = JSON.parse(JSON.stringify(card || {}));
+  } catch (error) {
+    snapshot = { name: String(card && card.name || "") };
+  }
+  // The result view only needs the destination card. Raw member routes contain
+  // coordinates and participant ids, so keep the rendered travel summary only.
+  delete snapshot.poi;
+  delete snapshot.participantRoutes;
+  delete snapshot.routeMetrics;
+  delete snapshot.meetup;
+  return snapshot;
+}
+
 function wxRequestJson(options = {}) {
   if (typeof wx === "undefined" || typeof wx.request !== "function") {
     return Promise.reject(new Error("wx.request unavailable"));
@@ -656,6 +688,17 @@ function meetupRoomRequestIssue(error) {
   if (/fail|network|ERR_|abort|interrupted/i.test(raw)) return "同步服务暂时不可达";
   if (error && error.statusCode) return `接口返回 ${error.statusCode}`;
   return raw ? raw.slice(0, 34) : "未知网络错误";
+}
+
+function sharedCardRequestIssue(error) {
+  const raw = String(error && (error.message || error.errMsg) || error || "").trim();
+  if (/not found|404/i.test(raw) || Number(error && error.statusCode) === 404) return "这张分享卡已过期，请让朋友重新分享";
+  if (/too large|413/i.test(raw) || Number(error && error.statusCode) === 413) return "卡片图片信息过多，暂时无法分享";
+  if (/not in domain list|合法域名|url not in/i.test(raw)) return "分享服务域名还没生效，请重新扫码";
+  if (/timeout|time out/i.test(raw)) return "分享服务响应超时，请重试";
+  if (/fail|network|ERR_|abort|interrupted/i.test(raw)) return "手机暂时连不上分享服务";
+  if (error && error.statusCode) return `分享服务返回 ${error.statusCode}`;
+  return raw ? raw.slice(0, 40) : "分享服务暂时不可用";
 }
 
 function defaultMultiAreaRole(index) {
@@ -1246,7 +1289,14 @@ Page({
     showPoiDetail: false,
     detailCard: null,
     detailPhotoIndex: 0,
-    confettiPieces: []
+    confettiPieces: [],
+    shareResultId: "",
+    shareResultReady: false,
+    shareResultSyncing: false,
+    shareResultSyncText: "",
+    sharedResultOpening: false,
+    sharedResultOpenError: "",
+    sharedResultFromLink: false
   },
 
   onLoad(options = {}) {
@@ -1265,10 +1315,15 @@ Page({
     this.setupVoiceRecognizer();
     this.startBgm();
     this.updateChoiceNextAction();
-    this.primeLocationStatus();
+    const sharedCardId = options && options.sharedCardId ? decodeURIComponent(String(options.sharedCardId)) : "";
+    if (sharedCardId) {
+      this.openSharedResult(sharedCardId);
+      return;
+    }
     const sharedRoomId = options && options.roomId ? decodeURIComponent(String(options.roomId)) : "";
     const sharedCount = options && (options.count || options.partySize || options.people);
     if (sharedRoomId) this.enterMeetupRoom(sharedRoomId, null, { fromShare: true, expectedCount: sharedCount });
+    this.primeLocationStatus();
   },
 
   onHide() {
@@ -1298,6 +1353,12 @@ Page({
   },
 
   onShareAppMessage() {
+    if (this.data.showWin && this.data.winner && this.data.shareResultReady && this.data.shareResultId) {
+      return {
+        title: sharedCardShareTitle(this.data.winner),
+        path: sharedCardSharePath(this.data.shareResultId)
+      };
+    }
     if (this.data.meetupSharedMode || this.data.areaMode === "multi") {
       const roomId = this.ensureMeetupRoomId();
       clearTimeout(this.meetupRoomPublishTimer);
@@ -1314,6 +1375,12 @@ Page({
   },
 
   onShareTimeline() {
+    if (this.data.showWin && this.data.winner && this.data.shareResultReady && this.data.shareResultId) {
+      return {
+        title: sharedCardShareTitle(this.data.winner),
+        query: `sharedCardId=${encodeURIComponent(this.data.shareResultId)}`
+      };
+    }
     if (this.data.meetupSharedMode || this.data.areaMode === "multi") {
       const roomId = this.ensureMeetupRoomId();
       return {
@@ -1359,6 +1426,7 @@ Page({
     clearTimeout(this.toastTimer);
     clearTimeout(this.modeTimer);
     clearTimeout(this.motionTimer);
+    this.sharedResultSeq = (this.sharedResultSeq || 0) + 1;
   },
 
   createBgmAudio() {
@@ -2808,18 +2876,145 @@ Page({
   showWinner(card, byFate) {
     consumerProfile.recordEvent("pick", card); // 行为养成:拍板=一次正向选择
     const settleText = byFate ? (MODE_SETTLE_COPY[this.data.modeName] || "就它了！") : "就它了！";
+    const departureAdvice = buildDepartureAdvice(card);
     const winner = {
       ...card,
       winReason: `${card.slogan ? `${card.slogan}。 ` : ""}${card.reason || ""}`
     };
+    const shareResultId = createSharedCardId();
     this.setData({
       ready: false,
       showWin: true,
       winner,
       settleText,
-      departureAdvice: buildDepartureAdvice(card),
-      confettiPieces: this.makeConfetti()
+      departureAdvice,
+      confettiPieces: this.makeConfetti(),
+      shareResultId,
+      shareResultReady: false,
+      shareResultSyncing: true,
+      shareResultSyncText: "正在准备群分享…",
+      sharedResultOpening: false,
+      sharedResultOpenError: "",
+      sharedResultFromLink: false
+    }, () => this.publishSharedResult(winner, settleText, departureAdvice, shareResultId));
+  },
+
+  publishSharedResult(card, settleText, departureAdvice, shareId) {
+    if (!card) return Promise.resolve(null);
+    const id = String(shareId || this.data.shareResultId || createSharedCardId()).trim();
+    const seq = (this.sharedResultSeq || 0) + 1;
+    this.sharedResultSeq = seq;
+    const profile = this.data.meetupSharedMode ? this.ensureMeetupSelfProfile() : null;
+    this.setData({
+      shareResultId: id,
+      shareResultReady: false,
+      shareResultSyncing: true,
+      shareResultSyncText: "正在准备群分享…"
     });
+    return wxRequestJson({
+      url: SHARED_CARD_ENDPOINT,
+      method: "POST",
+      data: {
+        shareId: id,
+        roomId: this.data.meetupSharedMode ? this.data.meetupRoomId : "",
+        participantId: profile ? profile.id : "",
+        card: sharedCardSnapshot(card),
+        settleText: settleText || this.data.settleText || "就它了！",
+        departureAdvice: departureAdvice || this.data.departureAdvice || []
+      }
+    }).then((data) => {
+      if (this.sharedResultSeq !== seq || String(this.data.shareResultId) !== id) return null;
+      if (!data || String(data.shareId || "") !== id || !data.result || !data.result.card) {
+        throw new Error("shared card response mismatch");
+      }
+      this.setData({
+        shareResultReady: true,
+        shareResultSyncing: false,
+        shareResultSyncText: "分享到群"
+      });
+      return data.result;
+    }).catch((error) => {
+      if (this.sharedResultSeq !== seq || String(this.data.shareResultId) !== id) return null;
+      console.warn("Publish shared card failed", error);
+      this.setData({
+        shareResultReady: false,
+        shareResultSyncing: false,
+        shareResultSyncText: sharedCardRequestIssue(error)
+      });
+      return null;
+    });
+  },
+
+  retryShareWinner() {
+    if (this.data.shareResultSyncing || !this.data.winner) return;
+    this.publishSharedResult(
+      this.data.winner,
+      this.data.settleText,
+      this.data.departureAdvice,
+      this.data.shareResultId || createSharedCardId()
+    );
+  },
+
+  openSharedResult(shareId) {
+    const id = String(shareId || "").trim();
+    if (!id) return Promise.resolve(null);
+    const seq = (this.sharedResultSeq || 0) + 1;
+    this.sharedResultSeq = seq;
+    this.setData({
+      screen: "deck",
+      ready: false,
+      showWin: false,
+      showPoiDetail: false,
+      shareResultId: id,
+      shareResultReady: false,
+      shareResultSyncing: false,
+      shareResultSyncText: "",
+      sharedResultOpening: true,
+      sharedResultOpenError: "",
+      sharedResultFromLink: true
+    });
+    return wxRequestJson({
+      url: `${SHARED_CARD_ENDPOINT}?shareId=${encodeURIComponent(id)}`
+    }).then((data) => {
+      if (this.sharedResultSeq !== seq || String(this.data.shareResultId) !== id) return null;
+      const result = data && data.result;
+      if (!data || String(data.shareId || "") !== id || !result || !result.card) {
+        throw new Error("shared card response mismatch");
+      }
+      const decorated = decorateCard(result.card, Math.max(0, Number(result.card.no || 1) - 1));
+      const winner = {
+        ...decorated,
+        winReason: result.card.winReason || decorated.reason || ""
+      };
+      this.setData({
+        loadingDeck: false,
+        showWin: true,
+        winner,
+        settleText: result.settleText || "就它了！",
+        departureAdvice: Array.isArray(result.departureAdvice) ? result.departureAdvice : buildDepartureAdvice(winner),
+        confettiPieces: [],
+        shareResultReady: true,
+        shareResultSyncing: false,
+        shareResultSyncText: "分享到群",
+        sharedResultOpening: false,
+        sharedResultOpenError: "",
+        sharedResultFromLink: true
+      });
+      return winner;
+    }).catch((error) => {
+      if (this.sharedResultSeq !== seq || String(this.data.shareResultId) !== id) return null;
+      console.warn("Open shared card failed", error);
+      this.setData({
+        sharedResultOpening: false,
+        sharedResultOpenError: sharedCardRequestIssue(error)
+      });
+      return null;
+    });
+  },
+
+  retryOpenSharedResult() {
+    if (this.data.sharedResultOpening || !this.data.shareResultId) return;
+    this.openSharedResult(this.data.shareResultId);
   },
 
   makeConfetti() {
@@ -3406,6 +3601,8 @@ Page({
   },
 
   resetAll() {
+    const shouldPrimeLocation = Boolean(this.data.sharedResultFromLink && !this.data.lastCoords);
+    this.sharedResultSeq = (this.sharedResultSeq || 0) + 1;
     clearInterval(this.revealTimer);
     this.intentPreviewId = (this.intentPreviewId || 0) + 1;
     this.setData({
@@ -3437,8 +3634,16 @@ Page({
       cardTransform: "",
       stampPick: 0,
       stampPass: 0,
-      confettiPieces: []
+      confettiPieces: [],
+      shareResultId: "",
+      shareResultReady: false,
+      shareResultSyncing: false,
+      shareResultSyncText: "",
+      sharedResultOpening: false,
+      sharedResultOpenError: "",
+      sharedResultFromLink: false
     });
+    if (shouldPrimeLocation) this.primeLocationStatus();
   },
 
   showToast(text) {

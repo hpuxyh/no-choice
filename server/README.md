@@ -9,6 +9,7 @@
 ## 组成
 - `functions/api/track.js` —— `POST /api/track`,接收上报写入 D1
 - `functions/api/meetup-room.js` —— `GET/POST /api/meetup-room`,按 `roomId + participantId` 收集组局成员自己的位置/偏好
+- `functions/api/shared-card.js` —— `GET/POST /api/shared-card`,按随机分享 ID 保存并读取最终选中的餐厅卡片(7 天自动过期)
 - `functions/api/admin/summary.js` —— `GET /api/admin/summary`,鉴权后返回聚合
 - `functions/admin.js` —— `GET /admin`,运营后台网页
 - `schema.sql` —— D1 建表
@@ -44,6 +45,7 @@
 ## 隐私合规(务必)
 - 只上报匿名设备ID + 行为字段(品牌/品类/价位/时段),**不含**姓名、手机号、精确定位。
 - 组局房间接口会保存用户主动填写/授权的昵称、出发地、口味和坐标,用于同一个 `roomId` 内聚合中间点；旧记录会按 72 小时清理。
+- 分享卡片接口只保存选中餐厅的展示快照；分享 ID 不可覆盖，7 天后自动清理。客户端不会把成员原始坐标或参与者 ID 写进分享快照。
 - 上线前在小程序「隐私协议」里声明:为优化推荐会收集匿名使用行为。
 - `consumerProfile.setTrackingEnabled(false)` 可让用户关闭上报(后台页可接一个开关)。
 
